@@ -10,6 +10,8 @@ $d/linux_decls.lua \
 $d/posix.lua \
 $d/posix_decls.lua \
 $d/posix_types.lua \
+\
+remarkable_decls.lua \
 "
 
 scp $files $USER@remarkable:~
