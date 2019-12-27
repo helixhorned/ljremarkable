@@ -12,6 +12,7 @@ $d/posix_decls.lua \
 $d/posix_types.lua \
 \
 remarkable_decls.lua \
+remarkable.lua \
 "
 
 scp $files $USER@remarkable:~
