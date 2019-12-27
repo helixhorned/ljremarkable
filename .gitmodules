@@ -1,3 +1,6 @@
 [submodule "ljclang"]
 	path = ljclang
 	url = ../ljclang/
+[submodule "libremarkable"]
+	path = libremarkable
+	url = ../libremarkable/
