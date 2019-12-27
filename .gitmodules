@@ -1,0 +1,3 @@
+[submodule "ljclang"]
+	path = ljclang
+	url = ../ljclang/
