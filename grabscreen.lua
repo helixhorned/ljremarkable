@@ -156,6 +156,8 @@ local function sampleAndCompare()
     if (diffCount > 0) then
         stderr:write("changed, tiles differing: "..diffCount.."\n")
     end
+
+    posix.clock_nanosleep(250e6)
 end
 
 ----------
