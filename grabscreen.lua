@@ -19,19 +19,9 @@ local stderr = io.stderr
 
 ----------
 
--- NOTE: on the Raspberry Pi, malloc() and calloc() are significantly faster than ffi.new
 ffi.cdef[[
-void *malloc(size_t size);
-void free(void *ptr);
-
 int memcmp(const void *s1, const void *s2, size_t n);
 ]]
-
-local function Array(elementType, count)
-    local ptrType = ffi.typeof("$ *", elementType)
-    local voidPtr = ffi.C.malloc(ffi.sizeof(elementType) * count)
-    return ffi.gc(ptrType(voidPtr), ffi.C.free)
-end
 
 local function currentTimeMs()
     local ts = posix.clock_gettime()
@@ -61,9 +51,12 @@ local map = fb:getMapping()
 local unpackPx = map:getUnpackPixelFunc()
 local fbPtr = map:getBasePointer()
 
+local PixelArray = ffi.typeof("$ [?]", map:getPixelType())
+local NarrowArray = ffi.typeof("uint8_t [?]")
+
 local size = map:getSize()
-local tempBuf = Array(map:getPixelType(), size)
-local narrowBuf = Array(ffi.typeof("uint8_t"), size)
+local tempBuf = PixelArray(size)
+local narrowBuf = NarrowArray(size)
 
 local function copyAndNarrow()
     -- NOTE: this significantly speeds things up (both on the Pi and the desktop).
@@ -99,8 +92,8 @@ local Sampler = class
             sampleCount = sampleCount,
             currentBufIdx = 0,
             sampleBufs = {
-                [0] = Array(map:getPixelType(), sampleCount),
-                [1] = Array(map:getPixelType(), sampleCount),
+                [0] = PixelArray(sampleCount),
+                [1] = PixelArray(sampleCount),
             }
         }
     end,
