@@ -2,6 +2,7 @@
 
 local ffi = require("ffi")
 
+local bit = require("bit")
 local io = require("io")
 local os = require("os")
 
@@ -32,7 +33,13 @@ end
 
 local fb = FrameBuffer(0, false)
 local map = fb:getMapping()
+local unpackPixel = map:getUnpackPixelFunc()
 local fbPtr = map:getBasePointer()
+
+if (map:getPixelSize() ~= 4) then
+    stderr:write("ERROR: Unsupported pixel size.\n")
+    os.exit(1)
+end
 
 local PixelArray = ffi.typeof("$ [?]", map:getPixelType())
 local NarrowArray = ffi.typeof("uint16_t [?]")
@@ -41,9 +48,21 @@ local size = map:getSize()
 local tempBuf = PixelArray(size)
 local narrowBuf = NarrowArray(size)
 
+local shl, shr = bit.lshift, bit.rshift
+local band, bor = bit.band, bit.bor
+
+-- Convert to RGB565 represented as integer.
+local function narrow(px)
+    local r, g, b = unpackPixel(px)
+    return bor(shr(r, 3), shl(shr(g, 2), 5), shl(shr(b, 3), 11))
+end
+
 -- Initial copy of the screen contents.
 ffi.copy(tempBuf, fbPtr, size * map:getPixelSize())
--- TODO: narrow.
+
+for i = 0, size - 1 do
+    narrowBuf[i] = narrow(tempBuf[i])
+end
 
 ---------- Sampling and comparison ----------
 
