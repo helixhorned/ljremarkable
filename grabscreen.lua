@@ -145,7 +145,7 @@ local Sampler = class
         local sampleBuf = self:getBuffer(SBuf.Current)
 
         for i = 1, self.sampleCount do
-            sampleBuf[i] = fbPtr[self.fbIndexes[i]]
+            sampleBuf[i - 1] = fbPtr[self.fbIndexes[i]]
         end
     end,
 
