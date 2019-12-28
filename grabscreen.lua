@@ -57,8 +57,8 @@ end
 ---------- Sampling and comparison ----------
 
 -- Default screen dimensions on the reMarkable.
-local TargetWidth = 1404
-local TargetHeight = 1872
+local ScreenWidth_rM = 1404
+local ScreenHeight_rM = 1872
 
 -- Tiling on the source:
 local SideLen = 8
@@ -75,8 +75,8 @@ local function RoundToTarget(pixelLength)
 end
 
 -- TODO: rotate.
-local targetXres = math.min(RoundToTarget(map.xres), RoundToTarget(TargetWidth))
-local targetYres = math.min(RoundToTarget(map.yres), RoundToTarget(TargetHeight))
+local targetXres = math.min(RoundToTarget(map.xres), RoundToTarget(ScreenWidth_rM))
+local targetYres = math.min(RoundToTarget(map.yres), RoundToTarget(ScreenHeight_rM))
 local targetSize = targetXres * targetYres
 
 local srcTileCountX = targetXres / SideLen
