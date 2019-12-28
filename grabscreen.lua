@@ -12,6 +12,7 @@ local FrameBuffer = require("framebuffer").FrameBuffer
 local posix = require("posix")
 
 local assert = assert
+local ipairs = ipairs
 local print = print
 local tonumber = tonumber
 
@@ -160,13 +161,34 @@ local Sampler = class
         local currentBuf = self:getBuffer(SBuf.Current)
         local otherBuf = self:getBuffer(SBuf.Other)
 
-        local diffCount = 0
+        local destTileCoords = {}
 
-        for i = 0, self.sampleCount - 1 do
-            diffCount = diffCount + ((currentBuf[i] ~= otherBuf[i]) and 1 or 0)
+        -- NOTE: y first!
+        for y = 0, destTileCountY - 1 do
+            for x = 0, destTileCountX - 1 do
+                -- NOTE: assumes that BigSideLen == 2 * SideLen:
+                local sx, sy = 2*x, 2*y
+
+                local srcSampleIdxs = {
+                    srcTileCountX * sy + sx,
+                    srcTileCountX * sy + sx + 1,
+                    srcTileCountX * (sy + 1) + sx,
+                    srcTileCountX * (sy + 1) + sx + 1,
+                }
+
+                local destTileChanged = false
+
+                for _, si in ipairs(srcSampleIdxs) do
+                    destTileChanged = destTileChanged or (currentBuf[si] ~= otherBuf[si])
+                end
+
+                if (destTileChanged) then
+                    destTileCoords[#destTileCoords + 1] = { x=x, y=y }
+                end
+            end
         end
 
-        return diffCount
+        return destTileCoords
     end,
 
 -- private:
@@ -195,10 +217,10 @@ local App = class
 
     step = function(self)
         self.sampler:sample()
-        local diffCount = self.sampler:compare()
+        local destTileCoords = self.sampler:compare()
 
-        if (diffCount > 0) then
-            stderr:write("changed, tiles differing: "..diffCount.."\n")
+        if (#destTileCoords > 0) then
+            stderr:write("changed, dest. tiles differing: "..#destTileCoords.."\n")
         end
 
         posix.clock_nanosleep(250e6)
