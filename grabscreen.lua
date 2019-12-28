@@ -101,12 +101,17 @@ local Sampler = class
         assert(targetSize % SquareSize == 0)
         local sampleCount = targetSize / SquareSize
 
+        local firstBuffer = PixelArray(sampleCount)
+        -- Fill the first buffer with a value that initially will very likely invalidate all
+        -- tiles. (NOTE: 0xff does not!)
+        ffi.fill(firstBuffer, ffi.sizeof(firstBuffer), 0xfe)
+
         return {
             fbIndexes = {},
             sampleCount = sampleCount,
             currentBufIdx = 0,
             sampleBufs = {
-                [0] = PixelArray(sampleCount),
+                [0] = firstBuffer,
                 [1] = PixelArray(sampleCount),
             }
         }
