@@ -52,9 +52,9 @@ local api = {
     ioctl = ioctl,
 }
 
-local function GetPixelType(bitsPerPixel, writable)
-    local prefix = (not writable) and "const " or "";
-    return ffi.typeof(prefix.."uint"..bitsPerPixel.."_t")
+local function GetPixelTypes(bitsPerPixel)
+    local intTypeStr = "uint"..bitsPerPixel.."_t"
+    return ffi.typeof(intTypeStr), ffi.typeof("const "..intTypeStr)
 end
 
 local function GetOffsets(vi)
@@ -101,8 +101,8 @@ local Mapping = class
         assert(vinfo.xres <= vinfo.xres_virtual and vinfo.yres <= vinfo.yres_virtual)
 
         -- NOTE: this will error if there is no uint<BPP>_t type.
-        local pixelType = GetPixelType(vinfo.bits_per_pixel, fb.writable)
-        local pixelPtrType = ffi.typeof("$ *", pixelType)
+        local pixelType, constPxType = GetPixelTypes(vinfo.bits_per_pixel)
+        local pixelPtrType = ffi.typeof("$ *", fb.writable and pixelType or constPxType)
 
         local fbSize = fb.line_length * vinfo.yres_virtual
         check(fbSize > 0, "INTERNAL ERROR: framebuffer has size zero", 1)
