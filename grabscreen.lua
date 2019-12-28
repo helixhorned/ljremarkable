@@ -175,24 +175,35 @@ local Sampler = class
     end,
 }
 
-local sampler = Sampler()
-sampler:generate()
+local App = class
+{
+    function()
+        local sampler = Sampler()
+        sampler:generate()
 
-local function sampleAndCompare()
-    sampler:sample()
-    local diffCount = sampler:compare()
+        return {
+            sampler = sampler,
+        }
+    end,
 
-    if (diffCount > 0) then
-        stderr:write("changed, tiles differing: "..diffCount.."\n")
-    end
+    step = function(self)
+        self.sampler:sample()
+        local diffCount = self.sampler:compare()
 
-    posix.clock_nanosleep(250e6)
-end
+        if (diffCount > 0) then
+            stderr:write("changed, tiles differing: "..diffCount.."\n")
+        end
+
+        posix.clock_nanosleep(250e6)
+    end,
+}
+
+local app = App()
 
 ----------
 
 while (true) do
     local startMs = currentTimeMs()
-    sampleAndCompare()
+    app:step()
     stderr:write(("%.0f ms\n"):format(currentTimeMs() - startMs))
 end
