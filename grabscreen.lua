@@ -66,29 +66,36 @@ end
 local TargetWidth = 1404
 local TargetHeight = 1872
 
+-- Tiling on the source:
 local SideLen = 8
-local HalfSideLen = SideLen / 2
 local SquareSize = SideLen * SideLen  -- in pixels
-assert(map.xres % SideLen == 0)
-assert(map.yres % SideLen == 0)
+
+-- Tiling on the target:
+local BigSideLen = 2 * SideLen
 
 local uint32_t = ffi.typeof("uint32_t")
 
 local function RoundToTarget(pixelLength)
-    return tonumber(SideLen * uint32_t(pixelLength / SideLen))
+    return tonumber(BigSideLen * uint32_t(pixelLength / BigSideLen))
 end
 
 -- TODO: rotate.
-local targetXres = math.min(map.xres, RoundToTarget(TargetWidth))
-local targetYres = math.min(map.yres, RoundToTarget(TargetHeight))
+local targetXres = math.min(RoundToTarget(map.xres), RoundToTarget(TargetWidth))
+local targetYres = math.min(RoundToTarget(map.yres), RoundToTarget(TargetHeight))
 local targetSize = targetXres * targetYres
 
-local tileCountX = targetXres / SideLen
-local tileCountY = targetYres / SideLen
+local srcTileCountX = targetXres / SideLen
+local srcTileCountY = targetYres / SideLen
+local destTileCountX = targetXres / BigSideLen
+local destTileCountY = targetYres / BigSideLen
+local totalDestTileCount = destTileCountX * destTileCountY
 
 print(("INFO: rounded target picture dimensions: %d x %d"):format(targetXres, targetYres))
-print(("INFO: tiled dimensions: %d x %d = %d tiles (side length %d)"):format(
-          tileCountX, tileCountY, (targetXres * targetYres) / SquareSize, SideLen))
+print(("INFO: Tiled dimensions:"))
+print(("INFO:  source:      %3d x %3d = %5d tiles (side length %d)"):format(
+          srcTileCountX, srcTileCountY, (targetXres * targetYres) / SquareSize, SideLen))
+print(("INFO:  destination: %3d x %3d = %5d tiles (side length %d)"):format(
+          destTileCountX, destTileCountY, totalDestTileCount, BigSideLen))
 
 local SBuf = ffi.typeof[[struct {
     static const int Current = 0;
@@ -126,8 +133,8 @@ local Sampler = class
                 -- TODO: randomly perturb sample positions? But, can only do that for the
                 --  tiles that changed. Otherwise, we'd consider the whole screen changed in
                 --  the next iteration, even if only a small part was changed.
-                local xoff = HalfSideLen
-                local yoff = HalfSideLen
+                local xoff = SideLen / 2
+                local yoff = SideLen / 2
 
                 idxs[#idxs + 1] = map:getLinearIndex(x + xoff, y + yoff)
             end
