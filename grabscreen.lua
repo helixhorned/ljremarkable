@@ -30,43 +30,20 @@ end
 
 ----------
 
-local continuous = (arg[1] == 'c')
-local sampling = (arg[1] == 's')
-local toStdout = (arg[1] == '-')
-
-if (not (continuous or sampling or toStdout)) then
-    print("Usage: "..arg[0].." [-|c|s]")
-    print("Captures the screen to in an unspecified 8-bit format.")
-    print(" -: to stdout")
-    print(" c: continuously, without output")
-    print(" s: sample framebuffer periodically (implies 'c')")
-    print("")
-    os.exit(1)
-end
-
-continuous = continuous or sampling
-
 local fb = FrameBuffer(0, false)
 local map = fb:getMapping()
-local unpackPx = map:getUnpackPixelFunc()
 local fbPtr = map:getBasePointer()
 
 local PixelArray = ffi.typeof("$ [?]", map:getPixelType())
-local NarrowArray = ffi.typeof("uint8_t [?]")
+local NarrowArray = ffi.typeof("uint16_t [?]")
 
 local size = map:getSize()
 local tempBuf = PixelArray(size)
 local narrowBuf = NarrowArray(size)
 
-local function copyAndNarrow()
-    -- NOTE: this significantly speeds things up (both on the Pi and the desktop).
-    ffi.copy(tempBuf, fbPtr, size * map:getPixelSize())
-
-    for i = 0, size - 1 do
-        local r, _g, _b, _a = unpackPx(tempBuf[i])
-        narrowBuf[i] = r
-    end
-end
+-- Initial copy of the screen contents.
+ffi.copy(tempBuf, fbPtr, size * map:getPixelSize())
+-- TODO: narrow.
 
 ---------- Sampling and comparison ----------
 
@@ -146,34 +123,23 @@ local Sampler = class
     end,
 }
 
--- "Forward-declare"
-local sampleAndCompare
+local sampler = Sampler()
+sampler:generate()
 
-if (sampling) then
-    local sampler = Sampler()
+local function sampleAndCompare()
+    sampler:sample()
 
-    sampler:generate()
-
-    function sampleAndCompare()
-        sampler:sample()
-
-        if (sampler:compare()) then
-            stderr:write("changed\n")
-            -- Perturb the positions of the pixesl to be sampled.
-            sampler:generate()
-        end
+    if (sampler:compare()) then
+        stderr:write("changed\n")
+        -- Perturb the positions of the pixesl to be sampled.
+        sampler:generate()
     end
 end
 
 ----------
 
-local testFunc = sampling and sampleAndCompare or copyAndNarrow
-
-repeat
+while (true) do
     local startMs = currentTimeMs()
-    testFunc()
+    sampleAndCompare()
     stderr:write(("%.0f ms\n"):format(currentTimeMs() - startMs))
-until (not continuous)
-
--- NOTE: never reached in continuous mode.
-io.write(ffi.string(narrowBuf, size))
+end
