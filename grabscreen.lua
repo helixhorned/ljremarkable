@@ -4,6 +4,7 @@ local ffi = require("ffi")
 
 local bit = require("bit")
 local io = require("io")
+local math = require("math")
 local os = require("os")
 
 local class = require("class").class
@@ -61,11 +62,33 @@ end
 
 ---------- Sampling and comparison ----------
 
+-- Default screen dimensions on the reMarkable.
+local TargetWidth = 1404
+local TargetHeight = 1872
+
 local SideLen = 8
 local HalfSideLen = SideLen / 2
 local SquareSize = SideLen * SideLen  -- in pixels
 assert(map.xres % SideLen == 0)
 assert(map.yres % SideLen == 0)
+
+local uint32_t = ffi.typeof("uint32_t")
+
+local function RoundToTarget(pixelLength)
+    return tonumber(SideLen * uint32_t(pixelLength / SideLen))
+end
+
+-- TODO: rotate.
+local targetXres = math.min(map.xres, RoundToTarget(TargetWidth))
+local targetYres = math.min(map.yres, RoundToTarget(TargetHeight))
+local targetSize = targetXres * targetYres
+
+local tileCountX = targetXres / SideLen
+local tileCountY = targetYres / SideLen
+
+print(("INFO: rounded target picture dimensions: %d x %d"):format(targetXres, targetYres))
+print(("INFO: tiled dimensions: %d x %d = %d tiles (side length %d)"):format(
+          tileCountX, tileCountY, (targetXres * targetYres) / SquareSize, SideLen))
 
 local SBuf = ffi.typeof[[struct {
     static const int Current = 0;
@@ -75,8 +98,8 @@ local SBuf = ffi.typeof[[struct {
 local Sampler = class
 {
     function()
-        assert(size % SquareSize == 0)
-        local sampleCount = size / SquareSize
+        assert(targetSize % SquareSize == 0)
+        local sampleCount = targetSize / SquareSize
 
         return {
             fbIndexes = {},
@@ -92,8 +115,9 @@ local Sampler = class
     generate = function(self)
         local idxs = {}
 
-        for y = 0, map.yres - 1, SideLen do
-            for x = 0, map.xres - 1, SideLen do
+        -- NOTE: y first!
+        for y = 0, targetYres - 1, SideLen do
+            for x = 0, targetXres - 1, SideLen do
                 -- TODO: randomly perturb sample positions? But, can only do that for the
                 --  tiles that changed. Otherwise, we'd consider the whole screen changed in
                 --  the next iteration, even if only a small part was changed.
