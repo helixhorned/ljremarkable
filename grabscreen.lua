@@ -8,7 +8,6 @@ local os = require("os")
 
 local class = require("class").class
 local FrameBuffer = require("framebuffer").FrameBuffer
-local JKissRng = require("jkiss_rng").JKissRng
 local posix = require("posix")
 
 local assert = assert
@@ -63,6 +62,7 @@ end
 ---------- Sampling and comparison ----------
 
 local SideLen = 8
+local HalfSideLen = SideLen / 2
 local SquareSize = SideLen * SideLen  -- in pixels
 assert(map.xres % SideLen == 0)
 assert(map.yres % SideLen == 0)
@@ -79,7 +79,6 @@ local Sampler = class
         local sampleCount = size / SquareSize
 
         return {
-            rng = JKissRng(),
             fbIndexes = {},
             sampleCount = sampleCount,
             currentBufIdx = 0,
@@ -95,8 +94,11 @@ local Sampler = class
 
         for y = 0, map.yres - 1, SideLen do
             for x = 0, map.xres - 1, SideLen do
-                local xoff = self.rng:getu32() % SideLen
-                local yoff = self.rng:getu32() % SideLen
+                -- TODO: randomly perturb sample positions? But, can only do that for the
+                --  tiles that changed. Otherwise, we'd consider the whole screen changed in
+                --  the next iteration, even if only a small part was changed.
+                local xoff = HalfSideLen
+                local yoff = HalfSideLen
 
                 idxs[#idxs + 1] = map:getLinearIndex(x + xoff, y + yoff)
             end
@@ -153,8 +155,6 @@ local function sampleAndCompare()
 
     if (diffCount > 0) then
         stderr:write("changed, tiles differing: "..diffCount.."\n")
-        -- Perturb the positions of the pixesl to be sampled.
-        sampler:generate()
     end
 end
 
