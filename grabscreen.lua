@@ -20,10 +20,6 @@ local stderr = io.stderr
 
 ----------
 
-ffi.cdef[[
-int memcmp(const void *s1, const void *s2, size_t n);
-]]
-
 local function currentTimeMs()
     local ts = posix.clock_gettime()
     return 1000 * tonumber(ts.sec) + tonumber(ts.nsec) / 1000000
@@ -125,8 +121,14 @@ local Sampler = class
     compare = function(self)
         local currentBuf = self:getBuffer(SBuf.Current)
         local otherBuf = self:getBuffer(SBuf.Other)
-        local byteCount = self.sampleCount * map:getPixelSize()
-        return (ffi.C.memcmp(currentBuf, otherBuf, byteCount) ~= 0)
+
+        local diffCount = 0
+
+        for i = 0, self.sampleCount - 1 do
+            diffCount = diffCount + ((currentBuf[i] ~= otherBuf[i]) and 1 or 0)
+        end
+
+        return diffCount
     end,
 
 -- private:
@@ -147,9 +149,10 @@ sampler:generate()
 
 local function sampleAndCompare()
     sampler:sample()
+    local diffCount = sampler:compare()
 
-    if (sampler:compare()) then
-        stderr:write("changed\n")
+    if (diffCount > 0) then
+        stderr:write("changed, tiles differing: "..diffCount.."\n")
         -- Perturb the positions of the pixesl to be sampled.
         sampler:generate()
     end
