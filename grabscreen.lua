@@ -33,7 +33,9 @@ local map = fb:getMapping()
 local unpackPixel = map:getUnpackPixelFunc()
 local fbPtr = map:getBasePointer()
 
-if (map:getPixelSize() ~= 4) then
+local PixelSize = 4
+
+if (map:getPixelSize() ~= PixelSize) then
     stderr:write("ERROR: Unsupported pixel size.\n")
     os.exit(1)
 end
@@ -42,8 +44,6 @@ local PixelArray = ffi.typeof("$ [?]", map:getPixelType())
 local NarrowArray = ffi.typeof("uint16_t [?]")
 
 local size = map:getSize()
-local tempBuf = PixelArray(size)
-local narrowBuf = NarrowArray(size)
 
 local shl, shr = bit.lshift, bit.rshift
 local band, bor = bit.band, bit.bor
@@ -52,13 +52,6 @@ local band, bor = bit.band, bit.bor
 local function narrow(px)
     local r, g, b = unpackPixel(px)
     return bor(shr(r, 3), shl(shr(g, 2), 5), shl(shr(b, 3), 11))
-end
-
--- Initial copy of the screen contents.
-ffi.copy(tempBuf, fbPtr, size * map:getPixelSize())
-
-for i = 0, size - 1 do
-    narrowBuf[i] = narrow(tempBuf[i])
 end
 
 ---------- Sampling and comparison ----------
@@ -73,6 +66,7 @@ local SquareSize = SideLen * SideLen  -- in pixels
 
 -- Tiling on the target:
 local BigSideLen = 2 * SideLen
+local BigSquareSize = BigSideLen * BigSideLen
 
 local uint32_t = ffi.typeof("uint32_t")
 
@@ -204,6 +198,22 @@ local Sampler = class
     end,
 }
 
+local function UnpackDestTileCoord(coord)
+    local x, y = coord.x, coord.y
+    assert(x >= 0 and x < destTileCountX)
+    assert(y >= 0 and y < destTileCountY)
+    return x, y
+end
+
+local function CopyBigTileFromScreen(destPtr, coord)
+    local x, y = UnpackDestTileCoord(coord)
+
+    for y = 0, BigSideLen - 1 do
+        local srcOffset = map:getLinearIndex(BigSideLen * x, BigSideLen * y)
+        ffi.copy(destPtr + BigSideLen * y, fbPtr + srcOffset, BigSideLen * PixelSize)
+    end
+end
+
 local App = class
 {
     function()
@@ -212,6 +222,11 @@ local App = class
 
         return {
             sampler = sampler,
+
+            tempBuf = PixelArray(targetSize),
+
+            -- Updates in raw form:
+            updateBuf = NarrowArray(targetSize),
         }
     end,
 
@@ -221,9 +236,26 @@ local App = class
 
         if (#destTileCoords > 0) then
             stderr:write("changed, dest. tiles differing: "..#destTileCoords.."\n")
+
+            self:captureUpdates(destTileCoords)
         end
 
         posix.clock_nanosleep(250e6)
+    end,
+
+-- private:
+    captureUpdates = function(self, destTileCoords)
+        assert(#destTileCoords <= totalDestTileCount)
+
+        for i, coord in ipairs(destTileCoords) do
+            CopyBigTileFromScreen(self.tempBuf + BigSideLen * (i - 1), coord)
+        end
+
+        local updatedPixelCount = #destTileCoords * BigSquareSize
+
+        for i = 0, updatedPixelCount - 1 do
+            self.updateBuf[i] = narrow(self.tempBuf[i])
+        end
     end,
 }
 
