@@ -21,6 +21,11 @@ local stderr = io.stderr
 
 ----------
 
+-- TODO_MOVE
+ffi.cdef[[
+int memcmp(const void *s1, const void *s2, size_t n);
+]]
+
 local function currentTimeMs()
     local ts = posix.clock_gettime()
     return 1000 * tonumber(ts.sec) + tonumber(ts.nsec) / 1000000
@@ -292,6 +297,58 @@ local function EncodeBigTile(tilePtr, codedBuf, offset)
     return offset
 end
 
+-- TODO_MOVE
+local function DecodeUpdates(inBuf, length, outBuf)
+    local inBufSize = ffi.sizeof(inBuf) / ffi.sizeof("uint16_t")
+    local outBufSize = ffi.sizeof(outBuf) / ffi.sizeof("uint16_t")
+
+    -- NOTE: in this function, checks ought to be something less fatal.
+    --  Do not bother for now though.
+    assert(length > 0 and length <= inBufSize)
+
+    local srcOff, dstOff = 0, 0
+
+    while (srcOff < length) do
+        local header = inBuf[srcOff]
+
+        local encodingType = bit.band(header, EncodingType_Mask)
+        assert(encodingType == IsRLE_Bit or encodingType == IsDirect_Bit)
+
+        local count = bit.band(header, Count_Mask)
+        assert(count > 0)
+        assert(dstOff + count <= outBufSize)
+
+        if (encodingType == IsDirect_Bit) then
+            -- Direct encoding.
+            assert(srcOff + 1 + count <= inBufSize)
+
+            for i = 0, count - 1 do
+                outBuf[dstOff + i] = inBuf[srcOff + 1 + i]
+            end
+
+            srcOff = srcOff + 1 + count
+        else
+            -- Run-length encoding.
+            assert(srcOff + 1 < inBufSize)
+
+            local value = inBuf[srcOff + 1]
+
+            for i = 0, count - 1 do
+                outBuf[dstOff + i] = value
+            end
+
+            srcOff = srcOff + 1 + 1
+        end
+
+        dstOff = dstOff + count
+    end
+
+    assert(srcOff == length)
+    assert(dstOff > 0 and dstOff % BigSquareSize == 0)
+
+    return dstOff / BigSquareSize
+end
+
 local App = class
 {
     function()
@@ -328,6 +385,8 @@ local App = class
             --    by construction
             --
             codedBuf = NarrowArray(totalDestTileCount * (1 + BigSquareSize)),
+
+            decodedBuf = NarrowArray(targetSize),  -- TODO_MOVE
         }
     end,
 
@@ -342,6 +401,13 @@ local App = class
             stderr:write(("changed, #destTiles=%d, encoded=%d halfwords (factor = %.03f)\n"):format(
                              #destTileCoords, encodingLength,
                              #destTileCoords * BigSquareSize / encodingLength))
+
+            -- TODO_MOVE
+            local tileCount = DecodeUpdates(self.codedBuf, encodingLength, self.decodedBuf)
+            -- Check correctness of decoding.
+            assert(tileCount == #destTileCoords)
+            assert(ffi.C.memcmp(self.updateBuf, self.decodedBuf,
+                                tileCount * BigSquareSize * ffi.sizeof("uint16_t")) == 0)
         end
 
         posix.clock_nanosleep(250e6)
