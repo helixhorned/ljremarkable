@@ -68,6 +68,14 @@ local SquareSize = SideLen * SideLen  -- in pixels
 local BigSideLen = 2 * SideLen
 local BigSquareSize = BigSideLen * BigSideLen
 
+-- Encoding / decoding.
+local IsRLE_Bit = bit.lshift(1, 15)
+local IsDirect_Bit = bit.lshift(1, 14)
+local EncodingType_Mask = IsRLE_Bit + IsDirect_Bit
+local Count_Mask = IsDirect_Bit - 1
+-- Encoding is per big tile, with the 16-bit header having the format (bit | count).
+assert(BigSquareSize <= Count_Mask)
+
 local uint32_t = ffi.typeof("uint32_t")
 
 local function RoundToTarget(pixelLength)
@@ -206,12 +214,82 @@ local function UnpackDestTileCoord(coord)
 end
 
 local function CopyBigTileFromScreen(destPtr, coord)
-    local x, y = UnpackDestTileCoord(coord)
+    local tx, ty = UnpackDestTileCoord(coord)
+    local sx, sy = BigSideLen * tx, BigSideLen * ty
 
-    for y = 0, BigSideLen - 1 do
-        local srcOffset = map:getLinearIndex(BigSideLen * x, BigSideLen * y)
-        ffi.copy(destPtr + BigSideLen * y, fbPtr + srcOffset, BigSideLen * PixelSize)
+    for i = 0, BigSideLen - 1 do
+        local srcOffset = map:getLinearIndex(sx, sy + i)
+        ffi.copy(destPtr + BigSideLen * i, fbPtr + srcOffset, BigSideLen * PixelSize)
     end
+end
+
+local function EncodeBigTile(tilePtr, codedBuf, offset)
+    local codedBufSize = ffi.sizeof(codedBuf) / ffi.sizeof("uint16_t")
+    local oldOffset = offset
+
+    -- Check that we have room for one worst-case scenario.
+    assert(offset + 1 + BigSquareSize <= codedBufSize)
+
+    local isDirect = false  -- force new header on first encounter of direct case
+    local curHeaderOffset = -1  -- direct case only
+
+    local lastPixIdx = 0
+    local curValue = tilePtr[lastPixIdx]
+
+    -- For every pixel of the big tile...
+    for i = 1, BigSquareSize do
+        if (i == BigSquareSize or tilePtr[i] ~= curValue) then
+            local runLength = i - lastPixIdx
+
+            assert(runLength <= Count_Mask)
+
+            if (runLength >= 4) then
+                -- Run-length encoding.
+                assert(offset + 2 <= codedBufSize)
+                -- Always have a separate header.
+                codedBuf[offset + 0] = IsRLE_Bit + runLength
+                codedBuf[offset + 1] = curValue
+                offset = offset + 2
+
+                isDirect = false
+            else
+                -- Direct encoding.
+                if (not isDirect) then
+                    assert(offset < codedBufSize)
+                    -- Need a new header.
+                    codedBuf[offset] = IsDirect_Bit + runLength
+                    curHeaderOffset = offset
+                    offset = offset + 1
+                else
+                    -- Update the current header.
+                    local hdrOff = curHeaderOffset
+                    assert(hdrOff >= 0 and hdrOff < offset)
+                    local headerValue = codedBuf[hdrOff]
+                    assert(bit.band(headerValue, EncodingType_Mask) == IsDirect_Bit)
+                    local oldCount = bit.band(headerValue, Count_Mask)
+                    assert(oldCount + runLength <= Count_Mask)
+                    codedBuf[hdrOff] = IsDirect_Bit + (oldCount + runLength)
+                end
+
+                assert(offset + runLength <= codedBufSize)
+
+                for pi = 0, runLength - 1 do
+                    codedBuf[offset + pi] = curValue
+                end
+
+                offset = offset + runLength
+                isDirect = true
+            end
+
+            lastPixIdx = i
+            curValue = tilePtr[i]
+        end
+    end
+
+    -- Check that we added not more than the worst case worth of data.
+    assert(offset - oldOffset <= 1 + BigSquareSize)
+
+    return offset
 end
 
 local App = class
@@ -227,6 +305,29 @@ local App = class
 
             -- Updates in raw form:
             updateBuf = NarrowArray(targetSize),
+
+            -- Run-length encoded updates. Encoding is per big tile.
+            -- The format is sequence of items made up of halfword (16-bit) values:
+            --
+            --  [0] = (bit | count)  // header
+            --
+            --  if bit == IsDirect_Bit:
+            --      itemCount := count
+            --      [1 .. itemCount] = pixelValue
+            --- if bit == IsRLE_Bit:
+            --      repeatCount := count
+            --      [1] = pixelValue
+            --
+            --  A run of pixel values is only encoded if <repeatCount> is at least 4, so
+            --  that encoding always produces less data than directly writing out the pixel
+            --  values and an additional header.
+            --
+            -- Worst cases:
+            --  * uncompressible -> 1 + BigSquareSize halfwords
+            --  * any combination of non-RLE and RLE sequences: not worse than uncompressed
+            --    by construction
+            --
+            codedBuf = NarrowArray(totalDestTileCount * (1 + BigSquareSize)),
         }
     end,
 
@@ -235,9 +336,12 @@ local App = class
         local destTileCoords = self.sampler:compare()
 
         if (#destTileCoords > 0) then
-            stderr:write("changed, dest. tiles differing: "..#destTileCoords.."\n")
-
             self:captureUpdates(destTileCoords)
+            local encodingLength = self:encodeUpdates(#destTileCoords)
+
+            stderr:write(("changed, #destTiles=%d, encoded=%d halfwords (factor = %.03f)\n"):format(
+                             #destTileCoords, encodingLength,
+                             #destTileCoords * BigSquareSize / encodingLength))
         end
 
         posix.clock_nanosleep(250e6)
@@ -245,17 +349,33 @@ local App = class
 
 -- private:
     captureUpdates = function(self, destTileCoords)
-        assert(#destTileCoords <= totalDestTileCount)
+        local updatedTileCount = #destTileCoords
+        assert(updatedTileCount <= totalDestTileCount)
 
         for i, coord in ipairs(destTileCoords) do
-            CopyBigTileFromScreen(self.tempBuf + BigSideLen * (i - 1), coord)
+            assert(i > 0 and i <= updatedTileCount)
+            CopyBigTileFromScreen(self.tempBuf + BigSquareSize * (i - 1), coord)
         end
 
-        local updatedPixelCount = #destTileCoords * BigSquareSize
+        local updatedPixelCount = updatedTileCount * BigSquareSize
 
         for i = 0, updatedPixelCount - 1 do
             self.updateBuf[i] = narrow(self.tempBuf[i])
         end
+    end,
+
+    encodeUpdates = function(self, updatedTileCount)
+        assert(updatedTileCount <= totalDestTileCount)
+
+        local updateBuf, codedBuf = self.updateBuf, self.codedBuf
+        local offset = 0
+
+        for tileIdx = 0, updatedTileCount - 1 do
+            offset = EncodeBigTile(updateBuf + BigSquareSize * tileIdx,
+                                   codedBuf, offset)
+        end
+
+        return offset
     end,
 }
 
