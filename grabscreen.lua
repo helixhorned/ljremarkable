@@ -38,7 +38,8 @@ local map = fb:getMapping()
 local unpackPixel = map:getUnpackPixelFunc()
 local fbPtr = map:getBasePointer()
 
-local PixelSize = 4
+local SourcePixelSize = ffi.sizeof("uint32_t")
+local DestPixelSize = ffi.sizeof("uint16_t")
 
 if (map:getPixelSize() ~= PixelSize) then
     stderr:write("ERROR: Unsupported pixel size.\n")
@@ -224,12 +225,13 @@ local function CopyBigTileFromScreen(destPtr, coord)
 
     for i = 0, BigSideLen - 1 do
         local srcOffset = map:getLinearIndex(sx, sy + i)
-        ffi.copy(destPtr + BigSideLen * i, fbPtr + srcOffset, BigSideLen * PixelSize)
+        ffi.copy(destPtr + BigSideLen * i, fbPtr + srcOffset,
+                 BigSideLen * SourcePixelSize)
     end
 end
 
 local function EncodeBigTile(tilePtr, codedBuf, offset)
-    local codedBufSize = ffi.sizeof(codedBuf) / ffi.sizeof("uint16_t")
+    local codedBufSize = ffi.sizeof(codedBuf) / DestPixelSize
     local oldOffset = offset
 
     -- Check that we have room for one worst-case scenario.
@@ -299,8 +301,8 @@ end
 
 -- TODO_MOVE
 local function DecodeUpdates(inBuf, length, outBuf)
-    local inBufSize = ffi.sizeof(inBuf) / ffi.sizeof("uint16_t")
-    local outBufSize = ffi.sizeof(outBuf) / ffi.sizeof("uint16_t")
+    local inBufSize = ffi.sizeof(inBuf) / DestPixelSize
+    local outBufSize = ffi.sizeof(outBuf) / DestPixelSize
 
     -- NOTE: in this function, checks ought to be something less fatal.
     --  Do not bother for now though.
@@ -407,7 +409,7 @@ local App = class
             -- Check correctness of decoding.
             assert(tileCount == #destTileCoords)
             assert(ffi.C.memcmp(self.updateBuf, self.decodedBuf,
-                                tileCount * BigSquareSize * ffi.sizeof("uint16_t")) == 0)
+                                tileCount * BigSquareSize * DestPixelSize) == 0)
         end
 
         posix.clock_nanosleep(250e6)
