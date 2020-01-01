@@ -385,8 +385,7 @@ end
 -- Wired reMarkable IP address.
 -- Mnemonic for the port number is "P2R" ("Pi to reMarkable").
 local Port = 16218
---local AddrAndPort = {10,11,99,1; Port}
-local AddrAndPort = {127,0,0,1; Port}
+local AddrAndPort = {10,11,99,1; Port}
 
 local Magic = "UpDatE"
 
@@ -415,9 +414,17 @@ local Client = class
         local sampler = Sampler()
         sampler:generate()
 
-        local connFd, errMsg = inet.Socket():initiateConnection(AddrAndPort)
+        local socket = inet.Socket()
+        local connFd, errMsg = socket:initiateConnection(AddrAndPort)
         if (connFd == nil) then
-            stderr:write(("INFO: failed connecting: %s\n"):format(errMsg))
+            stderr:write(("INFO: failed connecting to the reMarkable: %s\n"):format(errMsg))
+
+            connFd, errMsg = socket:initiateConnection({127,0,0,1; Port})
+            if (connFd == nil) then
+                stderr:write(("INFO: failed connecting to the local host: %s\n"):format(errMsg))
+            else
+                stderr:write("INFO: connected to the local host.\n")
+            end
         end
 
         return {
