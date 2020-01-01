@@ -421,6 +421,19 @@ local coord_array_t = ffi.typeof("$ [?]", coord_t)
 
 ----------
 
+local function AttemptConnectTo(socket, addrAndPort, displayName)
+    local connFd, errMsg = socket:initiateConnection(AddrAndPort)
+
+    if (connFd == nil) then
+        stderr:write(("INFO: failed connecting to the %s: %s\n"):format(
+                         displayName, errMsg))
+    else
+        stderr:write(("INFO: connected to the %s\n"):format(displayName))
+    end
+
+    return connFd
+end
+
 local Client = class
 {
     function()
@@ -428,17 +441,8 @@ local Client = class
         sampler:generate()
 
         local socket = inet.Socket()
-        local connFd, errMsg = socket:initiateConnection(AddrAndPort)
-        if (connFd == nil) then
-            stderr:write(("INFO: failed connecting to the reMarkable: %s\n"):format(errMsg))
-
-            connFd, errMsg = socket:initiateConnection({127,0,0,1; Port})
-            if (connFd == nil) then
-                stderr:write(("INFO: failed connecting to the local host: %s\n"):format(errMsg))
-            else
-                stderr:write("INFO: connected to the local host.\n")
-            end
-        end
+        local connFd = AttemptConnectTo(socket, AddrAndPort, "reMarkable") or
+            AttemptConnectTo(socket, {127,0,0,1; Port}, "local host")
 
         return {
             sampler = sampler,
