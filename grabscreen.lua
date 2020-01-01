@@ -110,6 +110,8 @@ local function RoundToTarget(pixelLength)
     return tonumber(BigSideLen * uint32_t(pixelLength / BigSideLen))
 end
 
+local isRealServer = (isServer and not isDebugging)
+
 -- TODO: rotate.
 local targetXres = math.min(RoundToTarget(map.xres), RoundToTarget(ScreenWidth_rM))
 local targetYres = math.min(RoundToTarget(map.yres), RoundToTarget(ScreenHeight_rM))
@@ -121,12 +123,16 @@ local destTileCountX = targetXres / BigSideLen
 local destTileCountY = targetYres / BigSideLen
 local totalDestTileCount = destTileCountX * destTileCountY
 
-print(("INFO: rounded target picture dimensions: %d x %d"):format(targetXres, targetYres))
+print(("INFO: rounded %spicture dimensions: %d x %d"):format(
+      isRealServer and "" or "target ", targetXres, targetYres))
 print(("INFO: Tiled dimensions:"))
-print(("INFO:  source:      %3d x %3d = %5d tiles (side length %d)"):format(
+if (not isRealServer) then
+    print(("INFO:  source:      %3d x %3d = %5d tiles (side length %d)"):format(
           srcTileCountX, srcTileCountY, (targetXres * targetYres) / SquareSize, SideLen))
-print(("INFO:  destination: %3d x %3d = %5d tiles (side length %d)"):format(
-          destTileCountX, destTileCountY, totalDestTileCount, BigSideLen))
+end
+print(("INFO: %s%3d x %3d = %5d tiles (side length %d)"):format(
+      not isRealServer and " destination: " or "",
+      destTileCountX, destTileCountY, totalDestTileCount, BigSideLen))
 
 local SBuf = ffi.typeof[[struct {
     static const int Current = 0;
