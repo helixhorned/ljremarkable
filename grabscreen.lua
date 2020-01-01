@@ -112,6 +112,13 @@ end
 
 local isRealServer = (isServer and not isDebugging)
 
+if (isRealServer) then
+    if (map.xres ~= ScreenWidth_rM or map.yres ~= ScreenHeight_rM) then
+        stderr:write("ERROR: Unexpected framebuffer dimensions.\n")
+        os.exit(1)
+    end
+end
+
 -- TODO: rotate.
 local targetXres = math.min(RoundToTarget(map.xres), RoundToTarget(ScreenWidth_rM))
 local targetYres = math.min(RoundToTarget(map.yres), RoundToTarget(ScreenHeight_rM))
