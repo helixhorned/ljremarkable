@@ -117,10 +117,13 @@ local Mapping = class
         assert(fb.line_length == pixelSize * vinfo.xres_virtual)
 
         return {
+            -- Anchor mmap()ed memory (which will unmap on garbage collection).
             voidPtr_ = voidPtr,
+
             ptr = pixelPtrType(voidPtr),
             pxType = pixelType,
             pxSize = pixelSize,
+            pxPtrType = pixelPtrType,
             pxArrayType = pixelArrayType,
             unpackPxFunc = GetUnpackPixelFunc(vinfo),
 
@@ -179,6 +182,20 @@ local Mapping = class
     end,
 
     --== Writing
+
+    -- CAUTION: no bounds check for 'srcPtr'!
+    writeRect = function(self, xb, yb, xlen, ylen, srcPtr)
+        self:checkRect(xb, yb, xlen, ylen)
+        -- Check that pointer type matches.
+        self.pxPtrType(srcPtr)
+
+        local lineByteCount = xlen * self:getPixelSize()
+
+        for i = 0, ylen - 1 do
+            local destPtr = self:getPixelPointer(xb, yb + i)
+            ffi.copy(destPtr, srcPtr + i * xlen, lineByteCount)
+        end
+    end,
 
     fill = function(self, xb, yb, xlen, ylen, byteValue)
         self:checkRect(xb, yb, xlen, ylen)
