@@ -165,8 +165,7 @@ local Mapping = class
     --== Writing
 
     fill = function(self, xb, yb, xlen, ylen, byteValue)
-        self:checkCoords(xb, yb)
-        self:checkCoords(xb + xlen - 1, yb + ylen - 1)
+        self:checkRect(xb, yb, xlen, ylen)
         checktype(byteValue, 5, "number", 2)
         check(byteValue >= 0 and byteValue <= 255, "argument #5 must be in [0, 255]", 2)
 
@@ -179,9 +178,15 @@ local Mapping = class
     end,
 
 -- private:
+    checkRect = function(self, xb, yb, xlen, ylen)
+        self:checkCoords(xb, yb)
+        check(xlen >= 1 and ylen >= 1, "must specify a non-empty rectangle", 3)
+        self:checkCoords(xb + xlen - 1, yb + ylen - 1)
+    end,
+
     checkCoords = function(self, x, y)
-        assert(x >= 0 and x <= self.xres - 1)
-        assert(y >= 0 and y <= self.yres - 1)
+        assert(x >= 0 and x <= self.xres - 1, "x coordinate out of bounds")
+        assert(y >= 0 and y <= self.yres - 1, "y coordinate out of bounds")
     end,
 }
 
