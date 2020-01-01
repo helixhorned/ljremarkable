@@ -185,8 +185,8 @@ local Sampler = class
         end
 
         assert(#idxs == self.sampleCount)
-
         self.fbIndexes = idxs
+        return self
     end,
 
     sample = function(self)
@@ -407,6 +407,14 @@ assert(totalDestTileCount <= 65536, "too high screen resolution")
 --  since we do not do any endianness conversions.
 assert(ffi.abi("le"), "unexpected architecture")
 
+local Cmd = {
+    Length = 4,
+
+    Enable = "Enbl",
+    Disable = "Dsbl",
+    Ok = "_Ok_",
+}
+
 local Header_t = ffi.typeof[[struct {
     char magic[6];
     uint16_t changedTileCount;
@@ -434,18 +442,25 @@ local function AttemptConnectTo(socket, addrAndPort, displayName)
     return connFd
 end
 
+local function CheckCmdLength(length)
+    if (length == 0) then
+        stderr:write("Connection to peer closed.\n")
+        os.exit(0)
+    end
+
+    assert(length == Cmd.Length, "unexpected command length")
+end
+
 local Client = class
 {
     function()
-        local sampler = Sampler()
-        sampler:generate()
-
         local socket = inet.Socket()
         local connFd = AttemptConnectTo(socket, AddrAndPort, "reMarkable") or
             AttemptConnectTo(socket, {127,0,0,1; Port}, "local host")
 
         return {
-            sampler = sampler,
+            enabled = false,
+            sampler = nil,  -- Sampler
 
             tempBuf = PixelArray(targetSize),
 
@@ -483,6 +498,8 @@ local Client = class
     end,
 
     step = function(self)
+        self:enable()
+
         self.sampler:sample()
         local destTileCoords = self.sampler:compare()
 
@@ -558,8 +575,54 @@ local Client = class
         connFd:writeFull(coords)
 
         connFd:writeFull(self.codedBuf, encodingLength * HalfwordSize)
+
+        self:maybeDisable()
     end,
+
+    enable = function(self)
+        if (not self.enabled) then
+            -- Wait for the server to allow sending it screen updates.
+            local cmd = self:readCommand()
+            checkData(cmd == Cmd.Enable, "unexpected command")
+
+            self.enabled = true
+            self.sampler = Sampler():generate()
+        end
+    end,
+
+    maybeDisable = function(self)
+        assert(self.enabled)
+
+        local cmd = self:readCommand()
+        checkData(cmd == Cmd.Ok or cmd == Cmd.Disable, "unexpected command")
+
+        if (cmd == Cmd.Disable) then
+            self.enabled = false
+            self.sampler = nil
+        end
+    end,
+
+    readCommand = function(self)
+        if (self.connFd == nil) then
+            -- Just get the simulation going.
+            return Cmd.Enable
+        end
+
+        -- NOTE: partial reads may happen, but so far observed only when peer is gone.
+        --  (And then presumably with return value 0.)
+        local cmd = self.connFd:read(Cmd.Length)
+        CheckCmdLength(#cmd)
+        return cmd
+    end
 }
+
+local function IsScreenDesired()
+    assert(isServer)
+
+    -- TODO: implement for real.
+    local Period = 5000
+    return (uint32_t(currentTimeMs() / Period) % 2 == 0)
+end
 
 local Server = class
 {
@@ -572,6 +635,7 @@ local Server = class
 
         return {
             connFd = connFd,
+            enabled = false,
 
             decodedBuf = NarrowArray(targetSize),
         }
@@ -584,6 +648,8 @@ local Server = class
 -- private:
     receiveUpdates = function(self)
         local connFd = self.connFd
+
+        self:enable()
 
         local header = connFd:readInto(Header_t(), false)
         checkData(ffi.string(header.magic, #Magic) == Magic, "magic bytes mismatch")
@@ -599,7 +665,31 @@ local Server = class
         local tileCount = DecodeUpdates(encodedData, encodingLength, self.decodedBuf)
         checkData(tileCount == changedTileCount, "corrupt encoding: tile count mismatch")
 
+        self:maybeDisable()
+
+        if (not self.enabled) then
+            return
+        end
+
         -- TODO: apply etc.
+    end,
+
+    enable = function(self)
+        if (not self.enabled) then
+            while (not IsScreenDesired()) do
+                posix.clock_nanosleep(500e6)
+            end
+
+            local bytesWritten = self.connFd:write(Cmd.Enable)
+            assert(bytesWritten == Cmd.Length, "FIXME: partial write")
+            self.enabled = true
+        end
+    end,
+
+    maybeDisable = function(self)
+        self.enabled = IsScreenDesired()
+        local bytesWritten = self.connFd:write(self.enabled and Cmd.Ok or Cmd.Disable)
+        assert(bytesWritten == Cmd.Length, "FIXME: partial write")
     end,
 }
 
