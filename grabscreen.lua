@@ -321,7 +321,6 @@ local function EncodeBigTile(tilePtr, codedBuf, offset)
     return offset
 end
 
--- TODO_MOVE
 local function DecodeUpdates(inBuf, length, outBuf)
     local inBufSize = ffi.sizeof(inBuf) / DestPixelSize
     local outBufSize = ffi.sizeof(outBuf) / DestPixelSize
@@ -446,7 +445,8 @@ local Client = class
 
             connFd = connFd,
 
-            decodedBuf = NarrowArray(targetSize),  -- TODO_MOVE
+            -- For debugging (non-connected run) only:
+            decodedBuf = NarrowArray(targetSize),
         }
     end,
 
@@ -550,6 +550,8 @@ local Server = class
 
         return {
             connFd = connFd,
+
+            decodedBuf = NarrowArray(targetSize),
         }
     end,
 
@@ -564,11 +566,18 @@ local Server = class
         local header = connFd:readInto(Header_t(), false)
         checkData(ffi.string(header.magic, #Magic) == Magic, "magic bytes mismatch")
 
-        -- TODO: preallocate?
-        local coords = connFd:readInto(coord_array_t(header.changedTileCount), false)
+        -- TODO: preallocate the two arrays?
+
+        local changedTileCount = header.changedTileCount
+        local coords = connFd:readInto(coord_array_t(changedTileCount), false)
+
+        local encodingLength = header.encodingLength
         local encodedData = connFd:readInto(NarrowArray(header.encodingLength), false)
 
-        -- TODO: decode etc.
+        local tileCount = DecodeUpdates(encodedData, encodingLength, self.decodedBuf)
+        checkData(tileCount == changedTileCount, "corrupt encoding: tile count mismatch")
+
+        -- TODO: apply etc.
     end,
 }
 
