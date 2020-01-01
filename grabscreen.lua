@@ -573,5 +573,5 @@ local app = isClient and Client() or Server()
 while (true) do
     local startMs = currentTimeMs()
     app:step()
-    stderr:write(("%.0f ms\n"):format(currentTimeMs() - startMs))
+    io.stdout:write(("%.0f ms\n"):format(currentTimeMs() - startMs))
 end
