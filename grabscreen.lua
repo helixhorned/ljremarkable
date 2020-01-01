@@ -56,10 +56,16 @@ local SourcePixelSize = ffi.sizeof("uint32_t")
 local DestPixelSize = ffi.sizeof("uint16_t")
 local HalfwordSize = ffi.sizeof("uint16_t")
 
--- TODO: add debugging support explicitly.
-if (map:getPixelSize() ~= (isClient and SourcePixelSize or 4 --[[DestPixelSize]])) then
-    stderr:write("ERROR: Unsupported pixel size.\n")
-    os.exit(1)
+-- Are we running the server on something other than the reMarkable?
+local isDebugging = (isServer and map:getPixelSize() == SourcePixelSize)
+
+do
+    local expectedPixelSize = (isClient and SourcePixelSize or DestPixelSize)
+
+    if (not isDebugging and map:getPixelSize() ~= expectedPixelSize) then
+        stderr:write("ERROR: Unsupported pixel size.\n")
+        os.exit(1)
+    end
 end
 
 local PixelArray = ffi.typeof("$ [?]", map:getPixelType())
