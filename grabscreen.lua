@@ -616,12 +616,39 @@ local Client = class
     end
 }
 
+local EyeData = nil
+
+if (isRealServer) then
+    local fd = ffi.C.open("rM_ul_eye_menu_hidden_46-28.dat", posix.O.RDONLY)
+    if (fd == -1) then
+        stderr:write("ERROR: failed opening 'eye' screenshot data.\n")
+        os.exit(1)
+    end
+
+    fd = posix.Fd(fd)
+
+    local pixelCount = 28 * 28
+    EyeData = ffi.new("uint16_t [?]", pixelCount)
+    fd:readInto(EyeData, false)
+end
+
 local function IsScreenDesired()
     assert(isServer)
 
-    -- TODO: implement for real.
-    local Period = 5000
-    return (uint32_t(currentTimeMs() / Period) % 2 == 0)
+    if (isRealServer) then
+        local array = map:readRect(46, 46, 28, 28)
+        assert(ffi.sizeof(array) == ffi.sizeof(EyeData))
+        -- "Quick mode": we only wish that the Raspberry Pi screen is displayed if the main
+        --  toolbar on the left hand side (when the rM is vertical) is hidden. Check this by
+        --  comparing the pixels of the "eye".
+        -- NOTE: we must take care not to compare too much around the "eye" since it becomes
+        --  translucent from a certain radius onward.
+        -- TODO: implement "marker document" mode.
+        return (ffi.C.memcmp(array, EyeData, ffi.sizeof(EyeData)) == 0)
+    else
+        local Period = 5000
+        return (uint32_t(currentTimeMs() / Period) % 2 == 0)
+    end
 end
 
 local Server = class

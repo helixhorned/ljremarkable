@@ -15,6 +15,7 @@ inet.lua \
 linux_decls.lua \
 remarkable_decls.lua \
 remarkable.lua \
+rM_ul_eye_menu_hidden_46-28.dat \
 "
 
 scp $files $USER@remarkable:~
