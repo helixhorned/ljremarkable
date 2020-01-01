@@ -88,5 +88,6 @@ $(remarkable_decls_lua): $(remarkable_lib_h) Makefile
 
 decls: $(linux_decls_lua) $(remarkable_decls_lua)
 
+# TODO: make app_dependencies in ./ljclang
 upload: decls
 	./cp2rM.sh
