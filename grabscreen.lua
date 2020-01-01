@@ -478,7 +478,7 @@ local Client = class
             connFd = connFd,
 
             -- For debugging (non-connected run) only:
-            decodedBuf = NarrowArray(targetSize),
+            decodedBuf_ = (connFd == nil) and NarrowArray(targetSize) or nil,
         }
     end,
 
@@ -497,10 +497,10 @@ local Client = class
                 stderr:write(fmt:format(#destTileCoords, encodingLength,
                                         #destTileCoords * BigSquareSize / encodingLength))
 
-                local tileCount = DecodeUpdates(self.codedBuf, encodingLength, self.decodedBuf)
+                local tileCount = DecodeUpdates(self.codedBuf, encodingLength, self.decodedBuf_)
                 -- Check correctness of decoding.
                 assert(tileCount == #destTileCoords)
-                assert(ffi.C.memcmp(self.updateBuf, self.decodedBuf,
+                assert(ffi.C.memcmp(self.updateBuf, self.decodedBuf_,
                                     tileCount * BigSquareSize * DestPixelSize) == 0)
             end
         end
