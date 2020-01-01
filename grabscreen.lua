@@ -321,13 +321,21 @@ local function EncodeBigTile(tilePtr, codedBuf, offset)
     return offset
 end
 
+local function checkData(cond, errMsg)
+    assert(type(cond) == "boolean")
+    assert(type(errMsg) == "string")
+
+    if (not cond) then
+        stderr:write(("Data validation error: %s\n"):format(errMsg))
+        os.exit(1)
+    end
+end
+
 local function DecodeUpdates(inBuf, length, outBuf)
     local inBufSize = ffi.sizeof(inBuf) / DestPixelSize
     local outBufSize = ffi.sizeof(outBuf) / DestPixelSize
 
-    -- NOTE: in this function, checks ought to be something less fatal.
-    --  Do not bother for now though.
-    assert(length > 0 and length <= inBufSize)
+    checkData(length > 0 and length <= inBufSize, "invalid length")
 
     local srcOff, dstOff = 0, 0
 
@@ -335,15 +343,15 @@ local function DecodeUpdates(inBuf, length, outBuf)
         local header = inBuf[srcOff]
 
         local encodingType = bit.band(header, EncodingType_Mask)
-        assert(encodingType == IsRLE_Bit or encodingType == IsDirect_Bit)
+        checkData(encodingType == IsRLE_Bit or encodingType == IsDirect_Bit,
+                  "invalid header")
 
         local count = bit.band(header, Count_Mask)
-        assert(count > 0)
-        assert(dstOff + count <= outBufSize)
+        checkData(count > 0 and dstOff + count <= outBufSize, "invalid count 1")
 
         if (encodingType == IsDirect_Bit) then
             -- Direct encoding.
-            assert(srcOff + 1 + count <= inBufSize)
+            checkData(srcOff + 1 + count <= inBufSize, "invalid count 2")
 
             for i = 0, count - 1 do
                 outBuf[dstOff + i] = inBuf[srcOff + 1 + i]
@@ -352,7 +360,7 @@ local function DecodeUpdates(inBuf, length, outBuf)
             srcOff = srcOff + 1 + count
         else
             -- Run-length encoding.
-            assert(srcOff + 1 < inBufSize)
+            checkData(srcOff + 1 < inBufSize, "invalid count 3")
 
             local value = inBuf[srcOff + 1]
 
@@ -366,8 +374,8 @@ local function DecodeUpdates(inBuf, length, outBuf)
         dstOff = dstOff + count
     end
 
-    assert(srcOff == length)
-    assert(dstOff > 0 and dstOff % BigSquareSize == 0)
+    checkData(srcOff == length, "invalid decoding 1")
+    checkData(dstOff > 0 and dstOff % BigSquareSize == 0, "invalid decoding 2")
 
     return dstOff / BigSquareSize
 end
@@ -528,16 +536,6 @@ local Client = class
         connFd:writeFull(self.codedBuf, encodingLength * HalfwordSize)
     end,
 }
-
-local function checkData(cond, errMsg)
-    assert(type(cond) == "boolean")
-    assert(type(errMsg) == "string")
-
-    if (not cond) then
-        stderr:write(("Data validation error: %s\n"):format(errMsg))
-        os.exit(1)
-    end
-end
 
 local Server = class
 {
