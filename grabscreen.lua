@@ -15,6 +15,7 @@ local posix = require("posix")
 local assert = assert
 local ipairs = ipairs
 local print = print
+local require = require
 local tonumber = tonumber
 local type = type
 
@@ -651,6 +652,8 @@ local function IsScreenDesired()
     end
 end
 
+local RM = isRealServer and require("remarkable") or nil
+
 local Server = class
 {
     function()
@@ -663,6 +666,8 @@ local Server = class
         return {
             connFd = connFd,
             enabled = false,
+
+            rM = RM.Remarkable(fb),
 
             decodedBuf = NarrowArray(targetSize),
         }

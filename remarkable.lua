@@ -75,8 +75,14 @@ local api = {
 
 api.Remarkable = class
 {
-    function()
-        local fb = FB.FrameBuffer(0, true)
+    function(fb)
+        if (fb == nil) then
+            fb = FB.FrameBuffer(0, true)
+        end
+
+        -- NOTE: class type checking function would be nice.
+        check(type(fb) == "table", "argument #1 must be nil or a FrameBuffer", 2)
+        check(type(fb.line_length) == "number", "argument #1 must be nil or a FrameBuffer", 2)
 
         return {
             fb = fb,
