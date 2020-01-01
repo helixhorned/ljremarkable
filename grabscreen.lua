@@ -452,6 +452,9 @@ local function CheckCmdLength(length)
     assert(length == Cmd.Length, "unexpected command length")
 end
 
+-- TODO: wait for updates to finish on the reMarkable?
+local UpdateInterval = 1000e6 -- nanoseconds
+
 local Client = class
 {
     function()
@@ -523,7 +526,7 @@ local Client = class
             end
         end
 
-        posix.clock_nanosleep(250e6)
+        posix.clock_nanosleep(UpdateInterval)
     end,
 
 -- private:
