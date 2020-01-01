@@ -656,6 +656,65 @@ local function IsScreenDesired()
 end
 
 local RM = isRealServer and require("remarkable") or nil
+local xywh_t = RM and RM.xywh or nil
+
+local RectSet = class
+{
+    function()
+        return {
+            rects = {}
+        }
+    end,
+
+    add = function(self, rect)
+        assert(ffi.istype(xywh_t, rect))
+
+        local rects = self.rects
+        rects[#rects + 1] = self.MergeHorizontally(rects[#rects], rect)
+    end,
+
+    finish = function(self)
+        local oldRects = self.rects
+        local newRects = {}
+
+        for _, rect in ipairs(oldRects) do
+            newRects[#newRects + 1] = self.MergeVertically(newRects[#newRects], rect)
+        end
+
+        self.rects = newRects
+    end,
+
+    getRects = function(self)
+        return self.rects
+    end,
+
+-- static private:
+    MergeHorizontally = function(lastRect, rect)
+        if (lastRect ~= nil) then
+            if (lastRect.y == rect.y and lastRect.h == rect.h and
+                    rect.x == lastRect.x + lastRect.w) then
+                -- Merge last update rect with incoming adjacent (next right) one.
+                lastRect.w = lastRect.w + rect.w
+                return nil
+            end
+        end
+
+        return xywh_t(rect)
+    end,
+
+    MergeVertically = function(lastRect, rect)
+        if (lastRect ~= nil) then
+            if (lastRect.x == rect.x and lastRect.w == rect.w and
+                    rect.y == lastRect.y + lastRect.h) then
+                -- Merge last update rect with incoming adjacent (next below) one.
+                lastRect.h = lastRect.h + rect.h
+                return nil
+            end
+        end
+
+        return xywh_t(rect)
+    end,
+}
 
 local Server = class
 {
@@ -706,7 +765,40 @@ local Server = class
             return
         end
 
-        -- TODO: apply etc.
+        self:applyUpdates(tileCount, coords, self.decodedBuf)
+    end,
+
+    applyUpdates = function(self, tileCount, tileCoords, tileBuf)
+        checkData(tileCount * BigSquareSize <= ffi.sizeof(tileBuf) / DestPixelSize,
+                  "too many updated tiles")
+
+        -- Make sure we do not overwrite the "eye".
+        local yTileOffset = 128 / BigSideLen
+        local updateRectSet = RectSet()
+
+        for i = 0, tileCount - 1 do
+            local tx, ty = tileCoords[i].x, tileCoords[i].y
+            checkData(tx < destTileCountX and ty < destTileCountY,
+                      "tile coordinates out of bounds")
+            ty = ty + yTileOffset
+
+            if (ty < destTileCountY) then
+                local rect = xywh_t(BigSideLen * tx, BigSideLen * (ty),
+                                    BigSideLen, BigSideLen)
+                updateRectSet:add(rect)
+
+                -- Write updated tile to the framebuffer.
+                map:writeRect(rect.x, rect.y, rect.w, rect.h, tileBuf + BigSquareSize * i)
+            end
+        end
+
+        updateRectSet:finish()
+        local updateRects = updateRectSet:getRects()
+
+        -- Request update of the changed screen portions.
+        for _, rect in ipairs(updateRects) do
+            self.rM:requestRefresh(rect)
+        end
     end,
 
     enable = function(self)
