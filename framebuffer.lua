@@ -103,6 +103,7 @@ local Mapping = class
         -- NOTE: this will error if there is no uint<BPP>_t type.
         local pixelType, constPxType = GetPixelTypes(vinfo.bits_per_pixel)
         local pixelPtrType = ffi.typeof("$ *", fb.writable and pixelType or constPxType)
+        local pixelArrayType = ffi.typeof("$ [?]", pixelType)
 
         local fbSize = fb.line_length * vinfo.yres_virtual
         check(fbSize > 0, "INTERNAL ERROR: framebuffer has size zero", 1)
@@ -120,6 +121,7 @@ local Mapping = class
             ptr = pixelPtrType(voidPtr),
             pxType = pixelType,
             pxSize = pixelSize,
+            pxArrayType = pixelArrayType,
             unpackPxFunc = GetUnpackPixelFunc(vinfo),
 
             xres_virtual = vinfo.xres_virtual,
@@ -160,6 +162,20 @@ local Mapping = class
 
     getUnpackPixelFunc = function(self)
         return self.unpackPxFunc
+    end,
+
+    readRect = function(self, xb, yb, xlen, ylen)
+        self:checkRect(xb, yb, xlen, ylen)
+
+        local destArray = self.pxArrayType(xlen * ylen)
+
+        for i = 0, ylen - 1 do
+            local srcPtr = self:getPixelPointer(xb, yb + i)
+            local destPtr = destArray + i * xlen
+            ffi.copy(destPtr, srcPtr, xlen * self:getPixelSize())
+        end
+
+        return destArray
     end,
 
     --== Writing
