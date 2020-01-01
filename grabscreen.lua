@@ -8,6 +8,7 @@ local math = require("math")
 local os = require("os")
 
 local class = require("class").class
+local inet = require("inet")
 local FrameBuffer = require("framebuffer").FrameBuffer
 local posix = require("posix")
 
@@ -15,9 +16,22 @@ local assert = assert
 local ipairs = ipairs
 local print = print
 local tonumber = tonumber
+local type = type
 
 local arg = arg
 local stderr = io.stderr
+
+local isClient = (arg[1] == "c")
+local isServer = (arg[1] == "s")
+
+-- TODO: auto-detect?
+if (not (isClient or isServer)) then
+    stderr:write("Usage:\n")
+    -- TODO: rename this application to something more suitable than 'grabscreen'.
+    stderr:write((" %s c  # on the Raspberry Pi\n"):format(arg[0]))
+    stderr:write((" %s s  # on the reMarkable\n"):format(arg[0]))
+    os.exit(1)
+end
 
 ----------
 
@@ -33,15 +47,17 @@ end
 
 ----------
 
-local fb = FrameBuffer(0, false)
+local fb = FrameBuffer(0, isServer)
 local map = fb:getMapping()
 local unpackPixel = map:getUnpackPixelFunc()
 local fbPtr = map:getBasePointer()
 
 local SourcePixelSize = ffi.sizeof("uint32_t")
 local DestPixelSize = ffi.sizeof("uint16_t")
+local HalfwordSize = ffi.sizeof("uint16_t")
 
-if (map:getPixelSize() ~= PixelSize) then
+-- TODO: add debugging support explicitly.
+if (map:getPixelSize() ~= (isClient and SourcePixelSize or 4 --[[DestPixelSize]])) then
     stderr:write("ERROR: Unsupported pixel size.\n")
     os.exit(1)
 end
@@ -351,11 +367,45 @@ local function DecodeUpdates(inBuf, length, outBuf)
     return dstOff / BigSquareSize
 end
 
-local App = class
+---------- Connection-related ----------
+
+-- Wired reMarkable IP address.
+-- Mnemonic for the port number is "P2R" ("Pi to reMarkable").
+local Port = 16218
+--local AddrAndPort = {10,11,99,1; Port}
+local AddrAndPort = {127,0,0,1; Port}
+
+local Magic = "UpDatE"
+
+assert(totalDestTileCount <= 65536, "too high screen resolution")
+-- NOTE: what matters is just that they are the same on both ends,
+--  since we do not do any endianness conversions.
+assert(ffi.abi("le"), "unexpected architecture")
+
+local Header_t = ffi.typeof[[struct {
+    char magic[6];
+    uint16_t changedTileCount;
+    uint32_t encodingLength;
+}]]
+
+local coord_t = ffi.typeof[[struct {
+    uint16_t x, y;
+}]]
+
+local coord_array_t = ffi.typeof("$ [?]", coord_t)
+
+----------
+
+local Client = class
 {
     function()
         local sampler = Sampler()
         sampler:generate()
+
+        local connFd, errMsg = inet.Socket():initiateConnection(AddrAndPort)
+        if (connFd == nil) then
+            stderr:write(("INFO: failed connecting: %s\n"):format(errMsg))
+        end
 
         return {
             sampler = sampler,
@@ -388,6 +438,8 @@ local App = class
             --
             codedBuf = NarrowArray(totalDestTileCount * (1 + BigSquareSize)),
 
+            connFd = connFd,
+
             decodedBuf = NarrowArray(targetSize),  -- TODO_MOVE
         }
     end,
@@ -400,16 +452,19 @@ local App = class
             self:captureUpdates(destTileCoords)
             local encodingLength = self:encodeUpdates(#destTileCoords)
 
-            stderr:write(("changed, #destTiles=%d, encoded=%d halfwords (factor = %.03f)\n"):format(
-                             #destTileCoords, encodingLength,
-                             #destTileCoords * BigSquareSize / encodingLength))
+            if (self.connFd ~= nil) then
+                self:sendUpdates(destTileCoords, encodingLength)
+            else
+                local fmt = "changed, #destTiles=%d, encoded=%d halfwords (factor = %.03f)\n"
+                stderr:write(fmt:format(#destTileCoords, encodingLength,
+                                        #destTileCoords * BigSquareSize / encodingLength))
 
-            -- TODO_MOVE
-            local tileCount = DecodeUpdates(self.codedBuf, encodingLength, self.decodedBuf)
-            -- Check correctness of decoding.
-            assert(tileCount == #destTileCoords)
-            assert(ffi.C.memcmp(self.updateBuf, self.decodedBuf,
-                                tileCount * BigSquareSize * DestPixelSize) == 0)
+                local tileCount = DecodeUpdates(self.codedBuf, encodingLength, self.decodedBuf)
+                -- Check correctness of decoding.
+                assert(tileCount == #destTileCoords)
+                assert(ffi.C.memcmp(self.updateBuf, self.decodedBuf,
+                                    tileCount * BigSquareSize * DestPixelSize) == 0)
+            end
         end
 
         posix.clock_nanosleep(250e6)
@@ -445,9 +500,73 @@ local App = class
 
         return offset
     end,
+
+    sendUpdates = function(self, destTileCoords, encodingLength)
+        local connFd = self.connFd
+        assert(connFd ~= nil)
+
+        local changedTileCount = #destTileCoords
+        local header = Header_t(Magic, changedTileCount, encodingLength)
+
+        connFd:writeFull(header)
+
+        -- TODO: store 'destTileCoords' in an FFI array in the first place.
+        local coords = coord_array_t(changedTileCount)
+
+        for i, coord in ipairs(destTileCoords) do
+            coords[i - 1] = coord_t(coord.x, coord.y)
+        end
+
+        connFd:writeFull(coords)
+
+        connFd:writeFull(self.codedBuf, encodingLength * HalfwordSize)
+    end,
 }
 
-local app = App()
+local function checkData(cond, errMsg)
+    assert(type(cond) == "boolean")
+    assert(type(errMsg) == "string")
+
+    if (not cond) then
+        stderr:write(("Data validation error: %s\n"):format(errMsg))
+        os.exit(1)
+    end
+end
+
+local Server = class
+{
+    function()
+        local connFd, errMsg = inet.Socket():expectConnection(Port)
+        if (connFd == nil) then
+            stderr:write(("ERROR: failed connecting: %s\n"):format(errMsg))
+            os.exit(1)
+        end
+
+        return {
+            connFd = connFd,
+        }
+    end,
+
+    step = function(self)
+        self:receiveUpdates()
+    end,
+
+-- private:
+    receiveUpdates = function(self)
+        local connFd = self.connFd
+
+        local header = connFd:readInto(Header_t(), false)
+        checkData(ffi.string(header.magic, #Magic) == Magic, "magic bytes mismatch")
+
+        -- TODO: preallocate?
+        local coords = connFd:readInto(coord_array_t(header.changedTileCount), false)
+        local encodedData = connFd:readInto(NarrowArray(header.encodingLength), false)
+
+        -- TODO: decode etc.
+    end,
+}
+
+local app = isClient and Client() or Server()
 
 ----------
 
