@@ -125,6 +125,11 @@ local targetXres = math.min(RoundToTarget(map.xres), RoundToTarget(ScreenWidth_r
 local targetYres = math.min(RoundToTarget(map.yres), RoundToTarget(ScreenHeight_rM))
 local targetSize = targetXres * targetYres
 
+-- We're OK with a portion of the screen clipped on the top, but want it whole on the bottom
+-- where the menu bar is located.
+local globalSrcYOffset = -map.yres % BigSideLen
+assert(globalSrcYOffset >= 0 and globalSrcYOffset < BigSideLen)
+
 local srcTileCountX = targetXres / SideLen
 local srcTileCountY = targetYres / SideLen
 local destTileCountX = targetXres / BigSideLen
@@ -179,7 +184,7 @@ local Sampler = class
                 --  tiles that changed. Otherwise, we'd consider the whole screen changed in
                 --  the next iteration, even if only a small part was changed.
                 local xoff = SideLen / 2
-                local yoff = SideLen / 2
+                local yoff = globalSrcYOffset + SideLen / 2
 
                 idxs[#idxs + 1] = map:getLinearIndex(x + xoff, y + yoff)
             end
@@ -257,7 +262,7 @@ end
 
 local function CopyBigTileFromScreen(destPtr, coord)
     local tx, ty = UnpackDestTileCoord(coord)
-    local sx, sy = BigSideLen * tx, BigSideLen * ty
+    local sx, sy = BigSideLen * tx, globalSrcYOffset + BigSideLen * ty
 
     for i = 0, BigSideLen - 1 do
         local srcOffset = map:getLinearIndex(sx, sy + i)
