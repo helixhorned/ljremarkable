@@ -12,6 +12,7 @@ $d/posix_types.lua \
 framebuffer.lua \
 grabscreen.lua \
 inet.lua \
+jkiss_rng.lua \
 linux_decls.lua \
 remarkable_decls.lua \
 remarkable.lua \

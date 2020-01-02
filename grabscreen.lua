@@ -10,6 +10,7 @@ local os = require("os")
 local class = require("class").class
 local inet = require("inet")
 local FrameBuffer = require("framebuffer").FrameBuffer
+local JKissRng = require("jkiss_rng").JKissRng
 local posix = require("posix")
 
 local assert = assert
@@ -147,68 +148,64 @@ print(("INFO: %s%3d x %3d = %5d tiles (side length %d)"):format(
       not isRealServer and " destination: " or "",
       destTileCountX, destTileCountY, totalDestTileCount, BigSideLen))
 
-local SBuf = ffi.typeof[[struct {
-    static const int Current = 0;
-    static const int Other = 1;
-}]]
-
 local Sampler = class
 {
     function()
         assert(targetSize % SquareSize == 0)
         local sampleCount = targetSize / SquareSize
 
-        local firstBuffer = PixelArray(sampleCount)
-        -- Fill the first buffer with a value that initially will very likely invalidate all
+        local screenCopyBuf = PixelArray(map:getRawSize())
+        -- Fill with a value that initially will very likely invalidate all
         -- tiles. (NOTE: 0xff does not!)
-        ffi.fill(firstBuffer, ffi.sizeof(firstBuffer), 0xfe)
+        ffi.fill(screenCopyBuf, ffi.sizeof(screenCopyBuf), 0xfe)
 
         return {
-            fbIndexes = {},
+            rng = JKissRng(),
             sampleCount = sampleCount,
-            currentBufIdx = 0,
             sampleBufs = {
-                [0] = firstBuffer,
-                [1] = PixelArray(sampleCount),
-            }
+                PixelArray(sampleCount),
+                PixelArray(sampleCount),
+            },
+
+            -- exposed to Client
+            screenCopyBuf = screenCopyBuf,
         }
     end,
 
+    -- TODO: move to private section.
     generate = function(self)
         local idxs = {}
 
         -- NOTE: y first!
         for y = 0, targetYres - 1, SideLen do
             for x = 0, targetXres - 1, SideLen do
-                -- TODO: randomly perturb sample positions? But, can only do that for the
-                --  tiles that changed. Otherwise, we'd consider the whole screen changed in
-                --  the next iteration, even if only a small part was changed.
-                local xoff = SideLen / 2
-                local yoff = globalSrcYOffset + SideLen / 2
+                -- Randomly perturb sample positions.
+                local xoff = self.rng:getu32() % SideLen
+                local yoff = globalSrcYOffset + self.rng:getu32() % SideLen
 
                 idxs[#idxs + 1] = map:getLinearIndex(x + xoff, y + yoff)
             end
         end
 
         assert(#idxs == self.sampleCount)
-        self.fbIndexes = idxs
-        return self
+        return idxs
     end,
 
-    sample = function(self)
-        assert(#self.fbIndexes == self.sampleCount)
+    sampleAndCompare = function(self)
+        local fbSampleBuf = self.sampleBufs[1]
+        local scSampleBuf = self.sampleBufs[2]
+        local screenCopyBuf = self.screenCopyBuf
 
-        self:switchBuffer()
-        local sampleBuf = self:getBuffer(SBuf.Current)
+        -- Generate sample indexes.
+        local fbIndexes = self:generate()
 
+        -- Sample.
         for i = 1, self.sampleCount do
-            sampleBuf[i - 1] = fbPtr[self.fbIndexes[i]]
+            fbSampleBuf[i - 1] = fbPtr[fbIndexes[i]]
+            scSampleBuf[i - 1] = screenCopyBuf[fbIndexes[i]]
         end
-    end,
 
-    compare = function(self)
-        local currentBuf = self:getBuffer(SBuf.Current)
-        local otherBuf = self:getBuffer(SBuf.Other)
+        -- Compare sample pixel values with current state!
 
         local destTileCoords = {}
 
@@ -228,7 +225,7 @@ local Sampler = class
                 local destTileChanged = false
 
                 for _, si in ipairs(srcSampleIdxs) do
-                    destTileChanged = destTileChanged or (currentBuf[si] ~= otherBuf[si])
+                    destTileChanged = destTileChanged or (fbSampleBuf[si] ~= scSampleBuf[si])
                 end
 
                 if (destTileChanged) then
@@ -239,18 +236,6 @@ local Sampler = class
 
         return destTileCoords
     end,
-
--- private:
-    getBuffer = function(self, which)
-        local bufIdx = (which == SBuf.Current)
-            and self.currentBufIdx
-            or 1 - self.currentBufIdx
-        return self.sampleBufs[bufIdx]
-    end,
-
-    switchBuffer = function(self)
-        self.currentBufIdx = 1 - self.currentBufIdx
-    end,
 }
 
 local function UnpackDestTileCoord(coord)
@@ -260,13 +245,23 @@ local function UnpackDestTileCoord(coord)
     return x, y
 end
 
-local function CopyBigTileFromScreen(destPtr, coord)
+local CopyFormat = ffi.typeof[[struct {
+    static const int Same = 1;
+    static const int Packed = 2;
+}]]
+
+local function CopyBigTile(srcPtr, destPtr, coord, copyFormat)
+    local keepFormat = (copyFormat == CopyFormat.Same)
+    assert(keepFormat or copyFormat == CopyFormat.Packed)
+
     local tx, ty = UnpackDestTileCoord(coord)
-    local sx, sy = BigSideLen * tx, globalSrcYOffset + BigSideLen * ty
+    local sx = BigSideLen * tx
+    local sy = BigSideLen * ty + globalSrcYOffset
 
     for i = 0, BigSideLen - 1 do
         local srcOffset = map:getLinearIndex(sx, sy + i)
-        ffi.copy(destPtr + BigSideLen * i, fbPtr + srcOffset,
+        local destOffset = keepFormat and srcOffset or BigSideLen * i
+        ffi.copy(destPtr + destOffset, srcPtr + srcOffset,
                  BigSideLen * SourcePixelSize)
     end
 end
@@ -509,11 +504,10 @@ local Client = class
     step = function(self)
         self:enable()
 
-        self.sampler:sample()
-        local destTileCoords = self.sampler:compare()
+        local destTileCoords = self.sampler:sampleAndCompare()
 
         if (#destTileCoords > 0) then
-            self:captureUpdates(destTileCoords)
+            self:captureUpdates(destTileCoords, self.sampler.screenCopyBuf)
             local encodingLength = self:encodeUpdates(#destTileCoords)
 
             if (self.connFd ~= nil) then
@@ -522,7 +516,6 @@ local Client = class
                 local fmt = "changed, #destTiles=%d, encoded=%d halfwords (factor = %.03f)\n"
                 stderr:write(fmt:format(#destTileCoords, encodingLength,
                                         #destTileCoords * BigSquareSize / encodingLength))
-
                 local tileCount = DecodeUpdates(self.codedBuf, encodingLength, self.decodedBuf_)
                 -- Check correctness of decoding.
                 assert(tileCount == #destTileCoords)
@@ -535,13 +528,15 @@ local Client = class
     end,
 
 -- private:
-    captureUpdates = function(self, destTileCoords)
+    captureUpdates = function(self, destTileCoords, screenCopyBuf)
         local updatedTileCount = #destTileCoords
         assert(updatedTileCount <= totalDestTileCount)
 
         for i, coord in ipairs(destTileCoords) do
             assert(i > 0 and i <= updatedTileCount)
-            CopyBigTileFromScreen(self.tempBuf + BigSquareSize * (i - 1), coord)
+            CopyBigTile(fbPtr, screenCopyBuf, coord, CopyFormat.Same)
+            local destPtr = self.tempBuf + BigSquareSize * (i - 1)
+            CopyBigTile(screenCopyBuf, destPtr, coord, CopyFormat.Packed)
         end
 
         local updatedPixelCount = updatedTileCount * BigSquareSize
@@ -595,7 +590,7 @@ local Client = class
             checkData(cmd == Cmd.Enable, "unexpected command")
 
             self.enabled = true
-            self.sampler = Sampler():generate()
+            self.sampler = Sampler()
         end
     end,
 

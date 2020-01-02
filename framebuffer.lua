@@ -95,7 +95,6 @@ local Mapping = class
         check(fb.type == FB_TYPE.PACKED_PIXELS, "Only packed pixels supported", 3)
         check(fb.visual == FB_VISUAL.TRUECOLOR, "Only truecolor supported", 3)
 
-        -- TODO: support offset
         check(vinfo.xoffset == 0 and vinfo.yoffset == 0,
               "Only offset-less format supported", 2)
         assert(vinfo.xres <= vinfo.xres_virtual and vinfo.yres <= vinfo.yres_virtual)
@@ -159,6 +158,10 @@ local Mapping = class
 
     getSize = function(self)
         return self.xres * self.yres
+    end,
+
+    getRawSize = function(self)
+        return self.xres_virtual * self.yres
     end,
 
     --== Reading
