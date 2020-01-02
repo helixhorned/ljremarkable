@@ -172,25 +172,6 @@ local Sampler = class
         }
     end,
 
-    -- TODO: move to private section.
-    generate = function(self)
-        local idxs = {}
-
-        -- NOTE: y first!
-        for y = 0, targetYres - 1, SideLen do
-            for x = 0, targetXres - 1, SideLen do
-                -- Randomly perturb sample positions.
-                local xoff = self.rng:getu32() % SideLen
-                local yoff = globalSrcYOffset + self.rng:getu32() % SideLen
-
-                idxs[#idxs + 1] = map:getLinearIndex(x + xoff, y + yoff)
-            end
-        end
-
-        assert(#idxs == self.sampleCount)
-        return idxs
-    end,
-
     sampleAndCompare = function(self)
         local fbSampleBuf = self.sampleBufs[1]
         local scSampleBuf = self.sampleBufs[2]
@@ -235,6 +216,25 @@ local Sampler = class
         end
 
         return destTileCoords
+    end,
+
+-- private:
+    generate = function(self)
+        local idxs = {}
+
+        -- NOTE: y first!
+        for y = 0, targetYres - 1, SideLen do
+            for x = 0, targetXres - 1, SideLen do
+                -- Randomly perturb sample positions.
+                local xoff = self.rng:getu32() % SideLen
+                local yoff = globalSrcYOffset + self.rng:getu32() % SideLen
+
+                idxs[#idxs + 1] = map:getLinearIndex(x + xoff, y + yoff)
+            end
+        end
+
+        assert(#idxs == self.sampleCount)
+        return idxs
     end,
 }
 
