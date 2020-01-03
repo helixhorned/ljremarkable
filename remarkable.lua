@@ -25,13 +25,21 @@ local xywh_t = ffi.typeof("struct { uint32_t x, y, w, h; }")
 -- NOTE: order is: top, left, width, height
 local rect_t = ffi.typeof("mxcfb_rect")
 local update_data_t = ffi.typeof("mxcfb_update_data")
+local update_marker_data_t = ffi.typeof("mxcfb_update_marker_data")
+
+-- The marker values appear to be system-global in the epdc_fb driver
+-- (though note that we do pass a file descriptor),
+-- so have an offset in the hope of avoiding collisions.
+local MarkerOffset = 2^31
 
 local function RequestRefresh(fd, vinfo,
-                              rect)
+                              rect, marker)
     assert(type(fd) == "number")
     assert(ffi.istype(fb_var_screeninfo, vinfo))
 
     check(ffi.istype(xywh_t, rect), "argument #1 must be a remarkable.xywh", 3)
+    check(marker == nil or type(marker) == "number",
+          "argument #2 must be nil or a number", 3)
 
     local mode = C.UPDATE_MODE_PARTIAL
     local waveform = C.WAVEFORM_MODE_GC16
@@ -57,7 +65,9 @@ local function RequestRefresh(fd, vinfo,
     local region = rect_t(y, x, rect.w, rect.h)
 
     local data = update_data_t(
-        region, waveform, mode, 0, displayTemp,
+        region, waveform, mode,
+        (marker ~= nil) and MarkerOffset + marker or 0,
+        displayTemp,
         0,  -- flags,
         0,  -- dither_mode (unused),
         0,  -- quant_bit (unused?)
@@ -65,6 +75,15 @@ local function RequestRefresh(fd, vinfo,
     )
 
     ioctl(fd, C.MXCFB_SEND_UPDATE, data)
+end
+
+local function WaitForCompletion(fd,
+                                 marker)
+    checktype(marker, 1, "number", 3)
+
+    local data = update_marker_data_t(MarkerOffset + marker, 0)
+    ioctl(fd, C.MXCFB_WAIT_FOR_UPDATE_COMPLETE, data)
+    return (data.collision_test ~= 0)
 end
 
 ----------
@@ -97,6 +116,10 @@ api.Remarkable = class
 
     requestRefresh = function(self, ...)
         return RequestRefresh(self.fd, self.vinfo, ...)
+    end,
+
+    waitForCompletion = function(self, ...)
+        return WaitForCompletion(self.fd, ...)
     end,
 }
 
