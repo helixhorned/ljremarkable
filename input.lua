@@ -7,6 +7,7 @@ local error_util = require("error_util")
 local class = require("class").class
 local ioctl = require("framebuffer").ioctl  -- TODO: pull out to separate file
 local posix = require("posix")
+local util = require("util")
 
 local EV = require("linux_decls").EV
 
@@ -88,6 +89,21 @@ local api = {
     EVIOC = {
         GNAME = EVIOCGNAME,
     }
+}
+
+-- Adapted from:
+--  https://github.com/canselcik/libremarkable/wiki/Reading-Parade-TrueTouch-Gen5-Multitouch-Input
+api.MultiTouchCode = util.MakeBimap
+{
+    { "POSX", 0x35 },
+    { "POSY", 0x36 },
+    { "PRESSURE", 0x3a },
+    { "TRACKING_ID", 0x39 },
+    { "TOUCH_MAJOR", 0x30 },
+    { "TOUCH_MINOR", 0x31 },
+    { "ORIENTATION", 0x34 },
+    { "TOOL_TYPE", 0x37 },
+    { "ABS_DISTANCE", 0x19 },
 }
 
 api.EventDevice = class
