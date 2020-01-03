@@ -33,6 +33,7 @@ CHECK_EXTRACTED_LINUX_CMD := $(EXTRACT_CMD_ENV) $(luajit) \
     -e "require'linux_decls'"
 
 linux_fb_h ?= /usr/include/linux/fb.h
+linux_input_h ?= /usr/include/linux/input.h
 sed_replace_ints_cmds := s/__u16 /uint16_t /g; s/__u32 /uint32_t /g
 
 $(linux_decls_lua): $(EXTRACTED_ENUMS_LUA) $(linux_fb_h) Makefile
@@ -44,6 +45,9 @@ $(linux_decls_lua): $(EXTRACTED_ENUMS_LUA) $(linux_fb_h) Makefile
 	@echo ']]' >> $(linux_decls_lua_tmp)
 	@echo 'return { FBIO = ffi.new[[struct {' >> $(linux_decls_lua_tmp)
 	@$(extractdecls) -w MacroDefinition -C -p '^FBIO.*SCREENINFO' -s '^FBIO' $(linux_fb_h) >> $(linux_decls_lua_tmp)
+	@echo '}]],' >> $(linux_decls_lua_tmp)
+	@echo 'EV = ffi.new[[struct {' >> $(linux_decls_lua_tmp)
+	@$(extractdecls) -w MacroDefinition -C -p '^EV_' -s '^EV_' $(linux_input_h) >> $(linux_decls_lua_tmp)
 	@echo '}]],' >> $(linux_decls_lua_tmp)
 	@echo 'FB_TYPE = ffi.new[[struct {' >> $(linux_decls_lua_tmp)
 	@$(extractdecls) -w MacroDefinition -C -p '^FB_TYPE_' -s '^FB_TYPE_' $(linux_fb_h) >> $(linux_decls_lua_tmp)
