@@ -452,8 +452,8 @@ local function CheckCmdLength(length)
     assert(length == Cmd.Length, "unexpected command length")
 end
 
--- TODO: wait for updates to finish on the reMarkable?
-local UpdateInterval = 1000e6 -- nanoseconds
+local BackoffStepCount = 5
+local MaxSleepTime = 500e6 -- nanoseconds
 
 local Client = class
 {
@@ -465,6 +465,7 @@ local Client = class
         return {
             enabled = false,
             sampler = nil,  -- Sampler
+            emptyStepCount = 0,
 
             tempBuf = PixelArray(targetSize),
 
@@ -522,9 +523,19 @@ local Client = class
                 assert(ffi.C.memcmp(self.updateBuf, self.decodedBuf_,
                                     tileCount * BigSquareSize * DestPixelSize) == 0)
             end
+
+            self.emptyStepCount = 0
+        else
+            self.emptyStepCount = self.emptyStepCount + 1
         end
 
-        posix.clock_nanosleep(UpdateInterval)
+        local sleepFactor =
+            (2 ^ math.min(self.emptyStepCount, BackoffStepCount) - 1) /
+            (2 ^ BackoffStepCount)
+
+        if (sleepFactor > 0) then
+            posix.clock_nanosleep(sleepFactor * MaxSleepTime)
+        end
     end,
 
 -- private:
