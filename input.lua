@@ -9,7 +9,9 @@ local ioctl = require("framebuffer").ioctl  -- TODO: pull out to separate file
 local posix = require("posix")
 local util = require("util")
 
-local EV = require("linux_decls").EV
+local linux_decls = require("linux_decls")
+local ABS = linux_decls.ABS
+local EV = linux_decls.EV
 
 local check = error_util.check
 local checktype = error_util.checktype
@@ -30,6 +32,15 @@ struct input_event {
     int32_t value;
 };
 
+struct input_absinfo {
+    int32_t value;
+    int32_t minimum;
+    int32_t maximum;
+    int32_t fuzz;
+    int32_t flat;
+    int32_t resolution;
+};
+
 struct input_mask {
     uint32_t type;
     uint32_t codes_size;
@@ -38,6 +49,7 @@ struct input_mask {
 ]]
 
 local input_event_t = ffi.typeof("struct input_event")
+local input_absinfo_t = ffi.typeof("struct input_absinfo")
 local input_mask_t = ffi.typeof("struct input_mask")
 
 -- IOCTL marcos in Lua.
@@ -83,10 +95,18 @@ end
 local device_name_buf_t = ffi.typeof("char [256]")
 
 local EVIOCGNAME = _IOR('E', 0x06, device_name_buf_t)  -- get device name
+local EVIOCGABS = {  -- get abs value/limits
+    -- TODO: generalize to other ABS values?
+    X = _IOR('E', 0x40 + ABS.MT_POSITION_X, input_absinfo_t),
+    Y = _IOR('E', 0x40 + ABS.MT_POSITION_Y, input_absinfo_t),
+}
+
 local EVIOCSMASK =_IOW('E', 0x93, input_mask_t)  -- Set event-masks
 
 local IoctlTypes = {
     [EVIOCGNAME] = device_name_buf_t,
+    [EVIOCGABS.X] = input_absinfo_t,
+    [EVIOCGABS.Y] = input_absinfo_t,
 
     [EVIOCSMASK] = function(typ, codesToSet)
         checktype(typ, 1, "number", 2)
@@ -110,11 +130,18 @@ local IoctlTypes = {
     end,
 }
 
+local Identity = function(object)
+    return object
+end
+
 local IoctlReturn = {
     [EVIOCGNAME] = function(deviceNameBuf)
         deviceNameBuf[ffi.sizeof(deviceNameBuf) - 1] = 0
         return ffi.string(deviceNameBuf)
     end,
+
+    [EVIOCGABS.X] = Identity,
+    [EVIOCGABS.Y] = Identity,
 }
 
 ----------
@@ -124,6 +151,11 @@ local api = {
 
     EVIOC = {
         GNAME = EVIOCGNAME,
+        GABS = {
+            X = EVIOCGABS.X,
+            Y = EVIOCGABS.Y,
+        },
+
         SMASK = EVIOCSMASK,
     },
 }
