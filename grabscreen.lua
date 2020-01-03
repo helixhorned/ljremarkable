@@ -796,9 +796,17 @@ local Server = class
         local updateRects = updateRectSet:getRects()
 
         -- Request update of the changed screen portions.
-        for _, rect in ipairs(updateRects) do
-            self.rM:requestRefresh(rect)
+        for i, rect in ipairs(updateRects) do
+            self.rM:requestRefresh(rect, i)
         end
+
+        -- Wait for the updates to finish.
+        for i, _ in ipairs(updateRects) do
+            self.rM:waitForCompletion(i)
+        end
+
+        local bytesWritten = self.connFd:write(Cmd.Ok)
+        assert(bytesWritten == Cmd.Length, "FIXME: partial write")
     end,
 
     enable = function(self)
@@ -814,9 +822,13 @@ local Server = class
     end,
 
     maybeDisable = function(self)
+        assert(self.enabled)
         self.enabled = IsScreenDesired()
-        local bytesWritten = self.connFd:write(self.enabled and Cmd.Ok or Cmd.Disable)
-        assert(bytesWritten == Cmd.Length, "FIXME: partial write")
+
+        if (not self.enabled) then
+            local bytesWritten = self.connFd:write(Cmd.Disable)
+            assert(bytesWritten == Cmd.Length, "FIXME: partial write")
+        end
     end,
 }
 
