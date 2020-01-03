@@ -160,19 +160,19 @@ local api = {
     },
 }
 
--- Adapted from:
+-- Originally adapted from:
 --  https://github.com/canselcik/libremarkable/wiki/Reading-Parade-TrueTouch-Gen5-Multitouch-Input
 api.MultiTouchCode = util.MakeBimap
 {
-    { "POSX", 0x35 },
-    { "POSY", 0x36 },
-    { "PRESSURE", 0x3a },
-    { "TRACKING_ID", 0x39 },
-    { "TOUCH_MAJOR", 0x30 },
-    { "TOUCH_MINOR", 0x31 },
-    { "ORIENTATION", 0x34 },
-    { "TOOL_TYPE", 0x37 },
-    { "ABS_DISTANCE", 0x19 },
+    { "POSX", ABS.MT_POSITION_X },
+    { "POSY", ABS.MT_POSITION_Y },
+    { "PRESSURE", ABS.MT_PRESSURE },
+    { "TRACKING_ID", ABS.MT_TRACKING_ID },
+    { "TOUCH_MAJOR", ABS.MT_TOUCH_MAJOR },
+    { "TOUCH_MINOR", ABS.MT_TOUCH_MINOR },
+    { "ORIENTATION", ABS.MT_ORIENTATION },
+    { "TOOL_TYPE", ABS.MT_TOOL_TYPE },
+    { "ABS_DISTANCE", ABS.MT_DISTANCE },
 }
 
 api.EventDevice = class
