@@ -16,11 +16,12 @@ local checktype = error_util.checktype
 
 local assert = assert
 local error = error
+local ipairs = ipairs
 local type = type
 
 ----------
 
--- From <linux/input.h> with __u16/__s32 -> uint16_t/int32_t changes.
+-- From <linux/input.h> with __u16/__s32 -> uint16_t/int32_t etc. changes.
 ffi.cdef[[
 struct input_event {
     struct timeval time;
@@ -28,9 +29,16 @@ struct input_event {
     uint16_t code;
     int32_t value;
 };
+
+struct input_mask {
+    uint32_t type;
+    uint32_t codes_size;
+    uint64_t codes_ptr;
+};
 ]]
 
 local input_event_t = ffi.typeof("struct input_event")
+local input_mask_t = ffi.typeof("struct input_mask")
 
 -- IOCTL marcos in Lua.
 -- See /usr/include/asm-generic/ioctl.h
@@ -66,14 +74,40 @@ local function _IOR(typ, nr, ctype)
     return _IOC(2, typ, nr, ffi.sizeof(ctype))
 end
 
+local function _IOW(typ, nr, ctype)
+    return _IOC(1, typ, nr, ffi.sizeof(ctype))
+end
+
 -- <linux/event.h> ioctls
 
 local device_name_buf_t = ffi.typeof("char [256]")
 
 local EVIOCGNAME = _IOR('E', 0x06, device_name_buf_t)  -- get device name
+local EVIOCSMASK =_IOW('E', 0x93, input_mask_t)  -- Set event-masks
 
 local IoctlTypes = {
     [EVIOCGNAME] = device_name_buf_t,
+
+    [EVIOCSMASK] = function(typ, codesToSet)
+        checktype(typ, 1, "number", 2)
+        checktype(codesToSet, 2, "table", 2)
+
+        local NumCodes = 256
+        local bitMask = ffi.new("uint8_t [?]", NumCodes / 8)
+
+        local shl, shr, band, bor = bit.lshift, bit.rshift, bit.band, bit.bor
+
+        for _, code in ipairs(codesToSet) do
+            check(type(code) == "number", "every value in argument #1 must be a number", 2)
+            check(code >= 0 and code < NumCodes, "code value out of bounds", 2)
+
+            bitMask[shr(code, 3)] = bor(bitMask[shr(code, 3)],
+                                        shl(1, band(code, 7)))
+        end
+
+        local ptrAsInt = ffi.cast("uint64_t", bitMask)
+        return input_mask_t(typ, ffi.sizeof(bitMask), ptrAsInt), bitMask
+    end,
 }
 
 local IoctlReturn = {
@@ -86,9 +120,12 @@ local IoctlReturn = {
 ----------
 
 local api = {
+    EV = EV,
+
     EVIOC = {
         GNAME = EVIOCGNAME,
-    }
+        SMASK = EVIOCSMASK,
+    },
 }
 
 -- Adapted from:
@@ -127,12 +164,15 @@ api.EventDevice = class
         local cType = IoctlTypes[request]
         check(cType ~= nil, "unsupported ioctl", 2)
 
-        local data = cType(...)
-        ioctl(self.fd.fd, request, data)
+        local data, anchor = cType(...)
+        local ret, errMsg = ioctl(self.fd.fd, request, data)
+
+        if (ret == nil) then
+            return nil, errMsg
+        end
 
         local finalizer = IoctlReturn[request]
-        assert(finalizer ~= nil)
-        return finalizer(data)
+        return (finalizer ~= nil) and finalizer(data) or nil
     end,
 
     readEvent = function(self)
