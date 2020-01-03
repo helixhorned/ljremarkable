@@ -2,6 +2,8 @@
 -- http://www0.cs.ucl.ac.uk/staff/D.Jones/GoodPracticeRNG.pdf
 
 local ffi = require("ffi")
+assert(jit.version_num >= 20100,
+       "Requires LuaJIT 2.1 for bit operations on 64-bit integers")
 
 local bit = require("bit")
 
