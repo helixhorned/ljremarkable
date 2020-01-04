@@ -23,6 +23,7 @@ local ipairs = ipairs
 local print = print
 local require = require
 local tonumber = tonumber
+local tostring = tostring
 local type = type
 
 local arg = arg
@@ -491,6 +492,15 @@ local function ConvertScreenToClient(sx, sy)
     return cx, cy
 end
 
+local function InvokeXDoTool(commands)
+    local whoami = posix.fork()
+
+    if (whoami == "child") then
+        assert(type(commands) == "table")
+        posix.exec("/usr/bin/xdotool", commands)
+    end
+end
+
 local Client = class
 {
     function()
@@ -678,9 +688,17 @@ local Client = class
                 local ourEvent = self.connFd:readInto(OurEvent_t(), false)
                 local cx, cy = ConvertScreenToClient(ourEvent.x, ourEvent.y)
 
-                -- TODO: handle for real.
-                print(("INFO: %s at coords (%d, %d)"):format(
-                          OurEventDesc[ourEvent.ourType], cx, cy))
+                if (cx >= 0 and cx < targetXres and
+                        cy >= globalSrcYOffset and cy < targetYres) then
+                    checkData(ourEvent.ourType == OurEventType.SingleClick,
+                              "unexpected server input event")
+
+                    InvokeXDoTool{
+                        "mousemove", tostring(cx), tostring(cy),
+                        "click", "1",
+                        -- NOTE: no 'mousemove restore' to have feedback.
+                    }
+                end
 
                 if (singleAllowedCommand) then
                     -- Since we do not know if there is another event coming.
