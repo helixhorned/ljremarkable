@@ -8,6 +8,7 @@ local class = require("class").class
 local error_util = require("error_util")
 local check = error_util.check
 local checktype = error_util.checktype
+local input = require("input")
 
 local FB = require("framebuffer")
 local ioctl = FB.ioctl
@@ -103,10 +104,18 @@ api.Remarkable = class
         check(type(fb) == "table", "argument #1 must be nil or a FrameBuffer", 2)
         check(type(fb.line_length) == "number", "argument #1 must be nil or a FrameBuffer", 2)
 
+        -- Open the multi-touch device.
+        local evd = input.EventDevice(1)
+
+        local MTC = input.MultiTouchCode
+        evd:ioctl(input.EVIOC.SMASK, input.EV.ABS, {MTC.POSX, MTC.POSY, MTC.TRACKING_ID})
+
         return {
             fb = fb,
             fd = assert(fb.fd),
             vinfo = fb:getVarInfo(),
+
+            evd = evd,
         }
     end,
 
