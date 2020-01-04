@@ -14,6 +14,7 @@ local FrameBuffer = require("framebuffer").FrameBuffer
 local JKissRng = require("jkiss_rng").JKissRng
 local posix = require("posix")
 
+local EV = input.EV
 local POLL = posix.POLL
 
 local assert = assert
@@ -737,16 +738,90 @@ local MaxInputEvents = 1024
 local sizeof_input_event = ffi.sizeof("struct input_event")
 local input_event_array_t = ffi.typeof("struct input_event [?]")
 
+local OurEventType = {
+    SingleClick = 1,
+}
+
+local Stage = {
+    None = 0,
+    Prefix = 1,
+    Finished = 2,
+}
+
 local InputState = class
 {
     function()
         return {
             pressedCount = 0,
+
+            stage = Stage.None,
+            ourEventType = nil,
+            ourData = nil,
         }
     end,
 
-    handleEventFrame = function(eventsPtr, eventCount)
+    handleEventFrame = function(self, events, eventCount)
+        local MTC = input.MultiTouchCode
 
+        for i = 0, eventCount - 1 do
+            local ev = events[i]
+            assert(ev.type == EV.ABS, "unexpected event type")
+        end
+
+        assert(eventCount > 0)
+        local pressedStateChanged = (events[0].code == MTC.TRACKING_ID)
+        local oldPressedCount = self.pressedCount
+        local oldStage = self.stage
+
+        if (pressedStateChanged) then
+            self.pressedCount = self.pressedCount +
+                ((events[0].value >= 0) and 1 or -1)
+
+            if (self.stage == Stage.None) then
+                -- Single finger down: May begin single click...
+                if (oldPressedCount == 0 and self.pressedCount == 1) then
+                    -- ... but only we get all coordinates with the first frame.
+                    if (eventCount >= 3 and
+                            events[1].code == MTC.POSX and
+                            events[2].code == MTC.POSY) then
+                        self.stage = Stage.Prefix
+                        self.ourEventType = OurEventType.SingleClick
+                        self.ourData = { x = events[1].value, y = events[2].value }
+                    end
+                end
+            elseif (self.stage == Stage.Prefix) then
+                -- Single finger up: May finish single click...
+                if (oldPressedCount == 1 and self.pressedCount == 0) then
+                    assert(self.ourEventType == OurEventType.SingleClick)
+
+                    -- ... but only if there are no additional events in the frame.
+                    if (eventCount == 1) then
+                        self.stage = Stage.Finished
+                    end
+                end
+            end
+        end
+
+        local hadProgress = (self.stage > oldStage)
+
+        if (not hadProgress) then
+            -- Currently, if there are intervening events (such as moves),
+            -- do not consider it a "single click".
+            self:reset()
+        elseif (self.stage == Stage.Finished) then
+            -- TODO: handle for real.
+            print(("INFO: single click at device coords (%d, %d)"):format(
+                      self.ourData.x, self.ourData.y))
+
+            self:reset()
+        end
+    end,
+
+-- private:
+    reset = function(self)
+        self.stage = Stage.None
+        self.ourEventType = nil
+        self.ourData = nil
     end,
 }
 
@@ -821,8 +896,6 @@ local Server = class
     end,
 
     getInput = function(self)
-        local EV = input.EV
-
         local evdFd = self.evd.fd
 
         local events, bytesRead = self.evd.fd:readInto(self.inputBuf, true)
