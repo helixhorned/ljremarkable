@@ -478,6 +478,16 @@ end
 local BackoffStepCount = 5
 local MaxSleepTime = 500e6 -- nanoseconds
 
+-- INPUT_EVENT_COORD_CONVERSION step 3
+-- NOTE: Must be called on the client...
+local function ConvertScreenToClient(sx, sy)
+    local cx = sx
+    local cy = sy - DestYPixelOffset
+        + globalSrcYOffset  -- ...because of this!
+
+    return cx, cy
+end
+
 local Client = class
 {
     function()
@@ -642,10 +652,11 @@ local Client = class
                 -- NOTE SEND_INPUT_FIRST: sent by the server before a Disable or Ok!
                 -- TODO: receive asynchronously!
                 local ourEvent = self.connFd:readInto(OurEvent_t(), false)
+                local cx, cy = ConvertScreenToClient(ourEvent.x, ourEvent.y)
 
                 -- TODO: handle for real.
                 print(("INFO: %s at coords (%d, %d)"):format(
-                          OurEventDesc[ourEvent.ourType], ourEvent.x, ourEvent.y))
+                          OurEventDesc[ourEvent.ourType], cx, cy))
             elseif (cmd == Cmd.Disable) then
                 self.enabled = false
                 self.sampler = nil
@@ -784,6 +795,7 @@ local MtRes = {
     h = 0,
 }
 
+-- INPUT_EVENT_COORD_CONVERSION step 1
 local function ObtainMultiTouchCoordRange(evd)
     local xRange = evd:ioctl(input.EVIOC.GABS.X)
     local yRange = evd:ioctl(input.EVIOC.GABS.Y)
@@ -799,6 +811,7 @@ local function ObtainMultiTouchCoordRange(evd)
     MtRes.h = yRange.maximum + 1
 end
 
+-- INPUT_EVENT_COORD_CONVERSION step 2
 local function ConvertMtToScreen(mtDevCoords)
     local devx, devy = mtDevCoords.x, mtDevCoords.y
 
