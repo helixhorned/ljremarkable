@@ -579,14 +579,18 @@ local Client = class
         local sleepTime = sleepFactor * MaxSleepTime
 
         local fdSet = posix.fd_set_t()
-        fdSet:set(self.connFd.fd)
+        local waitedForFd = self.connFd and self.connFd.fd or -1
 
-        local readyFdCount = ffi.C.select(self.connFd.fd + 1, fdSet, nil, nil,
+        if (waitedForFd ~= -1) then
+            fdSet:set(self.connFd.fd)
+        end
+
+        local readyFdCount = ffi.C.select(waitedForFd + 1, fdSet, nil, nil,
                                           timeval_t(0, sleepTime))
         assert(readyFdCount >= 0, "unexpected system call error")
 
         if (readyFdCount > 0) then
-            assert(readyFdCount == 1)
+            assert(readyFdCount == 1 and waitedForFd ~= -1)
 
             -- TODO DISABLE_VIA_SERVER_INPUT: also allow Cmd.Disable
             self:receiveFromServerAndHandle(Cmd.Input)
