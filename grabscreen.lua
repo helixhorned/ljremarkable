@@ -405,6 +405,7 @@ end
 local Port = 16218
 local AddrAndPort = {10,11,99,1; Port}
 
+-- Client -> server
 local UpdateMagic = "UpDatE"
 
 assert(totalDestTileCount <= 65536, "too high screen resolution")
@@ -412,11 +413,13 @@ assert(totalDestTileCount <= 65536, "too high screen resolution")
 --  since we do not do any endianness conversions.
 assert(ffi.abi("le"), "unexpected architecture")
 
+-- Server -> client
 local Cmd = {
     Length = 4,
 
     Enable = "Enbl",
     Disable = "Dsbl",
+    Input = "Inpt",
     Ok = "_Ok_",
 }
 
@@ -431,6 +434,19 @@ local coord_t = ffi.typeof[[struct {
 }]]
 
 local coord_array_t = ffi.typeof("$ [?]", coord_t)
+
+local OurEventType = {
+    SingleClick = 1,
+}
+
+local OurEventDesc = {
+    [OurEventType.SingleClick] = "single click",
+}
+
+local OurEvent_t = ffi.typeof[[struct {
+    uint16_t ourType;
+    uint16_t x, y;
+}]]
 
 ----------
 
@@ -612,15 +628,30 @@ local Client = class
         end
     end,
 
+    -- TODO: rename and/or reorganize
     maybeDisable = function(self)
         assert(self.enabled)
 
-        local cmd = self:readCommand()
-        checkData(cmd == Cmd.Ok or cmd == Cmd.Disable, "unexpected command")
+        while (true) do
+            local cmd = self:readCommand()
 
-        if (cmd == Cmd.Disable) then
-            self.enabled = false
-            self.sampler = nil
+            if (cmd == Cmd.Input) then
+                -- NOTE SEND_INPUT_FIRST: sent by the server before a Disable or Ok!
+                -- TODO: receive asynchronously!
+                local ourEvent = self.connFd:readInto(OurEvent_t(), false)
+
+                -- TODO: handle for real.
+                print(("INFO: %s at coords (%d, %d)"):format(
+                          OurEventDesc[ourEvent.ourType], ourEvent.x, ourEvent.y))
+            elseif (cmd == Cmd.Disable) then
+                self.enabled = false
+                self.sampler = nil
+                return
+            elseif (cmd == Cmd.Ok) then
+                return
+            else
+                checkData(false, "unexpected command")
+            end
         end
     end,
 
@@ -738,15 +769,25 @@ local MaxInputEvents = 1024
 local sizeof_input_event = ffi.sizeof("struct input_event")
 local input_event_array_t = ffi.typeof("struct input_event [?]")
 
-local OurEventType = {
-    SingleClick = 1,
-}
-
 local Stage = {
     None = 0,
     Prefix = 1,
     Finished = 2,
 }
+
+local function ConvertMtToScreen(mtDevCoords)
+    -- TODO: implement
+    return mtDevCoords.x, mtDevCoords.y
+end
+
+local function MakeEventToSend(ourEventType, ourData)
+    assert(ourEventType == OurEventType.SingleClick)
+
+    local sx, sy = ConvertMtToScreen(ourData)
+    assert(sx ~= nil and sy ~= nil)
+
+    return OurEvent_t(ourEventType, sx, sy)
+end
 
 local InputState = class
 {
@@ -760,7 +801,7 @@ local InputState = class
         }
     end,
 
-    handleEventFrame = function(self, events, eventCount)
+    handleEventFrame = function(self, events, eventCount, outputTab)
         local MTC = input.MultiTouchCode
 
         for i = 0, eventCount - 1 do
@@ -809,10 +850,7 @@ local InputState = class
             -- do not consider it a "single click".
             self:reset()
         elseif (self.stage == Stage.Finished) then
-            -- TODO: handle for real.
-            print(("INFO: single click at device coords (%d, %d)"):format(
-                      self.ourData.x, self.ourData.y))
-
+            outputTab[1] = MakeEventToSend(self.ourEventType, self.ourData)
             self:reset()
         end
     end,
@@ -886,12 +924,14 @@ local Server = class
 
         -- Apply results.
 
-        if (updateData ~= nil) then
-            self:applyUpdates(updateData[1], updateData[2], self.decodedBuf)
+        if (inputData ~= nil) then
+            -- NOTE [SEND_INPUT_FIRST]: Send input first so that the Ok from the application
+            --  of the updates (if present) arrives last.
+            self:sendInput(inputData)
         end
 
-        if (inputData ~= nil) then
-            self:sendInput(inputData)
+        if (updateData ~= nil) then
+            self:applyUpdates(updateData[1], updateData[2], self.decodedBuf)
         end
     end,
 
@@ -908,6 +948,7 @@ local Server = class
         assert(lastEvent.type == EV.SYN and lastEvent.code == 0 and lastEvent.value == 0,
                "last read event is unexpectedly not a SYN_REPORT")
 
+        local eventToSend = {}
         local lastIdx = 0
 
         for i = 0, eventCount - 1 do
@@ -915,15 +956,22 @@ local Server = class
 
             if (ev.type == EV.SYN) then
                 assert(i > lastIdx, "unexpected empty event frame")
-                self.inputState:handleEventFrame(events + lastIdx, i - lastIdx)
+                self.inputState:handleEventFrame(events + lastIdx, i - lastIdx, eventToSend)
                 lastIdx = i + 1
             end
         end
 
-        -- TODO: ...
+        return eventToSend[1]
     end,
 
-    sendInput = function(self)
+    sendInput = function(self, data)
+        local connFd = self.connFd
+        assert(ffi.istype(OurEvent_t, data))
+
+        local bytesWritten = connFd:write(Cmd.Input)
+        assert(bytesWritten == Cmd.Length, "FIXME: partial write")
+
+        connFd:writeFull(data)
     end,
 
     receiveUpdates = function(self)
