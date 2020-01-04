@@ -775,9 +775,43 @@ local Stage = {
     Finished = 2,
 }
 
+-- Resolution of multitouch device.
+local MtRes = {
+    w = 0,
+    h = 0,
+}
+
+local function ObtainMultiTouchCoordRange(evd)
+    local xRange = evd:ioctl(input.EVIOC.GABS.X)
+    local yRange = evd:ioctl(input.EVIOC.GABS.Y)
+
+    assert(xRange.minimum == 0 and yRange.minimum == 0,
+           "unexpected multitouch device range x or y minimum")
+    -- Check for something more than just 0 for extended sanity.
+    -- NOTE: the ioctls report the both-sided *inclusive* range.
+    assert(xRange.maximum >= 399 and yRange.maximum >= 299,
+           "unexpected multitouch device range x or y maximum")
+
+    MtRes.w = xRange.maximum + 1
+    MtRes.h = yRange.maximum + 1
+end
+
 local function ConvertMtToScreen(mtDevCoords)
-    -- TODO: implement
-    return mtDevCoords.x, mtDevCoords.y
+    local devx, devy = mtDevCoords.x, mtDevCoords.y
+
+    local isx = devx * ScreenWidth_rM / MtRes.w
+    local isy = devy * ScreenHeight_rM / MtRes.h
+
+    -- The MT device coordinates are flipped with respect to the
+    -- framebuffer coordinates in both dimensions.
+    local sx = ScreenWidth_rM - isx
+    local sy = ScreenHeight_rM - isy
+
+    -- NOTE: we may return fractional values here, but that's OK.
+    assert(sx >= 0 and sx < ScreenWidth_rM)
+    assert(sy >= 0 and sy < ScreenHeight_rM)
+
+    return sx, sy
 end
 
 local function MakeEventToSend(ourEventType, ourData)
@@ -1047,6 +1081,7 @@ local Server = class
             self.enabled = true
 
             self.evd = self.rM:openEventDevice()
+            ObtainMultiTouchCoordRange(self.evd)
             self.inputState = InputState()
         end
     end,
