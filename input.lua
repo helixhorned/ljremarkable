@@ -19,6 +19,7 @@ local checktype = error_util.checktype
 local assert = assert
 local error = error
 local ipairs = ipairs
+local tonumber = tonumber
 local type = type
 
 ----------
@@ -48,7 +49,16 @@ struct input_mask {
 };
 ]]
 
-local input_event_t = ffi.typeof("struct input_event")
+local input_event_t = class
+{
+    ffi.typeof("struct input_event"),
+
+    getMs = function(self)
+        -- TODO: ensure monotonic clock.
+        return 1000 * tonumber(self.time.sec) + tonumber(self.time.usec) / 1000
+    end,
+}
+
 local input_absinfo_t = ffi.typeof("struct input_absinfo")
 local input_mask_t = ffi.typeof("struct input_mask")
 
