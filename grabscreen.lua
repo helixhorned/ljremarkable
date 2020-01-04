@@ -459,8 +459,10 @@ local Client = class
 {
     function()
         local socket = inet.Socket()
-        local connFd = AttemptConnectTo(socket, AddrAndPort, "reMarkable") or
-            AttemptConnectTo(socket, {127,0,0,1; Port}, "local host")
+
+        local connFd = AttemptConnectTo(socket, AddrAndPort, "reMarkable")
+        local isRealConnected = (connFd ~= nil)
+        connFd = connFd or AttemptConnectTo(socket, {127,0,0,1; Port}, "local host")
 
         return {
             enabled = false,
@@ -496,6 +498,7 @@ local Client = class
             codedBuf = NarrowArray(totalDestTileCount * (1 + BigSquareSize)),
 
             connFd = connFd,
+            isRealConnected = isRealConnected,
 
             -- For debugging (non-connected run) only:
             decodedBuf_ = (connFd == nil) and NarrowArray(targetSize) or nil,
@@ -854,5 +857,8 @@ local app = isClient and Client() or Server()
 while (true) do
     local startMs = currentTimeMs()
     app:step()
-    io.stdout:write(("%.0f ms\n"):format(currentTimeMs() - startMs))
+
+    if (not ((isClient and app.isRealConnected) or isRealServer)) then
+        io.stdout:write(("%.0f ms\n"):format(currentTimeMs() - startMs))
+    end
 end
