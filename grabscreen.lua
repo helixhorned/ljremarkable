@@ -9,9 +9,12 @@ local os = require("os")
 
 local class = require("class").class
 local inet = require("inet")
+local input = require("input")
 local FrameBuffer = require("framebuffer").FrameBuffer
 local JKissRng = require("jkiss_rng").JKissRng
 local posix = require("posix")
+
+local POLL = posix.POLL
 
 local assert = assert
 local ipairs = ipairs
@@ -730,6 +733,10 @@ local RectSet = class
     end,
 }
 
+local MaxInputEvents = 1024
+local sizeof_input_event = ffi.sizeof("struct input_event")
+local input_event_array_t = ffi.typeof("struct input_event [?]")
+
 local Server = class
 {
     function()
@@ -744,6 +751,7 @@ local Server = class
             enabled = false,
 
             rM = RM.Remarkable(fb),
+            inputBuf = input_event_array_t(MaxInputEvents),
 
             decodedBuf = NarrowArray(targetSize),
         }
@@ -757,15 +765,65 @@ local Server = class
     mainLoopStep = function(self)
         self:enable()
 
-        local data = self:receiveUpdates()
+        -- Wait for input on either the multitouch device or from the network.
 
-        self:maybeDisable()
+        local connFd, evdFd = self.connFd.fd, self.evd:getRawFd()
 
-        if (not self.enabled) then
-            return
+        local pollfds = posix.poll{ events=POLL.IN, connFd, evdFd }
+        assert(#pollfds == 1 or #pollfds == 2)
+
+        local haveFd = {}
+        for _, pollfd in ipairs(pollfds) do
+            haveFd[pollfd.fd] = true
         end
 
-        self:applyUpdates(data[1], data[2], self.decodedBuf)
+        assert(haveFd[connFd] or haveFd[evdFd])
+
+        -- Handle received input(s) -- from the network (client) or the multitouch device.
+        local updateData = haveFd[connFd] and self:receiveUpdates() or nil
+        local inputData = haveFd[evdFd] and self:getInput() or nil
+
+        -- Carry out should-disable check only when we have received updates.
+        if (updateData ~= nil) then
+            self:maybeDisable()
+
+            if (not self.enabled) then
+                -- NOTE: it may happen that we omit sending a mouse-up event and leave the
+                --  client in an odd state.
+                return
+            end
+        end
+
+        -- Apply results.
+
+        if (updateData ~= nil) then
+            self:applyUpdates(updateData[1], updateData[2], self.decodedBuf)
+        end
+
+        if (inputData ~= nil) then
+            self:sendInput(inputData)
+        end
+    end,
+
+    getInput = function(self)
+        local EV = input.EV
+
+        local evdFd = self.evd.fd
+
+        local events, bytesRead = self.evd.fd:readInto(self.inputBuf, true)
+        assert(bytesRead % sizeof_input_event == 0)
+        local eventCount = tonumber(bytesRead) / sizeof_input_event
+        assert(eventCount > 0, "unexpected empty read")
+        assert(eventCount < MaxInputEvents, "input event buffer overflow")
+
+        local lastEvent = events[eventCount - 1]
+        assert(lastEvent.type == EV.SYN and lastEvent.code == 0 and lastEvent.value == 0,
+               "last read event is unexpectedly not a SYN_REPORT")
+
+        -- TODO: ...
+    end,
+
+    sendInput = function(self)
     end,
 
     receiveUpdates = function(self)
@@ -839,7 +897,7 @@ local Server = class
             assert(bytesWritten == Cmd.Length, "FIXME: partial write")
             self.enabled = true
 
-            self.rM:openEventDevice()
+            self.evd = self.rM:openEventDevice()
         end
     end,
 
@@ -852,6 +910,7 @@ local Server = class
             assert(bytesWritten == Cmd.Length, "FIXME: partial write")
 
             self.rM:closeEventDevice()
+            self.evd = nil
         end
     end,
 }

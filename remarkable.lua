@@ -127,6 +127,7 @@ api.Remarkable = class
     openEventDevice = function(self)
         check(self.evd == nil, "must have no event device opened", 2)
         self.evd = MakeEventDevice()
+        return self.evd
     end,
 
     closeEventDevice = function(self)

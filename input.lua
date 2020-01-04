@@ -191,6 +191,10 @@ api.EventDevice = class
         }
     end,
 
+    getRawFd = function(self)
+        return self.fd.fd
+    end,
+
     close = function(self)
         self.fd:close()
     end,
