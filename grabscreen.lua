@@ -750,14 +750,26 @@ local Server = class
     end,
 
     step = function(self)
-        self:receiveUpdates()
+        self:mainLoopStep()
     end,
 
 -- private:
+    mainLoopStep = function(self)
+        self:enable()
+
+        local data = self:receiveUpdates()
+
+        self:maybeDisable()
+
+        if (not self.enabled) then
+            return
+        end
+
+        self:applyUpdates(data[1], data[2], self.decodedBuf)
+    end,
+
     receiveUpdates = function(self)
         local connFd = self.connFd
-
-        self:enable()
 
         local header = connFd:readInto(Header_t(), false)
         checkData(ffi.string(header.magic, #Magic) == Magic, "magic bytes mismatch")
@@ -773,13 +785,7 @@ local Server = class
         local tileCount = DecodeUpdates(encodedData, encodingLength, self.decodedBuf)
         checkData(tileCount == changedTileCount, "corrupt encoding: tile count mismatch")
 
-        self:maybeDisable()
-
-        if (not self.enabled) then
-            return
-        end
-
-        self:applyUpdates(tileCount, coords, self.decodedBuf)
+        return { tileCount, coords }
     end,
 
     applyUpdates = function(self, tileCount, tileCoords, tileBuf)
