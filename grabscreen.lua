@@ -476,7 +476,10 @@ local function CheckCmdLength(length)
 end
 
 local BackoffStepCount = 5
-local MaxSleepTime = 500e6 -- nanoseconds
+local MaxSleepTime = 500e3 -- microseconds
+assert(MaxSleepTime < 1e6)  -- see usage for why
+
+local timeval_t = ffi.typeof("struct timeval")
 
 -- INPUT_EVENT_COORD_CONVERSION step 3
 -- NOTE: Must be called on the client...
@@ -565,12 +568,28 @@ local Client = class
             self.emptyStepCount = self.emptyStepCount + 1
         end
 
+        -- Now, wait for the first of:
+        --  * data ready to be read from the socket connected to the server, or
+        --  * a timeout expiration.
+
         local sleepFactor =
             (2 ^ math.min(self.emptyStepCount, BackoffStepCount) - 1) /
             (2 ^ BackoffStepCount)
 
-        if (sleepFactor > 0) then
-            posix.clock_nanosleep(sleepFactor * MaxSleepTime)
+        local sleepTime = sleepFactor * MaxSleepTime
+
+        local fdSet = posix.fd_set_t()
+        fdSet:set(self.connFd.fd)
+
+        local readyFdCount = ffi.C.select(self.connFd.fd + 1, fdSet, nil, nil,
+                                          timeval_t(0, sleepTime))
+        assert(readyFdCount >= 0, "unexpected system call error")
+
+        if (readyFdCount > 0) then
+            assert(readyFdCount == 1)
+
+            -- TODO DISABLE_VIA_SERVER_INPUT: also allow Cmd.Disable
+            self:receiveFromServerAndHandle(Cmd.Input)
         end
     end,
 
@@ -627,7 +646,7 @@ local Client = class
 
         connFd:writeFull(self.codedBuf, encodingLength * HalfwordSize)
 
-        self:maybeDisable()
+        self:receiveFromServerAndHandle()
     end,
 
     enable = function(self)
@@ -641,22 +660,30 @@ local Client = class
         end
     end,
 
-    -- TODO: rename and/or reorganize
-    maybeDisable = function(self)
+    receiveFromServerAndHandle = function(self, singleAllowedCommand)
         assert(self.enabled)
 
         while (true) do
             local cmd = self:readCommand()
 
+            checkData(singleAllowedCommand == nil or cmd == singleAllowedCommand,
+                      "unexpected command")
+
             if (cmd == Cmd.Input) then
                 -- NOTE SEND_INPUT_FIRST: sent by the server before a Disable or Ok!
-                -- TODO: receive asynchronously!
                 local ourEvent = self.connFd:readInto(OurEvent_t(), false)
                 local cx, cy = ConvertScreenToClient(ourEvent.x, ourEvent.y)
 
                 -- TODO: handle for real.
                 print(("INFO: %s at coords (%d, %d)"):format(
                           OurEventDesc[ourEvent.ourType], cx, cy))
+
+                if (singleAllowedCommand) then
+                    -- Since we do not know if there is another event coming.
+                    -- (Most likely not.)
+                    -- TODO: make this (distinction of the two usage cases) prettier.
+                    return
+                end
             elseif (cmd == Cmd.Disable) then
                 self.enabled = false
                 self.sampler = nil
@@ -680,7 +707,7 @@ local Client = class
         local cmd = self.connFd:read(Cmd.Length)
         CheckCmdLength(#cmd)
         return cmd
-    end
+    end,
 }
 
 local EyeData = nil
@@ -962,6 +989,7 @@ local Server = class
         local inputData = haveFd[evdFd] and self:getInput() or nil
 
         -- Carry out should-disable check only when we have received updates.
+        -- TODO [DISABLE_VIA_SERVER_INPUT]: also allow Cmd.Disable
         if (updateData ~= nil) then
             self:maybeDisable()
 
