@@ -737,6 +737,19 @@ local MaxInputEvents = 1024
 local sizeof_input_event = ffi.sizeof("struct input_event")
 local input_event_array_t = ffi.typeof("struct input_event [?]")
 
+local InputState = class
+{
+    function()
+        return {
+            pressedCount = 0,
+        }
+    end,
+
+    handleEventFrame = function(eventsPtr, eventCount)
+
+    end,
+}
+
 local Server = class
 {
     function()
@@ -751,7 +764,9 @@ local Server = class
             enabled = false,
 
             rM = RM.Remarkable(fb),
+            evd = nil,  -- input.EventDevice
             inputBuf = input_event_array_t(MaxInputEvents),
+            inputState = nil,  -- InputState
 
             decodedBuf = NarrowArray(targetSize),
         }
@@ -819,6 +834,18 @@ local Server = class
         local lastEvent = events[eventCount - 1]
         assert(lastEvent.type == EV.SYN and lastEvent.code == 0 and lastEvent.value == 0,
                "last read event is unexpectedly not a SYN_REPORT")
+
+        local lastIdx = 0
+
+        for i = 0, eventCount - 1 do
+            local ev = events[i]
+
+            if (ev.type == EV.SYN) then
+                assert(i > lastIdx, "unexpected empty event frame")
+                self.inputState:handleEventFrame(events + lastIdx, i - lastIdx)
+                lastIdx = i + 1
+            end
+        end
 
         -- TODO: ...
     end,
@@ -898,6 +925,7 @@ local Server = class
             self.enabled = true
 
             self.evd = self.rM:openEventDevice()
+            self.inputState = InputState()
         end
     end,
 
@@ -911,6 +939,9 @@ local Server = class
 
             self.rM:closeEventDevice()
             self.evd = nil
+
+            -- TODO: clear? (E.g. if in pressed state, send as many release events.)
+            self.inputState = nil
         end
     end,
 }
