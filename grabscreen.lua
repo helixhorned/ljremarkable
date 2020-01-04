@@ -405,7 +405,7 @@ end
 local Port = 16218
 local AddrAndPort = {10,11,99,1; Port}
 
-local Magic = "UpDatE"
+local UpdateMagic = "UpDatE"
 
 assert(totalDestTileCount <= 65536, "too high screen resolution")
 -- NOTE: what matters is just that they are the same on both ends,
@@ -420,7 +420,7 @@ local Cmd = {
     Ok = "_Ok_",
 }
 
-local Header_t = ffi.typeof[[struct {
+local UpdateHeader_t = ffi.typeof[[struct {
     char magic[6];
     uint16_t changedTileCount;
     uint32_t encodingLength;
@@ -583,7 +583,7 @@ local Client = class
         assert(connFd ~= nil)
 
         local changedTileCount = #destTileCoords
-        local header = Header_t(Magic, changedTileCount, encodingLength)
+        local header = UpdateHeader_t(UpdateMagic, changedTileCount, encodingLength)
 
         connFd:writeFull(header)
 
@@ -929,8 +929,9 @@ local Server = class
     receiveUpdates = function(self)
         local connFd = self.connFd
 
-        local header = connFd:readInto(Header_t(), false)
-        checkData(ffi.string(header.magic, #Magic) == Magic, "magic bytes mismatch")
+        local header = connFd:readInto(UpdateHeader_t(), false)
+        checkData(ffi.string(header.magic, #UpdateMagic) == UpdateMagic,
+                  "magic bytes mismatch")
 
         -- TODO: preallocate the two arrays?
 
