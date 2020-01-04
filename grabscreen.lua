@@ -135,6 +135,9 @@ local targetSize = targetXres * targetYres
 -- where the menu bar is located.
 local globalSrcYOffset = -map.yres % BigSideLen
 assert(globalSrcYOffset >= 0 and globalSrcYOffset < BigSideLen)
+-- Make sure we do not overwrite the "eye" on the reMarkable.
+local DestYPixelOffset = 128
+assert(DestYPixelOffset % BigSideLen == 0)  -- see usage for why
 
 local srcTileCountX = targetXres / SideLen
 local srcTileCountY = targetYres / SideLen
@@ -1033,8 +1036,7 @@ local Server = class
         checkData(tileCount * BigSquareSize <= ffi.sizeof(tileBuf) / DestPixelSize,
                   "too many updated tiles")
 
-        -- Make sure we do not overwrite the "eye".
-        local yTileOffset = 128 / BigSideLen
+        local yTileOffset = DestYPixelOffset / BigSideLen
         local updateRectSet = RectSet()
 
         for i = 0, tileCount - 1 do
