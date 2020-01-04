@@ -18,6 +18,7 @@ local EV = input.EV
 local POLL = posix.POLL
 
 local assert = assert
+local error = error
 local ipairs = ipairs
 local print = print
 local require = require
@@ -344,8 +345,7 @@ local function checkData(cond, errMsg)
     assert(type(errMsg) == "string")
 
     if (not cond) then
-        stderr:write(("Data validation error: %s\n"):format(errMsg))
-        os.exit(1)
+        error(("Data validation error: %s\n"):format(errMsg))
     end
 end
 
