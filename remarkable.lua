@@ -93,6 +93,13 @@ local api = {
     xywh = xywh_t
 }
 
+local function MakeEventDevice()
+    local MTC = input.MultiTouchCode
+    local evd = input.EventDevice(1)
+    evd:ioctl(input.EVIOC.SMASK, input.EV.ABS, {MTC.POSX, MTC.POSY, MTC.TRACKING_ID})
+    return evd
+end
+
 api.Remarkable = class
 {
     function(fb)
@@ -104,23 +111,28 @@ api.Remarkable = class
         check(type(fb) == "table", "argument #1 must be nil or a FrameBuffer", 2)
         check(type(fb.line_length) == "number", "argument #1 must be nil or a FrameBuffer", 2)
 
-        -- Open the multi-touch device.
-        local evd = input.EventDevice(1)
-
-        local MTC = input.MultiTouchCode
-        evd:ioctl(input.EVIOC.SMASK, input.EV.ABS, {MTC.POSX, MTC.POSY, MTC.TRACKING_ID})
-
         return {
             fb = fb,
             fd = assert(fb.fd),
             vinfo = fb:getVarInfo(),
 
-            evd = evd,
+            evd = nil,  -- input.EventDevice
         }
     end,
 
     getFrameBuffer = function(self)
         return self.fb
+    end,
+
+    openEventDevice = function(self)
+        check(self.evd == nil, "must have no event device opened", 2)
+        self.evd = MakeEventDevice()
+    end,
+
+    closeEventDevice = function(self)
+        check(self.evd ~= nil, "must have the event device opened", 2)
+        self.evd:close()
+        self.evd = nil
     end,
 
     requestRefresh = function(self, ...)

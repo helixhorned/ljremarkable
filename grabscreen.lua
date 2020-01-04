@@ -829,6 +829,8 @@ local Server = class
             local bytesWritten = self.connFd:write(Cmd.Enable)
             assert(bytesWritten == Cmd.Length, "FIXME: partial write")
             self.enabled = true
+
+            self.rM:openEventDevice()
         end
     end,
 
@@ -839,6 +841,8 @@ local Server = class
         if (not self.enabled) then
             local bytesWritten = self.connFd:write(Cmd.Disable)
             assert(bytesWritten == Cmd.Length, "FIXME: partial write")
+
+            self.rM:closeEventDevice()
         end
     end,
 }

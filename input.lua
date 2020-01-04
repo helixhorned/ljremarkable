@@ -191,6 +191,10 @@ api.EventDevice = class
         }
     end,
 
+    close = function(self)
+        self.fd:close()
+    end,
+
     ioctl = function(self, request, ...)
         checktype(request, 1, "number", 2)
         local cType = IoctlTypes[request]
