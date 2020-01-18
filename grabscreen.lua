@@ -218,6 +218,12 @@ local Sampler = class
                     destTileChanged = destTileChanged or (fbSampleBuf[si] ~= scSampleBuf[si])
                 end
 
+                local lastCoords = destTileCoords[#destTileCoords]
+
+                if (lastCoords ~= nil and lastCoords.y == y and lastCoords.x == x - 2) then
+                    destTileCoords[#destTileCoords + 1] = { x=x-1, y=y }
+                end
+
                 if (destTileChanged) then
                     destTileCoords[#destTileCoords + 1] = { x=x, y=y }
                 end
