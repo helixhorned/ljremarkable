@@ -20,11 +20,13 @@ local POLL = posix.POLL
 local assert = assert
 local error = error
 local ipairs = ipairs
+local pairs = pairs
 local print = print
 local require = require
 local tonumber = tonumber
 local tostring = tostring
 local type = type
+local unpack = unpack
 
 local arg = arg
 local stderr = io.stderr
@@ -594,22 +596,29 @@ local Client = class
 
         local sleepTime = sleepFactor * MaxSleepTime
 
-        local fdSet = posix.fd_set_t()
-        local waitedForFd = self.connFd and self.connFd.fd or -1
+        local waitFds = {
+            self.connFd and self.connFd.fd or -1,
+        }
 
-        if (waitedForFd ~= -1) then
-            fdSet:set(self.connFd.fd)
+        local fdSet = posix.fd_set_t()
+
+        for _, fd in ipairs(waitFds) do
+            if (fd >= 0) then
+                fdSet:set(fd)
+            end
         end
 
-        local readyFdCount = ffi.C.select(waitedForFd + 1, fdSet, nil, nil,
+        local readyFdCount = ffi.C.select(math.max(unpack(waitFds)) + 1, fdSet, nil, nil,
                                           timeval_t(0, sleepTime))
         assert(readyFdCount >= 0, "unexpected system call error")
 
         if (readyFdCount > 0) then
-            assert(readyFdCount == 1 and waitedForFd ~= -1)
+            assert(readyFdCount <= #waitFds)
 
-            -- TODO DISABLE_VIA_SERVER_INPUT: also allow Cmd.Disable
-            self:receiveFromServerAndHandle(Cmd.Input)
+            if (fdSet:isSet(self.connFd.fd)) then
+                -- TODO DISABLE_VIA_SERVER_INPUT: also allow Cmd.Disable
+                self:receiveFromServerAndHandle(Cmd.Input)
+            end
         end
     end,
 
