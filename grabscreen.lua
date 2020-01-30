@@ -509,6 +509,27 @@ local function InvokeXDoTool(commands)
     end
 end
 
+
+local MaxInputEvents = 1024
+local sizeof_input_event = ffi.sizeof("struct input_event")
+local input_event_array_t = ffi.typeof("struct input_event [?]")
+
+local function ReadEvents(evd, inputBuf, maxAllowedSynValue)
+    local events, bytesRead = evd.fd:readInto(inputBuf, true)
+    assert(bytesRead % sizeof_input_event == 0)
+    local eventCount = tonumber(bytesRead) / sizeof_input_event
+    assert(eventCount > 0, "unexpected empty read")
+    assert(eventCount < MaxInputEvents, "input event buffer overflow")
+
+    local lastEvent = events[eventCount - 1]
+    assert(lastEvent.type == EV.SYN and lastEvent.code == 0,
+           "last read event is unexpectedly not a SYN_REPORT")
+    assert(lastEvent.value <= maxAllowedSynValue,
+           "unexpected value for final SYN_REPORT")
+
+    return events, eventCount
+end
+
 local Client = class
 {
     function()
@@ -843,10 +864,6 @@ local RectSet = class
     end,
 }
 
-local MaxInputEvents = 1024
-local sizeof_input_event = ffi.sizeof("struct input_event")
-local input_event_array_t = ffi.typeof("struct input_event [?]")
-
 local Stage = {
     None = 0,
     Prefix = 1,
@@ -1051,18 +1068,7 @@ local Server = class
     end,
 
     getInput = function(self)
-        local evdFd = self.evd.fd
-
-        local events, bytesRead = self.evd.fd:readInto(self.inputBuf, true)
-        assert(bytesRead % sizeof_input_event == 0)
-        local eventCount = tonumber(bytesRead) / sizeof_input_event
-        assert(eventCount > 0, "unexpected empty read")
-        assert(eventCount < MaxInputEvents, "input event buffer overflow")
-
-        local lastEvent = events[eventCount - 1]
-        assert(lastEvent.type == EV.SYN and lastEvent.code == 0 and lastEvent.value == 0,
-               "last read event is unexpectedly not a SYN_REPORT")
-
+        local events, eventCount = ReadEvents(self.evd, self.inputBuf, 0)
         local eventToSend = {}
         local lastIdx = 0
 
