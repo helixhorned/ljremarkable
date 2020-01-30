@@ -702,13 +702,13 @@ local Client = class
                     InvokeXDoTool{
                         "mousemove", tostring(cx), tostring(cy),
                         "click", "1",
-                        -- NOTE: no 'mousemove restore' to have feedback.
+                        -- NOTE: to have feedback, deliberately no 'mousemove restore'.
                     }
                 end
 
                 if (singleAllowedCommand) then
-                    -- Since we do not know if there is another event coming.
-                    -- (Most likely not.)
+                    -- We do not know if there is another event coming (most likely no)
+                    -- and would block if no, so return.
                     -- TODO: make this (distinction of the two usage cases) prettier.
                     return
                 end
