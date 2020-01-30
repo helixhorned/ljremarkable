@@ -877,6 +877,9 @@ local RectSet = class
     end,
 }
 
+-- Time in milliseconds after which to consider input to be "locked up".
+local LockedUpDuration = 10000
+
 local Stage = {
     None = 0,
     Prefix = 1,
@@ -938,6 +941,9 @@ local InputState = class
     function()
         return {
             pressedCount = 0,
+            -- The last time of the transition "no finger touches" -> one.
+            -- (or infinity of not currently touching).
+            lastFirstPressedTime = math.huge,
 
             stage = Stage.None,
             ourEventType = nil,
@@ -945,7 +951,8 @@ local InputState = class
         }
     end,
 
-    handleEventFrame = function(self, events, eventCount, outputTab)
+    handleEventFrame = function(self, events, eventCount, outputTab,
+                                lockedUpTab)
         local MTC = input.MultiTouchCode
 
         for i = 0, eventCount - 1 do
@@ -959,8 +966,15 @@ local InputState = class
         local oldStage = self.stage
 
         if (pressedStateChanged) then
-            self.pressedCount = self.pressedCount +
-                ((events[0].value >= 0) and 1 or -1)
+            local delta = (events[0].value >= 0) and 1 or -1
+            self.pressedCount = oldPressedCount + delta
+            assert(self.pressedCount >= 0, "more touch release than press events")
+
+            if (oldPressedCount == 0 and delta == 1) then
+                self.lastFirstPressedTime = currentTimeMs()
+            elseif (oldPressedCount == 1 and delta == -1) then
+                self.lastFirstPressedTime = math.huge
+            end
 
             if (self.stage == Stage.None) then
                 -- Single finger down: May begin single click...
@@ -997,6 +1011,9 @@ local InputState = class
             outputTab[1] = MakeEventToSend(self.ourEventType, self.ourData)
             self:reset()
         end
+
+        -- TODO: check if occasional "lockups" are due to assumptions made in this function.
+        lockedUpTab[1] = (currentTimeMs() >= self.lastFirstPressedTime + LockedUpDuration)
     end,
 
 -- private:
@@ -1024,6 +1041,7 @@ local Server = class
             evd = nil,  -- input.EventDevice
             inputBuf = input_event_array_t(MaxInputEvents),
             inputState = nil,  -- InputState
+            inputLockedUpTab = { false },
 
             decodedBuf = NarrowArray(targetSize),
         }
@@ -1078,6 +1096,13 @@ local Server = class
         if (updateData ~= nil) then
             self:applyUpdates(updateData[1], updateData[2], self.decodedBuf)
         end
+
+        if (self.inputLockedUpTab[1]) then
+            -- Draw a rectangle at the top right corner to signal "locked up" state.
+            local x, y, w = ScreenWidth_rM - 128, 32, 64
+            map:fill(x, y, w, w, 0x10)
+            self.rM:requestRefresh(xywh_t(x, y, w, w))
+        end
     end,
 
     getInput = function(self)
@@ -1090,7 +1115,8 @@ local Server = class
 
             if (ev.type == EV.SYN) then
                 assert(i > lastIdx, "unexpected empty event frame")
-                self.inputState:handleEventFrame(events + lastIdx, i - lastIdx, eventToSend)
+                self.inputState:handleEventFrame(events + lastIdx, i - lastIdx, eventToSend,
+                                                 self.inputLockedUpTab)
                 lastIdx = i + 1
             end
         end
