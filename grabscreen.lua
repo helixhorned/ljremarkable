@@ -539,6 +539,10 @@ local Client = class
         local isRealConnected = (connFd ~= nil)
         connFd = connFd or AttemptConnectTo(socket, {127,0,0,1; Port}, "local host")
 
+        local kbEvDevice = input.EventDevice(
+            -- TODO: enumerate and pick instead of hardcoding.
+            "/dev/input/by-path/platform-fd500000.pcie-pci-0000:01:00.0-usb-0:1.3:1.2-event-kbd")
+
         return {
             enabled = false,
             sampler = nil,  -- Sampler
@@ -574,6 +578,9 @@ local Client = class
 
             connFd = connFd,
             isRealConnected = isRealConnected,
+
+            kbEvDevice = kbEvDevice,
+            inputBuf = input_event_array_t(MaxInputEvents),
 
             -- For debugging (non-connected run) only:
             decodedBuf_ = (connFd == nil) and NarrowArray(targetSize) or nil,
@@ -616,9 +623,11 @@ local Client = class
             (2 ^ BackoffStepCount)
 
         local sleepTime = sleepFactor * MaxSleepTime
+        local kbEvDevFd = self.kbEvDevice:getRawFd()
 
         local waitFds = {
             self.connFd and self.connFd.fd or -1,
+            kbEvDevFd,
         }
 
         local fdSet = posix.fd_set_t()
@@ -636,7 +645,11 @@ local Client = class
         if (readyFdCount > 0) then
             assert(readyFdCount <= #waitFds)
 
-            if (fdSet:isSet(self.connFd.fd)) then
+            if (fdSet:isSet(kbEvDevFd)) then
+                ReadEvents(self.kbEvDevice, self.inputBuf, 1)
+            end
+
+            if (self.connFd and fdSet:isSet(self.connFd.fd)) then
                 -- TODO DISABLE_VIA_SERVER_INPUT: also allow Cmd.Disable
                 self:receiveFromServerAndHandle(Cmd.Input)
             end

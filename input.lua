@@ -187,9 +187,12 @@ api.MultiTouchCode = util.MakeBimap
 
 api.EventDevice = class
 {
-    function(devIdx)
-        checktype(devIdx, 1, "number", 2)
-        local devFileName = ("/dev/input/event%d"):format(devIdx)
+    function(device)
+        check(type(device)  == "number" or type(device) == "string",
+              "argument #1 must be a number or string", 2)
+        local devFileName = (type(device) == "number") and
+            ("/dev/input/event%d"):format(device) or
+            device
 
         local fd = ffi.C.open(devFileName, posix.O.RDONLY)
         if (fd == -1) then
