@@ -223,8 +223,10 @@ local Sampler = class
                 if (destTileChanged) then
                     local lastCoords = destTileCoords[#destTileCoords]
 
-                    if (lastCoords ~= nil and lastCoords.y == y and lastCoords.x == x - 2) then
-                        destTileCoords[#destTileCoords + 1] = { x=x-1, y=y }
+                    if (lastCoords ~= nil and lastCoords.y == y and lastCoords.x >= x - 8) then
+                        for xx = lastCoords.x + 1, x - 1 do
+                            destTileCoords[#destTileCoords + 1] = { x=xx, y=y }
+                        end
                     end
 
                     destTileCoords[#destTileCoords + 1] = { x=x, y=y }
