@@ -80,6 +80,7 @@ end
 
 local PixelArray = ffi.typeof("$ [?]", map:getPixelType())
 local NarrowArray = ffi.typeof("uint16_t [?]")
+local UInt32Array = ffi.typeof("uint32_t [?]")
 
 local size = map:getSize()
 
@@ -159,6 +160,12 @@ print(("INFO: %s%3d x %3d = %5d tiles (side length %d)"):format(
       not isRealServer and " destination: " or "",
       destTileCountX, destTileCountY, totalDestTileCount, BigSideLen))
 
+-- Throttling: Destination tiles for which updates happen more frequently than this are
+-- tentatively held back...
+local MinSlowChangeTime = 100
+-- ... until at most this much time has passed between last sending an update and now:
+local MaxHoldBackTime = 1000
+
 local Sampler = class
 {
     function()
@@ -177,6 +184,9 @@ local Sampler = class
                 PixelArray(sampleCount),
                 PixelArray(sampleCount),
             },
+
+            lastChangedTimes = UInt32Array(totalDestTileCount),
+            lastSentTimes = UInt32Array(totalDestTileCount),
 
             -- exposed to Client
             screenCopyBuf = screenCopyBuf,
@@ -199,6 +209,7 @@ local Sampler = class
 
         -- Compare sample pixel values with current state!
 
+        local currentTime = currentTimeMs()
         local destTileCoords = {}
 
         -- NOTE: y first!
@@ -214,13 +225,28 @@ local Sampler = class
                     srcTileCountX * (sy + 1) + sx + 1,
                 }
 
+                local destTileIdx = destTileCountX * y + x
                 local destTileChanged = false
 
                 for _, si in ipairs(srcSampleIdxs) do
                     destTileChanged = destTileChanged or (fbSampleBuf[si] ~= scSampleBuf[si])
                 end
 
+                local lastChangedTime = self.lastChangedTimes[destTileIdx]
+                local lastSentTime = self.lastSentTimes[destTileIdx]
+
+                local isOutdated = destTileChanged or (lastSentTime < lastChangedTime)
+                local wantHoldBack = (currentTime - lastChangedTime < MinSlowChangeTime)
+                local canHoldBack = wantHoldBack and (currentTime - lastSentTime <= MaxHoldBackTime)
+                local shouldSend = isOutdated and not canHoldBack
+
                 if (destTileChanged) then
+                    self.lastChangedTimes[destTileIdx] = currentTime
+                end
+
+                if (shouldSend) then
+                    self.lastSentTimes[destTileIdx] = currentTime
+
                     local lastCoords = destTileCoords[#destTileCoords]
 
                     if (lastCoords ~= nil and lastCoords.y == y and lastCoords.x >= x - 8) then
