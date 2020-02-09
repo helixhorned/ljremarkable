@@ -200,16 +200,15 @@ local Mapping = class
         end
     end,
 
-    fill = function(self, xb, yb, xlen, ylen, byteValue)
+    fill = function(self, xb, yb, xlen, ylen, pixValue)
         self:checkRect(xb, yb, xlen, ylen)
-        checktype(byteValue, 5, "number", 2)
-        check(byteValue >= 0 and byteValue <= 255, "argument #5 must be in [0, 255]", 2)
-
-        local lineByteCount = xlen * self:getPixelSize()
+        checktype(pixValue, 5, "number", 2)
 
         for y = yb, yb + ylen - 1 do
             local ptr = self:getPixelPointer(xb, y)
-            ffi.fill(ptr, lineByteCount, byteValue)
+            for x = 0, xlen - 1 do
+                ptr[x] = pixValue
+            end
         end
     end,
 
