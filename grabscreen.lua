@@ -248,8 +248,7 @@ local Sampler = class
                     self.lastSentTimes[destTileIdx] = currentTime
 
                     local lastCoords = destTileCoords[#destTileCoords]
-
-                    if (lastCoords ~= nil and lastCoords.y == y and lastCoords.x >= x - 8) then
+                    if (lastCoords ~= nil and lastCoords.y == y) then
                         for xx = lastCoords.x + 1, x - 1 do
                             destTileCoords[#destTileCoords + 1] = { x=xx, y=y }
                         end
