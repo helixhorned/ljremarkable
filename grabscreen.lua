@@ -1126,6 +1126,7 @@ local Server = class
 
         if (self.inputLockedUpTab[1]) then
             -- Draw a rectangle at the top right corner to signal "locked up" state.
+            -- TODO: investigate why this happens sometimes.
             local x, y, w = ScreenWidth_rM - 128, 32, 64
             map:fill(x, y, w, w, 0x10)
             self.rM:requestRefresh(xywh_t(x, y, w, w))
