@@ -61,11 +61,11 @@ local function GetOffsets(vi)
     check(vi.red.msb_right == 0 and vi.green.msb_right == 0 and vi.blue.msb_right == 0,
           "Most-significant-bit-is-right unsupported", 5)
 
-    return vi.red.offset, vi.green.offset, vi.blue.offset, vi.transp.offset
+    return vi.red.offset, vi.green.offset, vi.blue.offset
 end
 
 local function GetLengths(vi)
-    return vi.red.length, vi.green.length, vi.blue.length, vi.transp.length
+    return vi.red.length, vi.green.length, vi.blue.length
 end
 
 local function ExtractComponent(px, off, len)
@@ -76,15 +76,15 @@ local function ExtractComponent(px, off, len)
 end
 
 local function GetUnpackPixelFunc(vi)
-    local oR, oG, oB, oA = GetOffsets(vi)
-    local lR, lG, lB, lA = GetLengths(vi)
+    local oR, oG, oB  = GetOffsets(vi)
+    local lR, lG, lB  = GetLengths(vi)
 
     return function(px)
         return
             ExtractComponent(px, oR, lR),
             ExtractComponent(px, oG, lG),
             ExtractComponent(px, oB, lB),
-            ExtractComponent(px, oA, lA)
+            0
     end
 end
 
