@@ -82,8 +82,6 @@ local PixelArray = ffi.typeof("$ [?]", map:getPixelType())
 local NarrowArray = ffi.typeof("uint16_t [?]")
 local UInt32Array = ffi.typeof("uint32_t [?]")
 
-local size = map:getSize()
-
 local shl, shr = bit.lshift, bit.rshift
 local band, bor = bit.band, bit.bor
 

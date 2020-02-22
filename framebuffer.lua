@@ -156,10 +156,6 @@ local Mapping = class
         return self.pxType
     end,
 
-    getSize = function(self)
-        return self.xres * self.yres
-    end,
-
     getRawSize = function(self)
         return self.xres_virtual * self.yres
     end,
