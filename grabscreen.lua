@@ -76,6 +76,13 @@ do
         stderr:write("ERROR: Unsupported pixel size.\n")
         os.exit(1)
     end
+
+    local vi = fb:getVarInfo()
+
+    if (not (vi.blue.offset < vi.green.offset and vi.green.offset < vi.red.offset)) then
+        stderr:write("ERROR: Unexpected pixel component order.\n")
+        os.exit(1)
+    end
 end
 
 local PixelArray = ffi.typeof("$ [?]", map:getPixelType())
@@ -86,9 +93,11 @@ local shl, shr = bit.lshift, bit.rshift
 local band, bor = bit.band, bit.bor
 
 -- Convert to RGB565 represented as integer.
+-- NOTE: The order R-G-B is to be understood as from most to least significant bit.
+--  (Thus, it is reverse to the order in terms of bit shift counts.)
 local function narrow(px)
     local r, g, b = unpackPixel(px)
-    return bor(shr(r, 3), shl(shr(g, 2), 5), shl(shr(b, 3), 11))
+    return bor(shr(b, 3), shl(shr(g, 2), 5), shl(shr(r, 3), 11))
 end
 
 ---------- Sampling and comparison ----------
