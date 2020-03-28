@@ -497,7 +497,7 @@ local OurEvent_t = ffi.typeof[[struct {
 ----------
 
 local function AttemptConnectTo(socket, addrAndPort, displayName)
-    local connFd, errMsg = socket:initiateConnection(AddrAndPort)
+    local connFd, errMsg = socket:initiateConnection(addrAndPort)
 
     if (connFd == nil) then
         stderr:write(("INFO: failed connecting to the %s: %s\n"):format(
