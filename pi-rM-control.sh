@@ -6,21 +6,21 @@ pigs=/usr/bin/pigs
 R=13
 G=12
 
-cmd="$1"
+# Expectation: the desided default IP address of the rM has been added to /etc/hosts.
+DEFAULT_REMARKABLE_HOST=remarkable
 
-rMHostFile="$HOME/.config/REMARKABLE_HOST"
+cmd="$1"
+rMHost="$2"
 
 if [ -z "$cmd" ]; then
-    echo "Usage: $0 [after-login|ping|kill]"
+    echo "Usage: $0 [after-login|ping|kill] [<rM-host>]"
+    echo " <rM-host> defaults to '$DEFAULT_REMARKABLE_HOST'"
     exit 1
 fi
 
-if [ ! -f "$rMHostFile" ]; then
-    echo "ERROR: $rMHostFile must exist."
-    exit 2
+if [ -z "$rMHost" ]; then
+    rMHost=$DEFAULT_REMARKABLE_HOST
 fi
-
-rMHost="$(cat $rMHostFile)"
 
 function rampLED() {
     led="$1"
