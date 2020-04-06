@@ -35,16 +35,19 @@ local isClient = (arg[1] == "c")
 local isServer = (arg[1] == "s")
 local hostNameOrAddr = arg[2]
 
+local function errprintfAndExit(fmt, ...)
+    stderr:write((fmt.."\n"):format(...))
+    os.exit(1)
+end
+
 if (not ((isClient and hostNameOrAddr ~= nil) or (isServer and hostNameOrAddr == nil))) then
-    stderr:write(([[
+    errprintfAndExit([[
 Usage:
   %s c <host name or IPv4 address>  # on the Raspberry Pi
   %s s                              # on the reMarkable
 
 A passed host name is resolved by reading /etc/hosts.
-
-]]):format(arg[0], arg[0]))
-    os.exit(1)
+]], arg[0], arg[0])
 end
 
 ----------
@@ -77,15 +80,13 @@ do
     local expectedPixelSize = (isClient and SourcePixelSize or DestPixelSize)
 
     if (not isDebugging and map:getPixelSize() ~= expectedPixelSize) then
-        stderr:write("ERROR: Unsupported pixel size.\n")
-        os.exit(1)
+        errprintfAndExit("ERROR: Unsupported pixel size.")
     end
 
     local vi = fb:getVarInfo()
 
     if (not (vi.blue.offset < vi.green.offset and vi.green.offset < vi.red.offset)) then
-        stderr:write("ERROR: Unexpected pixel component order.\n")
-        os.exit(1)
+        errprintfAndExit("ERROR: Unexpected pixel component order.")
     end
 end
 
@@ -136,8 +137,7 @@ local isRealServer = (isServer and not isDebugging)
 
 if (isRealServer) then
     if (map.xres ~= ScreenWidth_rM or map.yres ~= ScreenHeight_rM) then
-        stderr:write("ERROR: Unexpected framebuffer dimensions.\n")
-        os.exit(1)
+        errprintfAndExit("ERROR: Unexpected framebuffer dimensions.")
     end
 end
 
@@ -502,9 +502,8 @@ local function ConnectTo(socket, addrAndPort, displayName)
     local connFd, errMsg = socket:initiateConnection(addrAndPort)
 
     if (connFd == nil) then
-        stderr:write(("ERROR: failed connecting to host %s: %s\n"):format(
-                         displayName, errMsg))
-        os.exit(1)
+        errprintfAndExit("ERROR: failed connecting to host %s: %s",
+                         displayName, errMsg)
     end
 
     stderr:write(("INFO: connected to host %s\n"):format(displayName))
@@ -514,8 +513,7 @@ end
 
 local function CheckCmdLength(length)
     if (length == 0) then
-        stderr:write("Connection to peer closed.\n")
-        os.exit(0)
+        errprintfAndExit("Connection to peer closed.")
     end
 
     assert(length == Cmd.Length, "unexpected command length")
@@ -574,8 +572,7 @@ local function GetAddress(nameOrQuad)
     local a, b, c, d = nameOrQuad:match('^'..IPAddressPattern..'$')
     if (a ~= nil) then
         if (bit.bor(a, b, c, d) >= 256) then
-            stderr:write("ERROR: Invalid IPv4 address\n")
-            os.exit(1)
+            errprintfAndExit("ERROR: Invalid IPv4 address")
         end
 
         return {tonumber(a), tonumber(b), tonumber(c), tonumber(d)}
@@ -585,8 +582,7 @@ local function GetAddress(nameOrQuad)
 
     if (nameOrQuad:match('^'..HostNamePattern..'$') == nil) then
         -- See 'man 7 hostname'.
-        stderr:write("ERROR: Invalid host name, must match "..HostNamePattern:sub(2, -2).."\n")
-        os.exit(1)
+        errprintfAndExit("ERROR: Invalid host name, must match "..HostNamePattern:sub(2, -2))
     end
 
     for line in io.lines("/etc/hosts") do
@@ -596,8 +592,7 @@ local function GetAddress(nameOrQuad)
         end
     end
 
-    stderr:write("ERROR: Host name not found in /etc/hosts\n")
-    os.exit(1)
+    errprintfAndExit("ERROR: Host name not found in /etc/hosts")
 end
 
 local function FindKeyboardDevFile()
@@ -608,8 +603,7 @@ local function FindKeyboardDevFile()
         local fileName = dir:read()
         if (fileName == nil) then
             -- TODO: make optional
-            stderr:write("ERROR: no keyboard found\n")
-            os.exit(1)
+            errprintfAndExit("ERROR: no keyboard found")
         elseif (fileName:sub(-10,-1) == "-event-kbd") then
             return Directory.."/"..fileName
         end
@@ -867,8 +861,7 @@ local EyeData = nil
 if (isRealServer) then
     local fd = ffi.C.open("rM_ul_eye_menu_hidden_46-28.dat", posix.O.RDONLY)
     if (fd == -1) then
-        stderr:write("ERROR: failed opening 'eye' screenshot data.\n")
-        os.exit(1)
+        errprintfAndExit("ERROR: failed opening 'eye' screenshot data.")
     end
 
     fd = posix.Fd(fd)
@@ -1110,8 +1103,7 @@ local Server = class
     function()
         local connFd, errMsg = inet.Socket():expectConnection(Port)
         if (connFd == nil) then
-            stderr:write(("ERROR: failed connecting: %s\n"):format(errMsg))
-            os.exit(1)
+            errprintfAndExit("ERROR: failed connecting: %s", errMsg)
         end
 
         return {
