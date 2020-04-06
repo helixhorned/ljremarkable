@@ -485,23 +485,33 @@ local coord_array_t = ffi.typeof("$ [?]", coord_t)
 
 local OurEventType = {
     SingleClick = 1,
+    VerticalDrag = 2,
 }
+
+-- The amount of y travelled for sending one wheel up/down (9: 1mm).
+local SingleWheelRollDistance = 81
 
 -- KEEPINSYNC with 'xdotool click' mouse button numbers.
 local Button = {
+    Indeterminate = 0,
+
     Left = 1,
     Middle = 2,
     Right = 3,
+    WheelUp = 4,
+    WheelDown = 5,
 }
 
 local OurEventDesc = {
     [OurEventType.SingleClick] = "single click",
+    [OurEventType.VerticalDrag] = "vertical drag",
 }
 
 local OurEvent_t = ffi.typeof[[struct {
     uint8_t ourType;
     uint8_t button;
     uint16_t x, y;
+    uint16_t nx, ny;  // VerticalDrag only
 }]]
 
 ----------
@@ -822,16 +832,38 @@ local Client = class
 
                 if (cx >= 0 and cx < targetXres and
                         cy >= globalSrcYOffset and cy < targetYres) then
-                    checkData(ourEvent.ourType == OurEventType.SingleClick,
-                              "unexpected server input event: invalid type")
-                    checkData(ourEvent.button >= Button.Left and ourEvent.button <= Button.Right,
-                              "unexpected server input event: invalid button")
+                    if (ourEvent.ourType == OurEventType.SingleClick) then
+                        checkData(ourEvent.button >= Button.Left and ourEvent.button <= Button.Right,
+                                  "unexpected server input event: unexpected button")
 
-                    InvokeXDoTool{
-                        "mousemove", tostring(cx), tostring(cy),
-                        "click", tostring(ourEvent.button),
-                        -- NOTE: to have feedback, deliberately no 'mousemove restore'.
-                    }
+                        InvokeXDoTool{
+                            "mousemove", tostring(cx), tostring(cy),
+                            "click", tostring(ourEvent.button),
+                            -- NOTE: to have feedback, deliberately no 'mousemove restore'.
+                        }
+                    elseif (ourEvent.ourType == OurEventType.VerticalDrag) then
+                        checkData(ourEvent.button == Button.Indeterminate,
+                                  "unexpected server input event: non-indeterminate button")
+                        local _, cny = ConvertScreenToClient(ourEvent.nx, ourEvent.ny)
+                        -- Emulate "dragging the page" like on a tablet by sending mouse
+                        -- wheel up/down. Ideally, we would somehow issue the source and
+                        -- destination coordinates directly to X. But there does not seem to
+                        -- be a way to tell graphical programs to process them the way we
+                        -- want generically (i.e. across a wide range of programs). Issuing
+                        -- wheel up/down seems like a reasonable lowest common denominator.
+                        local button = (cny > cy) and Button.WheelUp or Button.WheelDown
+                        local repeatCount = math.floor(math.abs(cny - cy) / SingleWheelRollDistance)
+
+                        if (repeatCount >= 1) then
+                            InvokeXDoTool{
+                                "mousemove", tostring(cx), tostring(cy),
+                                "click", "--repeat", tostring(repeatCount), "--delay", "1", tostring(button),
+                                "mousemove", "restore"
+                            }
+                        end
+                    else
+                        checkData(false, "unexpected server input event: invalid type")
+                    end
                 end
 
                 if (singleAllowedCommand) then
@@ -996,9 +1028,7 @@ local function ObtainMultiTouchCoordRange(evd)
 end
 
 -- INPUT_EVENT_COORD_CONVERSION step 2
-local function ConvertMtToScreen(mtDevCoords)
-    local devx, devy = mtDevCoords.x, mtDevCoords.y
-
+local function ConvertMtToScreen(devx, devy)
     local isx = devx * ScreenWidth_rM / MtRes.w
     local isy = devy * ScreenHeight_rM / MtRes.h
 
@@ -1015,13 +1045,14 @@ local function ConvertMtToScreen(mtDevCoords)
 end
 
 local function MakeEventToSend(ourEventType, ourData)
-    assert(ourEventType == OurEventType.SingleClick)
-
     local button = ourData.button
-    local sx, sy = ConvertMtToScreen(ourData)
+    local sx, sy = ConvertMtToScreen(ourData.x, ourData.y)
     assert(button ~= nil and sx ~= nil and sy ~= nil)
 
-    return OurEvent_t(ourEventType, button, sx, sy)
+    local snx, sny = ConvertMtToScreen(ourData.nx, ourData.ny)
+    assert(snx ~= nil and sny ~= nil)
+
+    return OurEvent_t(ourEventType, button, sx, sy, snx, sny)
 end
 
 local InputState = class
@@ -1074,29 +1105,35 @@ local InputState = class
 
             if (self.stage == Stage.None) then
                 -- Single finger down: May begin single click...
-                if (oldPressedCount == 0 and self.pressedCount == 1) then
+                if (oldPressedCount == 0 and delta == 1) then
                     -- ... but only we get all coordinates with the first frame.
                     if (eventCount >= 3 and
                             events[1].code == MTC.POSX and
                             events[2].code == MTC.POSY) then
                         self.stage = Stage.Prefix
                         self.ourEventType = OurEventType.SingleClick
-                        self.ourData = { x = events[1].value, y = events[2].value }
+                        self.ourData = {
+                            x = events[1].value,
+                            y = events[2].value,
+                            -- For VerticalDrag -- the destination ("new") coordinates.
+                            nx = events[1].value,
+                            ny = events[2].value
+                        }
                     end
                 end
-            elseif (self.stage == Stage.Prefix) then
-                assert(self.ourEventType == OurEventType.SingleClick)
-
-                if (oldPressedCount == 1 and self.pressedCount == 0) then
-                    -- Single finger up: May finish single click, but only if there are no
-                    -- additional events in the frame.
-                    if (eventCount == 1) then
-                        self.ourData.button =
-                            timedOut(MaxSingleClickDuration) and Button.Right or Button.Left
-                        self.stage = Stage.Finished
-                    else
-                        self:reset()
-                    end
+            elseif (self.stage == Stage.Prefix and oldPressedCount == 1 and delta == -1) then
+                -- Single finger up: May finish gesture, but only if there are no
+                -- additional events in the frame.
+                if (eventCount ~= 1) then
+                    self:reset()
+                elseif (self.ourEventType == OurEventType.SingleClick) then
+                    self.ourData.button =
+                        timedOut(MaxSingleClickDuration) and Button.Right or Button.Left
+                    self.stage = Stage.Finished
+                elseif (self.ourEventType == OurEventType.VerticalDrag) then
+                    -- Will be determined on the client side:
+                    self.ourData.button = Button.Indeterminate
+                    self.stage = Stage.Finished
                 end
             end
         end
@@ -1105,16 +1142,57 @@ local InputState = class
 
         if (not hadProgress) then
             if (self.stage == Stage.Prefix) then
-                if (self.ourEventType == OurEventType.SingleClick) then
+                local getDelta = function(i)
                     local MemberTab = { [MTC.POSX]='x', [MTC.POSY]='y' }
-                    local MaxDeviation = MaxSingleClickDeviation * MtRes.h / ScreenHeight_rM
+                    local m = MemberTab[events[i].code]
+                    if (m == nil) then
+                        self:reset()
+                        return nil
+                    end
+                    local newValue = events[i].value
+                    self.ourData['n'..m] = newValue  -- update 'new' coordinate
+                    return (newValue - self.ourData[m])
+                end
+
+                local vDragStartEvIdx = 0
+                local MultiTouchScreenUnitRatio = MtRes.h / ScreenHeight_rM
+
+                if (self.ourEventType == OurEventType.SingleClick) then
+                    local MaxDeviation = MaxSingleClickDeviation * MultiTouchScreenUnitRatio
                     for i = 0, eventCount - 1 do
-                        local ev = events[i]
-                        local m = MemberTab[ev.code]
-                        -- Allow a small deviation from the initially tapped point.
-                        if (m == nil or math.abs(ev.value - self.ourData[m]) > MaxDeviation) then
-                            self:reset()
+                        local delta = getDelta(i)
+                        -- Allow a small deviation from the initially tapped point for
+                        -- "single click". If it is exceeded, consider it as starting...
+                        if (delta ~= nil and math.abs(delta) > MaxDeviation) then
+                            self.ourEventType = OurEventType.VerticalDrag  -- <- ...this.
+                            vDragStartEvIdx = i + 1
                             break
+                        end
+                    end
+                end
+
+                if (self.ourEventType == OurEventType.VerticalDrag) then
+                    local MinSlope = 3
+                    local TriangRegionCheckXOffset = SingleWheelRollDistance * MultiTouchScreenUnitRatio
+
+                    for i = vDragStartEvIdx, eventCount - 1 do
+                        local data = self.ourData
+                        local ody = data.ny - data.y
+                        if (getDelta(i) ~= nil) then
+                            local dx, dy = data.nx - data.x, data.ny - data.y
+                            -- After the initial single click tolerance, vertical dragging
+                            -- has to proceed (1) up or down consistently, and (2) in an
+                            -- allowed truncated-triangular region.
+                            local isInconsistentUpDown =
+                                ody ~= 0 and (dy/ody < 0 or math.abs(dy) < math.abs(ody))
+                            local isOutsideTriangle =
+                                (math.abs(dx) > TriangRegionCheckXOffset and
+                                 math.abs(dy) / (math.abs(dx) - TriangRegionCheckXOffset) < MinSlope)
+
+                            if (isInconsistentUpDown or isOutsideTriangle) then
+                                self:reset()
+                                break
+                            end
                         end
                     end
                 end
