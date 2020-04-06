@@ -600,17 +600,30 @@ local function GetAddress(nameOrQuad)
     os.exit(1)
 end
 
+local function FindKeyboardDevFile()
+    local Directory = "/dev/input/by-path"
+    local dir = posix.Dir(Directory)
+
+    while (true) do
+        local fileName = dir:read()
+        if (fileName == nil) then
+            -- TODO: make optional
+            stderr:write("ERROR: no keyboard found\n")
+            os.exit(1)
+        elseif (fileName:sub(-10,-1) == "-event-kbd") then
+            return Directory.."/"..fileName
+        end
+    end
+end
+
 local Client = class
 {
     function()
         local address = GetAddress(hostNameOrAddr)
         address[#address + 1] = Port
 
+        local kbEvDevice = input.EventDevice(FindKeyboardDevFile())
         local connFd = ConnectTo(inet.Socket(), address, hostNameOrAddr)
-
-        local kbEvDevice = input.EventDevice(
-            -- TODO: enumerate and pick instead of hardcoding.
-            "/dev/input/by-path/platform-fd500000.pcie-pci-0000:01:00.0-usb-0:1.3:1.2-event-kbd")
 
         return {
             enabled = false,
