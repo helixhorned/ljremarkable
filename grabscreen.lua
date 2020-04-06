@@ -487,12 +487,20 @@ local OurEventType = {
     SingleClick = 1,
 }
 
+-- KEEPINSYNC with 'xdotool click' mouse button numbers.
+local Button = {
+    Left = 1,
+    Middle = 2,
+    Right = 3,
+}
+
 local OurEventDesc = {
     [OurEventType.SingleClick] = "single click",
 }
 
 local OurEvent_t = ffi.typeof[[struct {
-    uint16_t ourType;
+    uint8_t ourType;
+    uint8_t button;
     uint16_t x, y;
 }]]
 
@@ -815,11 +823,13 @@ local Client = class
                 if (cx >= 0 and cx < targetXres and
                         cy >= globalSrcYOffset and cy < targetYres) then
                     checkData(ourEvent.ourType == OurEventType.SingleClick,
-                              "unexpected server input event")
+                              "unexpected server input event: invalid type")
+                    checkData(ourEvent.button >= Button.Left and ourEvent.button <= Button.Right,
+                              "unexpected server input event: invalid button")
 
                     InvokeXDoTool{
                         "mousemove", tostring(cx), tostring(cy),
-                        "click", "1",
+                        "click", tostring(ourEvent.button),
                         -- NOTE: to have feedback, deliberately no 'mousemove restore'.
                     }
                 end
@@ -1007,10 +1017,11 @@ end
 local function MakeEventToSend(ourEventType, ourData)
     assert(ourEventType == OurEventType.SingleClick)
 
+    local button = ourData.button
     local sx, sy = ConvertMtToScreen(ourData)
-    assert(sx ~= nil and sy ~= nil)
+    assert(button ~= nil and sx ~= nil and sy ~= nil)
 
-    return OurEvent_t(ourEventType, sx, sy)
+    return OurEvent_t(ourEventType, button, sx, sy)
 end
 
 local InputState = class
@@ -1077,9 +1088,11 @@ local InputState = class
                 assert(self.ourEventType == OurEventType.SingleClick)
 
                 if (oldPressedCount == 1 and self.pressedCount == 0) then
-                    -- Single finger up: May finish single click, but only if we are within
-                    --  time and there are no additional events in the frame.
-                    if (eventCount == 1 and not timedOut(MaxSingleClickDuration)) then
+                    -- Single finger up: May finish single click, but only if there are no
+                    -- additional events in the frame.
+                    if (eventCount == 1) then
+                        self.ourData.button =
+                            timedOut(MaxSingleClickDuration) and Button.Right or Button.Left
                         self.stage = Stage.Finished
                     else
                         self:reset()
