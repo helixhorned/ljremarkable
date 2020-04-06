@@ -951,8 +951,11 @@ local RectSet = class
     end,
 }
 
--- Time in milliseconds after which to consider input to be "locked up".
-local LockedUpDuration = 10000
+-- Times in milliseconds.
+local MaxSingleClickDuration = 500
+local LockedUpDuration = 10000  -- input is "locked up"
+
+local MaxSingleClickDeviation = 9  -- in delta x/y rM screen coordinates (9: 1 mm)
 
 local Stage = {
     None = 0,
@@ -975,7 +978,7 @@ local function ObtainMultiTouchCoordRange(evd)
            "unexpected multitouch device range x or y minimum")
     -- Check for something more than just 0 for extended sanity.
     -- NOTE: the ioctls report the both-sided *inclusive* range.
-    assert(xRange.maximum >= 399 and yRange.maximum >= 299,
+    assert(xRange.maximum >= 299 and yRange.maximum >= 399,
            "unexpected multitouch device range x or y maximum")
 
     MtRes.w = xRange.maximum + 1
@@ -1036,13 +1039,21 @@ local InputState = class
 
         assert(eventCount > 0)
         local pressedStateChanged = (events[0].code == MTC.TRACKING_ID)
+        local oldLastFirstPressedTime = self.lastFirstPressedTime
         local oldPressedCount = self.pressedCount
         local oldStage = self.stage
 
         if (pressedStateChanged) then
+            -- FIXME [LOCKUP]: we cannot reliably track "tap on"/"tap off" this way. When
+            --  tapping with multiple fingers repeatedly, a net positive "pressed count"
+            --  will accumulate over time. (In other words, release events are lost.)
             local delta = (events[0].value >= 0) and 1 or -1
             self.pressedCount = oldPressedCount + delta
             assert(self.pressedCount >= 0, "more touch release than press events")
+
+            local timedOut = function(maxDuration)
+                return currentTimeMs() >= oldLastFirstPressedTime + maxDuration
+            end
 
             if (oldPressedCount == 0 and delta == 1) then
                 self.lastFirstPressedTime = currentTimeMs()
@@ -1063,13 +1074,15 @@ local InputState = class
                     end
                 end
             elseif (self.stage == Stage.Prefix) then
-                -- Single finger up: May finish single click...
-                if (oldPressedCount == 1 and self.pressedCount == 0) then
-                    assert(self.ourEventType == OurEventType.SingleClick)
+                assert(self.ourEventType == OurEventType.SingleClick)
 
-                    -- ... but only if there are no additional events in the frame.
-                    if (eventCount == 1) then
+                if (oldPressedCount == 1 and self.pressedCount == 0) then
+                    -- Single finger up: May finish single click, but only if we are within
+                    --  time and there are no additional events in the frame.
+                    if (eventCount == 1 and not timedOut(MaxSingleClickDuration)) then
                         self.stage = Stage.Finished
+                    else
+                        self:reset()
                     end
                 end
             end
@@ -1078,15 +1091,27 @@ local InputState = class
         local hadProgress = (self.stage > oldStage)
 
         if (not hadProgress) then
-            -- Currently, if there are intervening events (such as moves),
-            -- do not consider it a "single click".
-            self:reset()
+            if (self.stage == Stage.Prefix) then
+                if (self.ourEventType == OurEventType.SingleClick) then
+                    local MemberTab = { [MTC.POSX]='x', [MTC.POSY]='y' }
+                    local MaxDeviation = MaxSingleClickDeviation * MtRes.h / ScreenHeight_rM
+                    for i = 0, eventCount - 1 do
+                        local ev = events[i]
+                        local m = MemberTab[ev.code]
+                        -- Allow a small deviation from the initially tapped point.
+                        if (m == nil or math.abs(ev.value - self.ourData[m]) > MaxDeviation) then
+                            self:reset()
+                            break
+                        end
+                    end
+                end
+            end
         elseif (self.stage == Stage.Finished) then
             outputTab[1] = MakeEventToSend(self.ourEventType, self.ourData)
             self:reset()
         end
 
-        -- TODO: check if occasional "lockups" are due to assumptions made in this function.
+        -- Indicate a locked up state, see LOCKUP above.
         lockedUpTab[1] = (currentTimeMs() >= self.lastFirstPressedTime + LockedUpDuration)
     end,
 
