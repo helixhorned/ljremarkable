@@ -33,13 +33,17 @@ local stderr = io.stderr
 
 local isClient = (arg[1] == "c")
 local isServer = (arg[1] == "s")
+local hostNameOrAddr = arg[2]
 
--- TODO: auto-detect?
-if (not (isClient or isServer)) then
-    stderr:write("Usage:\n")
-    -- TODO: rename this application to something more suitable than 'grabscreen'.
-    stderr:write((" %s c  # on the Raspberry Pi\n"):format(arg[0]))
-    stderr:write((" %s s  # on the reMarkable\n"):format(arg[0]))
+if (not ((isClient and hostNameOrAddr ~= nil) or (isServer and hostNameOrAddr == nil))) then
+    stderr:write(([[
+Usage:
+  %s c <host name or IPv4 address>  # on the Raspberry Pi
+  %s s                              # on the reMarkable
+
+A passed host name is resolved by reading /etc/hosts.
+
+]]):format(arg[0], arg[0]))
     os.exit(1)
 end
 
@@ -446,10 +450,8 @@ end
 
 ---------- Connection-related ----------
 
--- Wired reMarkable IP address.
 -- Mnemonic for the port number is "P2R" ("Pi to reMarkable").
 local Port = 16218
-local AddrAndPort = {10,11,99,1; Port}
 
 -- Client -> server
 local UpdateMagic = "UpDatE"
@@ -496,15 +498,16 @@ local OurEvent_t = ffi.typeof[[struct {
 
 ----------
 
-local function AttemptConnectTo(socket, addrAndPort, displayName)
+local function ConnectTo(socket, addrAndPort, displayName)
     local connFd, errMsg = socket:initiateConnection(addrAndPort)
 
     if (connFd == nil) then
-        stderr:write(("INFO: failed connecting to the %s: %s\n"):format(
+        stderr:write(("ERROR: failed connecting to host %s: %s\n"):format(
                          displayName, errMsg))
-    else
-        stderr:write(("INFO: connected to the %s\n"):format(displayName))
+        os.exit(1)
     end
+
+    stderr:write(("INFO: connected to host %s\n"):format(displayName))
 
     return connFd
 end
@@ -564,14 +567,46 @@ local function ReadEvents(evd, inputBuf, maxAllowedSynValue)
     return events, eventCount
 end
 
+local function GetAddress(nameOrQuad)
+    assert(type(nameOrQuad) == "string")
+    local IPAddressPattern = "([0-9]+)%.([0-9]+)%.([0-9]+)%.([0-9]+)"
+
+    local a, b, c, d = nameOrQuad:match('^'..IPAddressPattern..'$')
+    if (a ~= nil) then
+        if (bit.bor(a, b, c, d) >= 256) then
+            stderr:write("ERROR: Invalid IPv4 address\n")
+            os.exit(1)
+        end
+
+        return {tonumber(a), tonumber(b), tonumber(c), tonumber(d)}
+    end
+
+    local HostNamePattern = "([a-z0-9][a-z0-9-]*)"
+
+    if (nameOrQuad:match('^'..HostNamePattern..'$') == nil) then
+        -- See 'man 7 hostname'.
+        stderr:write("ERROR: Invalid host name, must match "..HostNamePattern:sub(2, -2).."\n")
+        os.exit(1)
+    end
+
+    for line in io.lines("/etc/hosts") do
+        local a, b, c, d, name = line:match('^'..IPAddressPattern.."\t"..HostNamePattern..'$')
+        if (a ~= nil and name == nameOrQuad) then
+            return {tonumber(a), tonumber(b), tonumber(c), tonumber(d)}
+        end
+    end
+
+    stderr:write("ERROR: Host name not found in /etc/hosts\n")
+    os.exit(1)
+end
+
 local Client = class
 {
     function()
-        local socket = inet.Socket()
+        local address = GetAddress(hostNameOrAddr)
+        address[#address + 1] = Port
 
-        local connFd = AttemptConnectTo(socket, AddrAndPort, "reMarkable")
-        local isRealConnected = (connFd ~= nil)
-        connFd = connFd or AttemptConnectTo(socket, {127,0,0,1; Port}, "local host")
+        local connFd = ConnectTo(inet.Socket(), address, hostNameOrAddr)
 
         local kbEvDevice = input.EventDevice(
             -- TODO: enumerate and pick instead of hardcoding.
@@ -611,7 +646,6 @@ local Client = class
             codedBuf = NarrowArray(totalDestTileCount * (1 + BigSquareSize)),
 
             connFd = connFd,
-            isRealConnected = isRealConnected,
 
             kbEvDevice = kbEvDevice,
             inputBuf = input_event_array_t(MaxInputEvents),
@@ -1271,7 +1305,7 @@ while (true) do
     local startMs = currentTimeMs()
     app:step()
 
-    if (not ((isClient and app.isRealConnected) or isRealServer)) then
+    if (not (isClient or isRealServer)) then
         io.stdout:write(("%.0f ms\n"):format(currentTimeMs() - startMs))
     end
 end
