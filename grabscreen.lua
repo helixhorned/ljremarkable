@@ -1208,48 +1208,54 @@ local InputState = class
             self.lastFirstPressedTime = currentTimeMs()
         end
 
-        local timedOut = function(maxDuration)
-            return currentTimeMs() >= self.lastFirstPressedTime + maxDuration
-        end
-
         if (self.pressedCount > 1) then
             -- We do not currently allow multi-finger gestures.
             self:reset()
-        elseif (self.stage == Stage.None) then
-            -- Single finger down: May begin single click...
-            if (haveInitiallyPressed) then
-                -- ... but only we get all coordinates with the first frame.
-                if (eventCount >= 3 and
-                        events[1].code == MTC.POSX and
-                        events[2].code == MTC.POSY) then
-                    self.stage = Stage.Prefix
-                    self.ourEventType = OurEventType.SingleClick
-                    self.ourData = {
-                        x = events[1].value,
-                        y = events[2].value,
-                        -- For Drag -- the destination ("new") coordinates.
-                        nx = events[1].value,
-                        ny = events[2].value
-                    }
-                end
-            end
+        elseif (self.stage == Stage.None and haveInitiallyPressed) then
+            self:handleInitialPress(events, eventCount)
         elseif (self.stage == Stage.Prefix and haveFinallyReleased) then
-            -- Single finger up: May finish gesture, but only if there are no
-            -- additional events in the frame.
-            if (eventCount ~= 1) then
-                self:reset()
-            elseif (self.ourEventType == OurEventType.SingleClick) then
-                self.ourData.button =
-                    timedOut(MaxSingleClickDuration) and Button.Right or Button.Left
-                self.stage = Stage.Finished
-            elseif (self.ourEventType == OurEventType.Drag) then
-                self.ourData.button =
-                    self.onlyVerticalDrag and Button.VerticalDrag or Button.GenericDrag
-                self.stage = Stage.Finished
-            end
+            self:handleFinalRelease(eventCount)
         end
 
         return haveFinallyReleased
+    end,
+
+    handleInitialPress = function(self, events, eventCount)
+        -- First finger down: begin single click, but only we get all coordinates with the
+        -- first input frame.
+        if (eventCount >= 3 and
+                events[1].code == MTC.POSX and
+                events[2].code == MTC.POSY) then
+            self.stage = Stage.Prefix
+            self.ourEventType = OurEventType.SingleClick
+            self.ourData = {
+                x = events[1].value,
+                y = events[2].value,
+                -- For Drag -- the destination ("new") coordinates.
+                nx = events[1].value,
+                ny = events[2].value
+            }
+        end
+    end,
+
+    handleFinalRelease = function(self, eventCount)
+        -- Last finger up: May finish a gesture in progress, but only if there are no
+        -- additional events in the input frame.
+        if (eventCount ~= 1) then
+            self:reset()
+        elseif (self.ourEventType == OurEventType.SingleClick) then
+            self.ourData.button =
+                self:timedOut(MaxSingleClickDuration) and Button.Right or Button.Left
+            self.stage = Stage.Finished
+        elseif (self.ourEventType == OurEventType.Drag) then
+            self.ourData.button =
+                self.onlyVerticalDrag and Button.VerticalDrag or Button.GenericDrag
+            self.stage = Stage.Finished
+        end
+    end,
+
+    timedOut = function(self, maxDuration)
+        return currentTimeMs() >= self.lastFirstPressedTime + maxDuration
     end,
 
     getPressedCountDelta = function(self, events, eventCount)
