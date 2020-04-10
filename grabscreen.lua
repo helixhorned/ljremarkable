@@ -1104,6 +1104,8 @@ local InputState = class
         for i = 0, eventCount - 1 do
             local ev = events[i]
             assert(ev.type == EV.ABS, "unexpected event type")
+            assert(not (i ~= 0) or ev.code ~= MTC.TRACKING_ID,
+                   "unexpected event code at index "..tostring(i))
         end
 
         assert(eventCount > 0)
