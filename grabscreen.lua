@@ -490,15 +490,17 @@ local OurEventType = {
 -- The amount of y travelled for sending one wheel up/down (9: 1mm).
 local SingleWheelRollDistance = 81
 
--- KEEPINSYNC with 'xdotool click' mouse button numbers.
 local Button = {
-    Indeterminate = 0,
-
+    -- KEEPINSYNC with 'xdotool click' mouse button numbers:
     Left = 1,
     Middle = 2,
     Right = 3,
     WheelUp = 4,
     WheelDown = 5,
+
+    -- These are for ourselves, 'xdotool' does not know them:
+    VerticalDrag = 254,
+    GenericDrag = 255
 }
 
 local OurEventDesc = {
@@ -828,7 +830,12 @@ local Client = class
                 -- NOTE SEND_INPUT_FIRST: sent by the server before a Disable or Ok!
                 local ourEvent = self.connFd:readInto(OurEvent_t(), false)
                 local cx, cy = ConvertScreenToClient(ourEvent.x, ourEvent.y)
-                local _, cny = ConvertScreenToClient(ourEvent.nx, ourEvent.ny)
+                local cnx, cny = ConvertScreenToClient(ourEvent.nx, ourEvent.ny)
+
+                local function isInScreenBounds(x, y)
+                    return x >= 0 and x < targetXres and
+                        y >= globalSrcYOffset and y < targetYres
+                end
 
                 if (cy >= targetYres and cny < globalSrcYOffset) then
                     -- Drag across the Pi screen from below it to above it: resend picture.
@@ -837,8 +844,7 @@ local Client = class
                             self.sampler = Sampler()
                         end
                     end
-                elseif (cx >= 0 and cx < targetXres and
-                        cy >= globalSrcYOffset and cy < targetYres) then
+                elseif (isInScreenBounds(cx, cy)) then
                     if (ourEvent.ourType == OurEventType.SingleClick) then
                         checkData(ourEvent.button >= Button.Left and ourEvent.button <= Button.Right,
                                   "unexpected server input event: unexpected button")
@@ -849,23 +855,35 @@ local Client = class
                             -- NOTE: to have feedback, deliberately no 'mousemove restore'.
                         }
                     elseif (ourEvent.ourType == OurEventType.Drag) then
-                        checkData(ourEvent.button == Button.Indeterminate,
-                                  "unexpected server input event: non-indeterminate button")
-                        -- Emulate "dragging the page" like on a tablet by sending mouse
-                        -- wheel up/down. Ideally, we would somehow issue the source and
-                        -- destination coordinates directly to X. But there does not seem to
-                        -- be a way to tell graphical programs to process them the way we
-                        -- want generically (i.e. across a wide range of programs). Issuing
-                        -- wheel up/down seems like a reasonable lowest common denominator.
-                        local button = (cny > cy) and Button.WheelUp or Button.WheelDown
-                        local repeatCount = math.floor(math.abs(cny - cy) / SingleWheelRollDistance)
+                        if (ourEvent.button == Button.VerticalDrag) then
+                            -- Emulate "dragging the page" like on a tablet by sending mouse
+                            -- wheel up/down. Ideally, we would somehow issue the source and
+                            -- destination coordinates directly to X. But there does not seem to
+                            -- be a way to tell graphical programs to process them the way we
+                            -- want generically (i.e. across a wide range of programs). Issuing
+                            -- wheel up/down seems like a reasonable lowest common denominator.
+                            local button = (cny > cy) and Button.WheelUp or Button.WheelDown
+                            local repeatCount = math.floor(math.abs(cny - cy) / SingleWheelRollDistance)
 
-                        if (repeatCount >= 1) then
-                            InvokeXDoTool{
-                                "mousemove", tostring(cx), tostring(cy),
-                                "click", "--repeat", tostring(repeatCount), "--delay", "1", tostring(button),
-                                "mousemove", "restore"
-                            }
+                            if (repeatCount >= 1) then
+                                InvokeXDoTool{
+                                    "mousemove", tostring(cx), tostring(cy),
+                                    "click", "--repeat", tostring(repeatCount), "--delay", "1", tostring(button),
+                                    "mousemove", "restore"
+                                }
+                            end
+                        elseif (ourEvent.button == Button.GenericDrag) then
+                            if (isInScreenBounds(cnx, cny)) then
+                                -- Emulate a drag with the left mouse button clicked.
+                                InvokeXDoTool{
+                                    "mousemove", tostring(cx), tostring(cy),
+                                    "mousedown", tostring(Button.Left),
+                                    "mousemove", tostring(cnx), tostring(cny),
+                                    "mouseup", tostring(Button.Left)
+                                }
+                            end
+                        else
+                            checkData("unexpected server input event: unexpected drag type")
                         end
                     else
                         checkData(false, "unexpected server input event: invalid type")
@@ -999,9 +1017,12 @@ local RectSet = class
     end,
 }
 
--- Times in milliseconds.
+--== All times in milliseconds.
 local MaxSingleClickDuration = 500
-local LockedUpDuration = 10000  -- input is "locked up"
+-- Time that an initial tap must be held to commence generic dragging:
+local GenericDragTapWaitTime = 500
+-- Time after which input is considered to be "locked up":
+local LockedUpDuration = 10000
 
 local MaxSingleClickDeviation = 9  -- in delta x/y rM screen coordinates (9: 1 mm)
 
@@ -1142,8 +1163,8 @@ local InputState = class
                         timedOut(MaxSingleClickDuration) and Button.Right or Button.Left
                     self.stage = Stage.Finished
                 elseif (self.ourEventType == OurEventType.Drag) then
-                    -- Will be determined on the client side:
-                    self.ourData.button = Button.Indeterminate
+                    self.ourData.button =
+                        self.onlyVerticalDrag and Button.VerticalDrag or Button.GenericDrag
                     self.stage = Stage.Finished
                 end
             end
@@ -1153,7 +1174,7 @@ local InputState = class
 
         if (not hadProgress) then
             if (self.stage == Stage.Prefix) then
-                local getDelta = function(i)
+                local updateNewPos = function(i)  --> delta
                     local MemberTab = { [MTC.POSX]='x', [MTC.POSY]='y' }
                     local m = MemberTab[events[i].code]
                     if (m == nil) then
@@ -1171,11 +1192,14 @@ local InputState = class
                 if (self.ourEventType == OurEventType.SingleClick) then
                     local MaxDeviation = MaxSingleClickDeviation * MultiTouchScreenUnitRatio
                     for i = 0, eventCount - 1 do
-                        local delta = getDelta(i)
+                        local delta = updateNewPos(i)
                         -- Allow a small deviation from the initially tapped point for
                         -- "single click". If it is exceeded, consider it as starting...
                         if (delta ~= nil and math.abs(delta) > MaxDeviation) then
                             self.ourEventType = OurEventType.Drag  -- <- ...this.
+                            assert(self.lastFirstPressedTime ~= math.huge)
+                            local msSinceTap = currentTimeMs() - self.lastFirstPressedTime
+                            self.onlyVerticalDrag = (msSinceTap < GenericDragTapWaitTime)
                             vDragStartEvIdx = i + 1
                             break
                         end
@@ -1189,7 +1213,7 @@ local InputState = class
                     for i = vDragStartEvIdx, eventCount - 1 do
                         local data = self.ourData
                         local ody = data.ny - data.y
-                        if (getDelta(i) ~= nil) then
+                        if (updateNewPos(i) ~= nil and self.onlyVerticalDrag) then
                             local dx, dy = data.nx - data.x, data.ny - data.y
                             -- After the initial single click tolerance, vertical dragging
                             -- has to proceed (1) up or down consistently, and (2) in an
