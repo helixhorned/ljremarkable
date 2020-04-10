@@ -1101,32 +1101,42 @@ local InputState = class
                                 lockedUpTab)
         local MTC = input.MultiTouchCode
 
-        for i = 0, eventCount - 1 do
-            local ev = events[i]
-            assert(ev.type == EV.ABS, "unexpected event type")
-            assert(not (i ~= 0) or ev.code ~= MTC.TRACKING_ID,
-                   "unexpected event code at index "..tostring(i))
+        local function getPressedCountDelta()
+            local totalDelta = 0
+
+            assert(eventCount > 0)
+
+            for i = 0, eventCount - 1 do
+                local ev = events[i]
+                assert(ev.type == EV.ABS, "unexpected event type")
+
+                if (ev.code == MTC.TRACKING_ID) then
+                    local delta = (ev.value >= 0) and 1 or -1
+
+                    totalDelta = totalDelta + delta
+                    -- We do not expect a frame to have both presses and releases.
+                    assert((totalDelta > 0) == (delta > 0))
+                end
+            end
+
+            return totalDelta
         end
 
-        assert(eventCount > 0)
-        local pressedStateChanged = (events[0].code == MTC.TRACKING_ID)
+        local pressedCountDelta = getPressedCountDelta()
         -- CAUTION: must not return early from this function!
         local didRelease = false
         local oldStage = self.stage
 
-        if (pressedStateChanged) then
-            -- FIXME [LOCKUP]: we cannot reliably track "tap on"/"tap off" this way. When
-            --  tapping with multiple fingers repeatedly, a net positive "pressed count"
-            --  will accumulate over time. (In other words, release events are lost.)
+        if (pressedCountDelta ~= 0) then
             local oldPressedCount = self.pressedCount
-            local delta = ((events[0].value >= 0) and 1 or -1)
 
-            self.pressedCount = oldPressedCount + delta
-            -- FIXME: frequently, but not always, fails on tap while dragging.
+            self.pressedCount = oldPressedCount + pressedCountDelta
+            -- FIXME: can fail on hiding rM menu after having connected when it was visible.
             assert(self.pressedCount >= 0, "more touch release than press events")
 
-            local havePressed = (oldPressedCount == 0 and delta == 1)
-            local haveReleased = (oldPressedCount == 1 and delta == -1)
+            -- TODO: infix {Initially,Finally}.
+            local havePressed = (oldPressedCount == 0 and pressedCountDelta > 0)
+            local haveReleased = (oldPressedCount > 0 and self.pressedCount == 0)
             -- TODO: pull out this 'if' into a member function.
             didRelease = haveReleased
 
@@ -1138,7 +1148,10 @@ local InputState = class
                 return currentTimeMs() >= self.lastFirstPressedTime + maxDuration
             end
 
-            if (self.stage == Stage.None) then
+            if (self.pressedCount > 1) then
+                -- We do not currently allow multi-finger gestures.
+                self:reset()
+            elseif (self.stage == Stage.None) then
                 -- Single finger down: May begin single click...
                 if (havePressed) then
                     -- ... but only we get all coordinates with the first frame.
@@ -1253,7 +1266,8 @@ local InputState = class
             self.lastFirstPressedTime = math.huge
         end
 
-        -- Indicate a locked up state, see LOCKUP above.
+        -- Indicate a locked up state.
+        -- TODO: remove?
         lockedUpTab[1] = (currentTimeMs() >= self.lastFirstPressedTime + LockedUpDuration)
     end,
 
