@@ -1101,28 +1101,7 @@ local InputState = class
                                 lockedUpTab)
         local MTC = input.MultiTouchCode
 
-        local function getPressedCountDelta()
-            local totalDelta = 0
-
-            assert(eventCount > 0)
-
-            for i = 0, eventCount - 1 do
-                local ev = events[i]
-                assert(ev.type == EV.ABS, "unexpected event type")
-
-                if (ev.code == MTC.TRACKING_ID) then
-                    local delta = (ev.value >= 0) and 1 or -1
-
-                    totalDelta = totalDelta + delta
-                    -- We do not expect a frame to have both presses and releases.
-                    assert((totalDelta > 0) == (delta > 0))
-                end
-            end
-
-            return totalDelta
-        end
-
-        local pressedCountDelta = getPressedCountDelta()
+        local pressedCountDelta = self:getPressedCountDelta(events, eventCount)
         -- CAUTION: must not return early from this function!
         local didRelease = false
         local oldStage = self.stage
@@ -1272,6 +1251,28 @@ local InputState = class
     end,
 
 -- private:
+    getPressedCountDelta = function(self, events, eventCount)
+        assert(eventCount > 0)
+
+        local MTC = input.MultiTouchCode
+        local totalDelta = 0
+
+        for i = 0, eventCount - 1 do
+            local ev = events[i]
+            assert(ev.type == EV.ABS, "unexpected event type")
+
+            if (ev.code == input.MultiTouchCode.TRACKING_ID) then
+                local delta = (ev.value >= 0) and 1 or -1
+
+                totalDelta = totalDelta + delta
+                -- We do not expect a frame to have both presses and releases.
+                assert((totalDelta > 0) == (delta > 0))
+            end
+        end
+
+        return totalDelta
+    end,
+
     reset = function(self)
         self.stage = Stage.None
         self.ourEventType = nil
