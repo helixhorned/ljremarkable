@@ -1082,6 +1082,8 @@ local function MakeEventToSend(ourEventType, ourData)
     return OurEvent_t(ourEventType, button, sx, sy, snx, sny)
 end
 
+local MTC = input.MultiTouchCode
+
 local InputState = class
 {
     function()
@@ -1099,71 +1101,8 @@ local InputState = class
 
     handleEventFrame = function(self, events, eventCount, outputTab,
                                 lockedUpTab)
-        local MTC = input.MultiTouchCode
-
-        local pressedCountDelta = self:getPressedCountDelta(events, eventCount)
-        -- CAUTION: must not return early from this function!
-        local didFinallyRelease = false
         local oldStage = self.stage
-
-        if (pressedCountDelta ~= 0) then
-            local oldPressedCount = self.pressedCount
-
-            self.pressedCount = oldPressedCount + pressedCountDelta
-            -- FIXME: can fail on hiding rM menu after having connected when it was visible.
-            assert(self.pressedCount >= 0, "more touch release than press events")
-
-            local haveInitiallyPressed = (oldPressedCount == 0 and pressedCountDelta > 0)
-            local haveFinallyReleased = (oldPressedCount > 0 and self.pressedCount == 0)
-            -- TODO: pull out this 'if' into a member function.
-            didFinallyRelease = haveFinallyReleased
-
-            if (haveInitiallyPressed) then
-                self.lastFirstPressedTime = currentTimeMs()
-            end
-
-            local timedOut = function(maxDuration)
-                return currentTimeMs() >= self.lastFirstPressedTime + maxDuration
-            end
-
-            if (self.pressedCount > 1) then
-                -- We do not currently allow multi-finger gestures.
-                self:reset()
-            elseif (self.stage == Stage.None) then
-                -- Single finger down: May begin single click...
-                if (haveInitiallyPressed) then
-                    -- ... but only we get all coordinates with the first frame.
-                    if (eventCount >= 3 and
-                            events[1].code == MTC.POSX and
-                            events[2].code == MTC.POSY) then
-                        self.stage = Stage.Prefix
-                        self.ourEventType = OurEventType.SingleClick
-                        self.ourData = {
-                            x = events[1].value,
-                            y = events[2].value,
-                            -- For Drag -- the destination ("new") coordinates.
-                            nx = events[1].value,
-                            ny = events[2].value
-                        }
-                    end
-                end
-            elseif (self.stage == Stage.Prefix and haveFinallyReleased) then
-                -- Single finger up: May finish gesture, but only if there are no
-                -- additional events in the frame.
-                if (eventCount ~= 1) then
-                    self:reset()
-                elseif (self.ourEventType == OurEventType.SingleClick) then
-                    self.ourData.button =
-                        timedOut(MaxSingleClickDuration) and Button.Right or Button.Left
-                    self.stage = Stage.Finished
-                elseif (self.ourEventType == OurEventType.Drag) then
-                    self.ourData.button =
-                        self.onlyVerticalDrag and Button.VerticalDrag or Button.GenericDrag
-                    self.stage = Stage.Finished
-                end
-            end
-        end
-
+        local didFinallyRelease = self:handlePressOrRelease(events, eventCount)
         local hadProgress = (self.stage > oldStage)
 
         if (not hadProgress) then
@@ -1250,10 +1189,72 @@ local InputState = class
     end,
 
 -- private:
+    handlePressOrRelease = function(self, events, eventCount)  --> "did finally release?"
+        local pressedCountDelta = self:getPressedCountDelta(events, eventCount)
+        if (pressedCountDelta == 0) then
+            return false
+        end
+
+        local oldPressedCount = self.pressedCount
+
+        self.pressedCount = oldPressedCount + pressedCountDelta
+        -- FIXME: can fail on hiding rM menu after having connected when it was visible.
+        assert(self.pressedCount >= 0, "more touch release than press events")
+
+        local haveInitiallyPressed = (oldPressedCount == 0 and pressedCountDelta > 0)
+        local haveFinallyReleased = (oldPressedCount > 0 and self.pressedCount == 0)
+
+        if (haveInitiallyPressed) then
+            self.lastFirstPressedTime = currentTimeMs()
+        end
+
+        local timedOut = function(maxDuration)
+            return currentTimeMs() >= self.lastFirstPressedTime + maxDuration
+        end
+
+        if (self.pressedCount > 1) then
+            -- We do not currently allow multi-finger gestures.
+            self:reset()
+        elseif (self.stage == Stage.None) then
+            -- Single finger down: May begin single click...
+            if (haveInitiallyPressed) then
+                -- ... but only we get all coordinates with the first frame.
+                if (eventCount >= 3 and
+                        events[1].code == MTC.POSX and
+                        events[2].code == MTC.POSY) then
+                    self.stage = Stage.Prefix
+                    self.ourEventType = OurEventType.SingleClick
+                    self.ourData = {
+                        x = events[1].value,
+                        y = events[2].value,
+                        -- For Drag -- the destination ("new") coordinates.
+                        nx = events[1].value,
+                        ny = events[2].value
+                    }
+                end
+            end
+        elseif (self.stage == Stage.Prefix and haveFinallyReleased) then
+            -- Single finger up: May finish gesture, but only if there are no
+            -- additional events in the frame.
+            if (eventCount ~= 1) then
+                self:reset()
+            elseif (self.ourEventType == OurEventType.SingleClick) then
+                self.ourData.button =
+                    timedOut(MaxSingleClickDuration) and Button.Right or Button.Left
+                self.stage = Stage.Finished
+            elseif (self.ourEventType == OurEventType.Drag) then
+                self.ourData.button =
+                    self.onlyVerticalDrag and Button.VerticalDrag or Button.GenericDrag
+                self.stage = Stage.Finished
+            end
+        end
+
+        return haveFinallyReleased
+    end,
+
     getPressedCountDelta = function(self, events, eventCount)
         assert(eventCount > 0)
 
-        local MTC = input.MultiTouchCode
         local totalDelta = 0
 
         for i = 0, eventCount - 1 do
