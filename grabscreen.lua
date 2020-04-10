@@ -484,7 +484,7 @@ local coord_array_t = ffi.typeof("$ [?]", coord_t)
 
 local OurEventType = {
     SingleClick = 1,
-    VerticalDrag = 2,
+    Drag = 2,
 }
 
 -- The amount of y travelled for sending one wheel up/down (9: 1mm).
@@ -503,14 +503,14 @@ local Button = {
 
 local OurEventDesc = {
     [OurEventType.SingleClick] = "single click",
-    [OurEventType.VerticalDrag] = "vertical drag",
+    [OurEventType.Drag] = "drag",
 }
 
 local OurEvent_t = ffi.typeof[[struct {
     uint8_t ourType;
     uint8_t button;
     uint16_t x, y;
-    uint16_t nx, ny;  // VerticalDrag only
+    uint16_t nx, ny;  // Drag only
 }]]
 
 ----------
@@ -832,7 +832,7 @@ local Client = class
 
                 if (cy >= targetYres and cny < globalSrcYOffset) then
                     -- Drag across the Pi screen from below it to above it: resend picture.
-                    if (ourEvent.ourType == OurEventType.VerticalDrag) then
+                    if (ourEvent.ourType == OurEventType.Drag) then
                         if (self.sampler ~= nil) then
                             self.sampler = Sampler()
                         end
@@ -848,7 +848,7 @@ local Client = class
                             "click", tostring(ourEvent.button),
                             -- NOTE: to have feedback, deliberately no 'mousemove restore'.
                         }
-                    elseif (ourEvent.ourType == OurEventType.VerticalDrag) then
+                    elseif (ourEvent.ourType == OurEventType.Drag) then
                         checkData(ourEvent.button == Button.Indeterminate,
                                   "unexpected server input event: non-indeterminate button")
                         -- Emulate "dragging the page" like on a tablet by sending mouse
@@ -1121,7 +1121,7 @@ local InputState = class
                         self.ourData = {
                             x = events[1].value,
                             y = events[2].value,
-                            -- For VerticalDrag -- the destination ("new") coordinates.
+                            -- For Drag -- the destination ("new") coordinates.
                             nx = events[1].value,
                             ny = events[2].value
                         }
@@ -1136,7 +1136,7 @@ local InputState = class
                     self.ourData.button =
                         timedOut(MaxSingleClickDuration) and Button.Right or Button.Left
                     self.stage = Stage.Finished
-                elseif (self.ourEventType == OurEventType.VerticalDrag) then
+                elseif (self.ourEventType == OurEventType.Drag) then
                     -- Will be determined on the client side:
                     self.ourData.button = Button.Indeterminate
                     self.stage = Stage.Finished
@@ -1170,14 +1170,14 @@ local InputState = class
                         -- Allow a small deviation from the initially tapped point for
                         -- "single click". If it is exceeded, consider it as starting...
                         if (delta ~= nil and math.abs(delta) > MaxDeviation) then
-                            self.ourEventType = OurEventType.VerticalDrag  -- <- ...this.
+                            self.ourEventType = OurEventType.Drag  -- <- ...this.
                             vDragStartEvIdx = i + 1
                             break
                         end
                     end
                 end
 
-                if (self.ourEventType == OurEventType.VerticalDrag) then
+                if (self.ourEventType == OurEventType.Drag) then
                     local MinSlope = 3
                     local TriangRegionCheckXOffset = SingleWheelRollDistance * MultiTouchScreenUnitRatio
 
