@@ -1038,6 +1038,9 @@ local MtRes = {
     h = 0,
 }
 
+-- Computed together with 'MtRes'.
+local MultiTouchScreenUnitRatio
+
 -- INPUT_EVENT_COORD_CONVERSION step 1
 local function ObtainMultiTouchCoordRange(evd)
     local xRange = evd:ioctl(input.EVIOC.GABS.X)
@@ -1052,6 +1055,8 @@ local function ObtainMultiTouchCoordRange(evd)
 
     MtRes.w = xRange.maximum + 1
     MtRes.h = yRange.maximum + 1
+
+    MultiTouchScreenUnitRatio = MtRes.h / ScreenHeight_rM
 end
 
 -- INPUT_EVENT_COORD_CONVERSION step 2
@@ -1107,71 +1112,14 @@ local InputState = class
 
         if (not hadProgress) then
             if (self.stage == Stage.Prefix) then
-                local updateNewPos = function(i)  --> delta
-                    local MemberTab = { [MTC.POSX]='x', [MTC.POSY]='y' }
-                    local m = MemberTab[events[i].code]
-                    if (m == nil) then
-                        return nil
-                    end
-                    local newValue = events[i].value
-                    self.ourData['n'..m] = newValue  -- update 'new' coordinate
-                    return (newValue - self.ourData[m])
-                end
-
-                local vDragStartEvIdx = 0
-                local MultiTouchScreenUnitRatio = MtRes.h / ScreenHeight_rM
+                local dragStartEventIdx = 0
 
                 if (self.ourEventType == OurEventType.SingleClick) then
-                    local MaxDeviation = MaxSingleClickDeviation * MultiTouchScreenUnitRatio
-                    for i = 0, eventCount - 1 do
-                        local delta = updateNewPos(i)
-                        if (delta == nil) then
-                            self:reset()
-                            break
-                        end
-                        -- Allow a small deviation from the initially tapped point for
-                        -- "single click". If it is exceeded, consider it as starting...
-                        if (math.abs(delta) > MaxDeviation) then
-                            self.ourEventType = OurEventType.Drag  -- <- ...this.
-                            assert(self.lastFirstPressedTime ~= math.huge)
-                            local msSinceTap = currentTimeMs() - self.lastFirstPressedTime
-                            self.onlyVerticalDrag = (msSinceTap < GenericDragTapWaitTime)
-                            vDragStartEvIdx = i + 1
-                            break
-                        end
-                    end
+                    dragStartEventIdx = self:handleSingleClick(events, eventCount)
                 end
-
+                -- NOTE: not 'else if' because a single click can become a drag.
                 if (self.ourEventType == OurEventType.Drag) then
-                    local MinSlope = 3
-                    local TriangRegionCheckXOffset = SingleWheelRollDistance * MultiTouchScreenUnitRatio
-
-                    for i = vDragStartEvIdx, eventCount - 1 do
-                        if (updateNewPos(i) == nil) then
-                            self:reset()
-                            break
-                        end
-
-                        local data = self.ourData
-                        local ody = data.ny - data.y
-
-                        if (self.onlyVerticalDrag) then
-                            local dx, dy = data.nx - data.x, data.ny - data.y
-                            -- After the initial single click tolerance, vertical dragging
-                            -- has to proceed (1) up or down consistently, and (2) in an
-                            -- allowed truncated-triangular region.
-                            local isInconsistentUpDown =
-                                ody ~= 0 and (dy/ody < 0 or math.abs(dy) < math.abs(ody))
-                            local isOutsideTriangle =
-                                (math.abs(dx) > TriangRegionCheckXOffset and
-                                 math.abs(dy) / (math.abs(dx) - TriangRegionCheckXOffset) < MinSlope)
-
-                            if (isInconsistentUpDown or isOutsideTriangle) then
-                                self:reset()
-                                break
-                            end
-                        end
-                    end
+                    self:handleDrag(events, dragStartEventIdx, eventCount)
                 end
             end
         elseif (self.stage == Stage.Finished) then
@@ -1189,6 +1137,70 @@ local InputState = class
     end,
 
 -- private:
+    handleSingleClick = function(self, events, eventCount)
+        local MaxDeviation = MaxSingleClickDeviation * MultiTouchScreenUnitRatio
+
+        for i = 0, eventCount - 1 do
+            local delta = self:updateNewPos(events[i])
+            if (delta == nil) then
+                self:reset()
+                return eventCount
+            end
+            -- Allow a small deviation from the initially tapped point for
+            -- "single click". If it is exceeded, consider it as starting...
+            if (math.abs(delta) > MaxDeviation) then
+                self.ourEventType = OurEventType.Drag  -- <- ...this.
+                assert(self.lastFirstPressedTime ~= math.huge)
+                local msSinceTap = currentTimeMs() - self.lastFirstPressedTime
+                self.onlyVerticalDrag = (msSinceTap < GenericDragTapWaitTime)
+                return i + 1
+            end
+        end
+
+        return eventCount
+    end,
+
+    handleDrag = function(self, events, startEventIdx, eventCount)
+        local MinSlope = 3
+        local TriangRegionCheckXOffset = SingleWheelRollDistance * MultiTouchScreenUnitRatio
+
+        for i = startEventIdx, eventCount - 1 do
+            if (self:updateNewPos(events[i]) == nil) then
+                return self:reset()
+            end
+
+            local data = self.ourData
+            local ody = data.ny - data.y
+
+            if (self.onlyVerticalDrag) then
+                local dx, dy = data.nx - data.x, data.ny - data.y
+                -- After the initial single click tolerance, vertical dragging
+                -- has to proceed (1) up or down consistently, and (2) in an
+                -- allowed truncated-triangular region.
+                local isInconsistentUpDown =
+                    ody ~= 0 and (dy/ody < 0 or math.abs(dy) < math.abs(ody))
+                local isOutsideTriangle =
+                    (math.abs(dx) > TriangRegionCheckXOffset and
+                     math.abs(dy) / (math.abs(dx) - TriangRegionCheckXOffset) < MinSlope)
+
+                if (isInconsistentUpDown or isOutsideTriangle) then
+                    return self:reset()
+                end
+            end
+        end
+    end,
+
+    updateNewPos = function(self, event)  --> delta
+        local MemberTab = { [MTC.POSX]='x', [MTC.POSY]='y' }
+        local m = MemberTab[event.code]
+        if (m == nil) then
+            return nil
+        end
+        local newValue = event.value
+        self.ourData['n'..m] = newValue  -- update 'new' coordinate
+        return newValue - self.ourData[m]
+    end,
+
     handlePressOrRelease = function(self, events, eventCount)  --> "did finally release?"
         local pressedCountDelta = self:getPressedCountDelta(events, eventCount)
         if (pressedCountDelta == 0) then
