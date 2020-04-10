@@ -1120,6 +1120,7 @@ local InputState = class
             local delta = ((events[0].value >= 0) and 1 or -1)
 
             self.pressedCount = oldPressedCount + delta
+            -- FIXME: frequently, but not always, fails on tap while dragging.
             assert(self.pressedCount >= 0, "more touch release than press events")
 
             local havePressed = (oldPressedCount == 0 and delta == 1)
@@ -1178,7 +1179,6 @@ local InputState = class
                     local MemberTab = { [MTC.POSX]='x', [MTC.POSY]='y' }
                     local m = MemberTab[events[i].code]
                     if (m == nil) then
-                        self:reset()
                         return nil
                     end
                     local newValue = events[i].value
@@ -1193,9 +1193,13 @@ local InputState = class
                     local MaxDeviation = MaxSingleClickDeviation * MultiTouchScreenUnitRatio
                     for i = 0, eventCount - 1 do
                         local delta = updateNewPos(i)
+                        if (delta == nil) then
+                            self:reset()
+                            break
+                        end
                         -- Allow a small deviation from the initially tapped point for
                         -- "single click". If it is exceeded, consider it as starting...
-                        if (delta ~= nil and math.abs(delta) > MaxDeviation) then
+                        if (math.abs(delta) > MaxDeviation) then
                             self.ourEventType = OurEventType.Drag  -- <- ...this.
                             assert(self.lastFirstPressedTime ~= math.huge)
                             local msSinceTap = currentTimeMs() - self.lastFirstPressedTime
@@ -1211,9 +1215,15 @@ local InputState = class
                     local TriangRegionCheckXOffset = SingleWheelRollDistance * MultiTouchScreenUnitRatio
 
                     for i = vDragStartEvIdx, eventCount - 1 do
+                        if (updateNewPos(i) == nil) then
+                            self:reset()
+                            break
+                        end
+
                         local data = self.ourData
                         local ody = data.ny - data.y
-                        if (updateNewPos(i) ~= nil and self.onlyVerticalDrag) then
+
+                        if (self.onlyVerticalDrag) then
                             local dx, dy = data.nx - data.x, data.ny - data.y
                             -- After the initial single click tolerance, vertical dragging
                             -- has to proceed (1) up or down consistently, and (2) in an
