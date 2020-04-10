@@ -141,7 +141,6 @@ if (isRealServer) then
     end
 end
 
--- TODO: rotate.
 local targetXres = math.min(RoundToTarget(map.xres), RoundToTarget(ScreenWidth_rM))
 local targetYres = math.min(RoundToTarget(map.yres), RoundToTarget(ScreenHeight_rM))
 local targetSize = targetXres * targetYres
@@ -829,8 +828,16 @@ local Client = class
                 -- NOTE SEND_INPUT_FIRST: sent by the server before a Disable or Ok!
                 local ourEvent = self.connFd:readInto(OurEvent_t(), false)
                 local cx, cy = ConvertScreenToClient(ourEvent.x, ourEvent.y)
+                local _, cny = ConvertScreenToClient(ourEvent.nx, ourEvent.ny)
 
-                if (cx >= 0 and cx < targetXres and
+                if (cy >= targetYres and cny < globalSrcYOffset) then
+                    -- Drag across the Pi screen from below it to above it: resend picture.
+                    if (ourEvent.ourType == OurEventType.VerticalDrag) then
+                        if (self.sampler ~= nil) then
+                            self.sampler = Sampler()
+                        end
+                    end
+                elseif (cx >= 0 and cx < targetXres and
                         cy >= globalSrcYOffset and cy < targetYres) then
                     if (ourEvent.ourType == OurEventType.SingleClick) then
                         checkData(ourEvent.button >= Button.Left and ourEvent.button <= Button.Right,
@@ -844,7 +851,6 @@ local Client = class
                     elseif (ourEvent.ourType == OurEventType.VerticalDrag) then
                         checkData(ourEvent.button == Button.Indeterminate,
                                   "unexpected server input event: non-indeterminate button")
-                        local _, cny = ConvertScreenToClient(ourEvent.nx, ourEvent.ny)
                         -- Emulate "dragging the page" like on a tablet by sending mouse
                         -- wheel up/down. Ideally, we would somehow issue the source and
                         -- destination coordinates directly to X. But there does not seem to
