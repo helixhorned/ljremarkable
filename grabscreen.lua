@@ -1103,7 +1103,7 @@ local InputState = class
 
         local pressedCountDelta = self:getPressedCountDelta(events, eventCount)
         -- CAUTION: must not return early from this function!
-        local didRelease = false
+        local didFinallyRelease = false
         local oldStage = self.stage
 
         if (pressedCountDelta ~= 0) then
@@ -1113,13 +1113,12 @@ local InputState = class
             -- FIXME: can fail on hiding rM menu after having connected when it was visible.
             assert(self.pressedCount >= 0, "more touch release than press events")
 
-            -- TODO: infix {Initially,Finally}.
-            local havePressed = (oldPressedCount == 0 and pressedCountDelta > 0)
-            local haveReleased = (oldPressedCount > 0 and self.pressedCount == 0)
+            local haveInitiallyPressed = (oldPressedCount == 0 and pressedCountDelta > 0)
+            local haveFinallyReleased = (oldPressedCount > 0 and self.pressedCount == 0)
             -- TODO: pull out this 'if' into a member function.
-            didRelease = haveReleased
+            didFinallyRelease = haveFinallyReleased
 
-            if (havePressed) then
+            if (haveInitiallyPressed) then
                 self.lastFirstPressedTime = currentTimeMs()
             end
 
@@ -1132,7 +1131,7 @@ local InputState = class
                 self:reset()
             elseif (self.stage == Stage.None) then
                 -- Single finger down: May begin single click...
-                if (havePressed) then
+                if (haveInitiallyPressed) then
                     -- ... but only we get all coordinates with the first frame.
                     if (eventCount >= 3 and
                             events[1].code == MTC.POSX and
@@ -1148,7 +1147,7 @@ local InputState = class
                         }
                     end
                 end
-            elseif (self.stage == Stage.Prefix and haveReleased) then
+            elseif (self.stage == Stage.Prefix and haveFinallyReleased) then
                 -- Single finger up: May finish gesture, but only if there are no
                 -- additional events in the frame.
                 if (eventCount ~= 1) then
@@ -1241,7 +1240,7 @@ local InputState = class
             self:reset()
         end
 
-        if (didRelease) then
+        if (didFinallyRelease) then
             self.lastFirstPressedTime = math.huge
         end
 
