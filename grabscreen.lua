@@ -1087,31 +1087,36 @@ local InputState = class
 
         assert(eventCount > 0)
         local pressedStateChanged = (events[0].code == MTC.TRACKING_ID)
-        local oldLastFirstPressedTime = self.lastFirstPressedTime
-        local oldPressedCount = self.pressedCount
+        -- CAUTION: must not return early from this function!
+        local didRelease = false
         local oldStage = self.stage
 
         if (pressedStateChanged) then
             -- FIXME [LOCKUP]: we cannot reliably track "tap on"/"tap off" this way. When
             --  tapping with multiple fingers repeatedly, a net positive "pressed count"
             --  will accumulate over time. (In other words, release events are lost.)
-            local delta = (events[0].value >= 0) and 1 or -1
+            local oldPressedCount = self.pressedCount
+            local delta = ((events[0].value >= 0) and 1 or -1)
+
             self.pressedCount = oldPressedCount + delta
             assert(self.pressedCount >= 0, "more touch release than press events")
 
-            local timedOut = function(maxDuration)
-                return currentTimeMs() >= oldLastFirstPressedTime + maxDuration
+            local havePressed = (oldPressedCount == 0 and delta == 1)
+            local haveReleased = (oldPressedCount == 1 and delta == -1)
+            -- TODO: pull out this 'if' into a member function.
+            didRelease = haveReleased
+
+            if (havePressed) then
+                self.lastFirstPressedTime = currentTimeMs()
             end
 
-            if (oldPressedCount == 0 and delta == 1) then
-                self.lastFirstPressedTime = currentTimeMs()
-            elseif (oldPressedCount == 1 and delta == -1) then
-                self.lastFirstPressedTime = math.huge
+            local timedOut = function(maxDuration)
+                return currentTimeMs() >= self.lastFirstPressedTime + maxDuration
             end
 
             if (self.stage == Stage.None) then
                 -- Single finger down: May begin single click...
-                if (oldPressedCount == 0 and delta == 1) then
+                if (havePressed) then
                     -- ... but only we get all coordinates with the first frame.
                     if (eventCount >= 3 and
                             events[1].code == MTC.POSX and
@@ -1127,7 +1132,7 @@ local InputState = class
                         }
                     end
                 end
-            elseif (self.stage == Stage.Prefix and oldPressedCount == 1 and delta == -1) then
+            elseif (self.stage == Stage.Prefix and haveReleased) then
                 -- Single finger up: May finish gesture, but only if there are no
                 -- additional events in the frame.
                 if (eventCount ~= 1) then
@@ -1206,6 +1211,10 @@ local InputState = class
         elseif (self.stage == Stage.Finished) then
             outputTab[1] = MakeEventToSend(self.ourEventType, self.ourData)
             self:reset()
+        end
+
+        if (didRelease) then
+            self.lastFirstPressedTime = math.huge
         end
 
         -- Indicate a locked up state, see LOCKUP above.
