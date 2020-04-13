@@ -156,9 +156,15 @@ assert(globalSrcYOffset >= 0 and globalSrcYOffset < BigSideLen)
 local DestYPixelOffset = EyeSize_rM
 assert(DestYPixelOffset % BigSideLen == 0)  -- see usage for why
 
+local StatusRectWidth = 64
 -- X position of the rectangle signaling certain status conditions.
 local StatusRectPosX = {
     OnError = EyeSize_rM,
+
+    -- Requesting a shutdown of the connection from the rM.
+    OnShutdown_rM_Init = ScreenWidth_rM / 2 - StatusRectWidth - 8,
+    OnShutdown_rM_Finish = ScreenWidth_rM / 2 + 8,
+
     OnLockedUp = ScreenWidth_rM - EyeSize_rM,
 }
 
@@ -931,6 +937,12 @@ local Client = class
     end,
 }
 
+local ServerRequest = {
+    InputIsLockedUp = 1,
+    Shutdown = 2,
+}
+
+local Server  -- class "forward-declaration"
 local EyeData = nil
 
 if (isRealServer) then
@@ -1029,6 +1041,8 @@ local RectSet = class
 --== All times in milliseconds.
 local Duration = {
     MaxLeftClick = 500,
+    -- Time that the upper right corner has to be kept tapped to request shutdown.
+    ShutdownRequest = 2000,
     -- Time that an initial tap must be held to commence generic dragging:
     GenericDragTapWait = 500,
     -- Time after which input is considered to be "locked up":
@@ -1116,9 +1130,9 @@ local InputState = class
     end,
 
     handleEventFrame = function(self, events, eventCount, outputTab,
-                                lockedUpTab)
+                                specialRqTab)
         local oldStage = self.stage
-        local didFinallyRelease = self:handlePressOrRelease(events, eventCount)
+        local didFinallyRelease = self:handlePressOrRelease(events, eventCount, specialRqTab)
         local hadProgress = (self.stage > oldStage)
 
         if (not hadProgress) then
@@ -1142,9 +1156,12 @@ local InputState = class
             self.lastFirstPressedTime = math.huge
         end
 
-        -- Indicate a locked up state.
-        -- TODO: remove?
-        lockedUpTab[1] = (currentTimeMs() >= self.lastFirstPressedTime + Duration.LockedUp)
+        if (specialRqTab[1] == nil and
+            (currentTimeMs() >= self.lastFirstPressedTime + Duration.LockedUp)) then
+            -- Indicate a locked up state.
+            -- TODO: remove?
+            specialRqTab[1] = ServerRequest.InputIsLockedUp
+        end
     end,
 
 -- private:
@@ -1212,7 +1229,7 @@ local InputState = class
         return newValue - self.ourData[m]
     end,
 
-    handlePressOrRelease = function(self, events, eventCount)  --> "did finally release?"
+    handlePressOrRelease = function(self, events, eventCount, specialRqTab)  --> "did finally release?"
         local pressedCountDelta = self:getPressedCountDelta(events, eventCount)
         if (pressedCountDelta == 0) then
             return false
@@ -1237,7 +1254,7 @@ local InputState = class
         elseif (self.stage == Stage.None and haveInitiallyPressed) then
             self:handleInitialPress(events, eventCount)
         elseif (self.stage == Stage.Prefix and haveFinallyReleased) then
-            self:handleFinalRelease(eventCount)
+            self:handleFinalRelease(eventCount, specialRqTab)
         end
 
         return haveFinallyReleased
@@ -1261,15 +1278,25 @@ local InputState = class
         end
     end,
 
-    handleFinalRelease = function(self, eventCount)
+    handleFinalRelease = function(self, eventCount, specialRqTab)
         -- Last finger up: May finish a gesture in progress, but only if there are no
         -- additional events in the input frame.
         if (eventCount ~= 1) then
             self:reset()
         elseif (self.ourEventType == OurEventType.SingleClick) then
-            self.ourData.button =
-                self:timedOut(MaxSingleClickDuration) and Button.Right or Button.Left
-            self.stage = Stage.Finished
+            local isAlternative = self:timedOut(Duration.MaxLeftClick)
+            if (isAlternative and self:timedOut(Duration.ShutdownRequest)) then
+                local sx, sy = ConvertMtToScreen(self.ourData.x, self.ourData.y)
+                -- NOTE: use upper right corner. Using "eye" leads to order problems.
+                -- TODO: draw the rM "cross in circle"?
+                if (sx >= ScreenWidth_rM - EyeSize_rM and sy < EyeSize_rM) then
+                    specialRqTab[1] = ServerRequest.Shutdown
+                end
+                self:reset()
+            else
+                self.ourData.button = isAlternative and Button.Right or Button.Left
+                self.stage = Stage.Finished
+            end
         elseif (self.ourEventType == OurEventType.Drag) then
             self.ourData.button =
                 self.onlyVerticalDrag and Button.VerticalDrag or Button.GenericDrag
@@ -1309,7 +1336,7 @@ local InputState = class
     end,
 }
 
-local Server = class
+Server = class
 {
     function()
         local connFd, errMsg = inet.Socket():expectConnection(Port)
@@ -1325,7 +1352,7 @@ local Server = class
             evd = nil,  -- input.EventDevice
             inputBuf = input_event_array_t(MaxInputEvents),
             inputState = nil,  -- InputState
-            inputLockedUpTab = { false },
+            specialRequestTab = { nil },  -- can be one of the 'ServerRequest' constants
 
             decodedBuf = NarrowArray(targetSize),
         }
@@ -1337,9 +1364,23 @@ local Server = class
 
     drawStatusRect = function(self, x)
         assert(type(x) == "number")
-        local y, w = 32, 64
+        local y, w = 32, StatusRectWidth
         map:fill(x, y, w, w, 15 + 32*31 + 32*64*15)
         self.rM:requestRefresh(xywh_t(x, y, w, w))
+    end,
+
+    shutDownAndExit = function(self)
+        -- NOTE: do not disable, need DISABLE_VIA_SERVER_INPUT for that.
+
+        self.connFd:shutdown(posix.SHUT.RDWR)
+        self:drawStatusRect(StatusRectPosX.OnShutdown_rM_Init)
+
+        repeat
+            local str = self.connFd:read(256)
+        until (#str == 0)
+
+        self:drawStatusRect(StatusRectPosX.OnShutdown_rM_Finish)
+        os.exit(0)
     end,
 
 -- private:
@@ -1388,8 +1429,16 @@ local Server = class
             self:applyUpdates(updateData[1], updateData[2], self.decodedBuf)
         end
 
-        if (self.inputLockedUpTab[1]) then
-            self:drawStatusRect(StatusRectPosX.OnLockedUp)
+        do
+            -- Handle special requests.
+            local specialRequest = self.specialRequestTab[1]
+
+            if (specialRequest == ServerRequest.InputIsLockedUp) then
+                self:drawStatusRect(StatusRectPosX.OnLockedUp)
+                self.specialRequestTab[1] = nil
+            elseif (specialRequest == ServerRequest.Shutdown) then
+                self:shutDownAndExit()
+            end
         end
     end,
 
@@ -1404,7 +1453,7 @@ local Server = class
             if (ev.type == EV.SYN) then
                 assert(i > lastIdx, "unexpected empty event frame")
                 self.inputState:handleEventFrame(events + lastIdx, i - lastIdx, eventToSend,
-                                                 self.inputLockedUpTab)
+                                                 self.specialRequestTab)
                 lastIdx = i + 1
             end
         end
