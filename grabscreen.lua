@@ -21,6 +21,7 @@ local assert = assert
 local error = error
 local ipairs = ipairs
 local pairs = pairs
+local pcall = pcall
 local print = print
 local require = require
 local tonumber = tonumber
@@ -110,6 +111,8 @@ end
 -- Default screen dimensions on the reMarkable.
 local ScreenWidth_rM = 1404
 local ScreenHeight_rM = 1872
+-- Guesstimate for the side length of the touch-active region around the rM "eye".
+local EyeSize_rM = 128
 
 -- Tiling on the source:
 local SideLen = 8
@@ -150,8 +153,14 @@ local targetSize = targetXres * targetYres
 local globalSrcYOffset = -map.yres % BigSideLen
 assert(globalSrcYOffset >= 0 and globalSrcYOffset < BigSideLen)
 -- Make sure we do not overwrite the "eye" on the reMarkable.
-local DestYPixelOffset = 128
+local DestYPixelOffset = EyeSize_rM
 assert(DestYPixelOffset % BigSideLen == 0)  -- see usage for why
+
+-- X position of the rectangle signaling certain status conditions.
+local StatusRectPosX = {
+    OnError = EyeSize_rM,
+    OnLockedUp = ScreenWidth_rM - EyeSize_rM,
+}
 
 local srcTileCountX = targetXres / SideLen
 local srcTileCountY = targetYres / SideLen
@@ -1324,6 +1333,13 @@ local Server = class
         self:mainLoopStep()
     end,
 
+    drawStatusRect = function(self, x)
+        assert(type(x) == "number")
+        local y, w = 32, 64
+        map:fill(x, y, w, w, 15 + 32*31 + 32*64*15)
+        self.rM:requestRefresh(xywh_t(x, y, w, w))
+    end,
+
 -- private:
     mainLoopStep = function(self)
         self:enable()
@@ -1371,11 +1387,7 @@ local Server = class
         end
 
         if (self.inputLockedUpTab[1]) then
-            -- Draw a rectangle at the top right corner to signal "locked up" state.
-            -- TODO: investigate why this happens sometimes.
-            local x, y, w = ScreenWidth_rM - 128, 32, 64
-            map:fill(x, y, w, w, 15 + 32*31 + 32*64*15)
-            self.rM:requestRefresh(xywh_t(x, y, w, w))
+            self:drawStatusRect(StatusRectPosX.OnLockedUp)
         end
     end,
 
@@ -1506,11 +1518,35 @@ local app = isClient and Client() or Server()
 
 ----------
 
-while (true) do
-    local startMs = currentTimeMs()
-    app:step()
+local function main()
+    while (true) do
+        local startMs = currentTimeMs()
+        app:step()
 
-    if (not (isClient or isRealServer)) then
-        io.stdout:write(("%.0f ms\n"):format(currentTimeMs() - startMs))
+        if (not (isClient or isRealServer)) then
+            io.stdout:write(("%.0f ms\n"):format(currentTimeMs() - startMs))
+        end
     end
+end
+
+local ok, errMsg = pcall(main)
+if (not ok) then
+    if (io.open(".ljrM-enable-error-log") ~= nil) then
+        local f = io.open("ljrM-error.log", "a+")
+        if (f ~= nil) then
+            local Sep = ('='):rep(30)
+            local d = os.date("*t")
+            local dateStr = ("%d-%02d-%02d %02d:%02d:%02d"):format(
+                d.year, d.month, d.day, d.hour, d.min, d.sec)
+            f:write(("\n%s %s %s\n"):format(Sep, dateStr, Sep))
+            f:write(errMsg..'\n')
+            f:close()
+        end
+    end
+
+    if (isRealServer) then
+        app:drawStatusRect(StatusRectPosX.OnError)
+    end
+
+    error(errMsg)
 end
