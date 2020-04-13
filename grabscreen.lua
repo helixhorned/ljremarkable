@@ -165,7 +165,7 @@ local StatusRectPosX = {
     OnShutdown_rM_Init = ScreenWidth_rM / 2 - StatusRectWidth - 8,
     OnShutdown_rM_Finish = ScreenWidth_rM / 2 + 8,
 
-    OnLockedUp = ScreenWidth_rM - EyeSize_rM,
+    OnLockedUp = ScreenWidth_rM - 2 * EyeSize_rM,
 }
 
 local srcTileCountX = targetXres / SideLen
@@ -1362,6 +1362,13 @@ Server = class
         self:mainLoopStep()
     end,
 
+    clearUpperArea = function(self)
+        local x, y = EyeSize_rM, 0
+        local w, h = ScreenWidth_rM - 2*EyeSize_rM, DestYPixelOffset
+        map:fill(x, y, w, h, 0xffff)
+        self.rM:requestRefresh(xywh_t(x, y, w, h))
+    end,
+
     drawStatusRect = function(self, x)
         assert(type(x) == "number")
         local y, w = 32, StatusRectWidth
@@ -1570,6 +1577,10 @@ local app = isClient and Client() or Server()
 ----------
 
 local function main()
+    if (isRealServer) then
+        app:clearUpperArea()
+    end
+
     while (true) do
         local startMs = currentTimeMs()
         app:step()
