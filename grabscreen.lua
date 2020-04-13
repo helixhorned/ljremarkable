@@ -1027,11 +1027,13 @@ local RectSet = class
 }
 
 --== All times in milliseconds.
-local MaxSingleClickDuration = 500
--- Time that an initial tap must be held to commence generic dragging:
-local GenericDragTapWaitTime = 500
--- Time after which input is considered to be "locked up":
-local LockedUpDuration = 10000
+local Duration = {
+    MaxLeftClick = 500,
+    -- Time that an initial tap must be held to commence generic dragging:
+    GenericDragTapWait = 500,
+    -- Time after which input is considered to be "locked up":
+    LockedUp = 10000,
+}
 
 local MaxSingleClickDeviation = 9  -- in delta x/y rM screen coordinates (9: 1 mm)
 
@@ -1142,7 +1144,7 @@ local InputState = class
 
         -- Indicate a locked up state.
         -- TODO: remove?
-        lockedUpTab[1] = (currentTimeMs() >= self.lastFirstPressedTime + LockedUpDuration)
+        lockedUpTab[1] = (currentTimeMs() >= self.lastFirstPressedTime + Duration.LockedUp)
     end,
 
 -- private:
@@ -1161,7 +1163,7 @@ local InputState = class
                 self.ourEventType = OurEventType.Drag  -- <- ...this.
                 assert(self.lastFirstPressedTime ~= math.huge)
                 local msSinceTap = currentTimeMs() - self.lastFirstPressedTime
-                self.onlyVerticalDrag = (msSinceTap < GenericDragTapWaitTime)
+                self.onlyVerticalDrag = (msSinceTap < Duration.GenericDragTapWait)
                 return i + 1
             end
         end
