@@ -1376,7 +1376,7 @@ Server = class
         self.rM:requestRefresh(xywh_t(x, y, w, w))
     end,
 
-    shutDownAndExit = function(self)
+    shutDownAndExit = function(self, exitCode)
         -- NOTE: do not disable, need DISABLE_VIA_SERVER_INPUT for that.
 
         self.connFd:shutdown(posix.SHUT.RDWR)
@@ -1387,7 +1387,7 @@ Server = class
         until (#str == 0)
 
         self:drawStatusRect(StatusRectPosX.OnShutdown_rM_Finish)
-        os.exit(0)
+        os.exit(exitCode)
     end,
 
 -- private:
@@ -1444,7 +1444,7 @@ Server = class
                 self:drawStatusRect(StatusRectPosX.OnLockedUp)
                 self.specialRequestTab[1] = nil
             elseif (specialRequest == ServerRequest.Shutdown) then
-                self:shutDownAndExit()
+                self:shutDownAndExit(0)
             end
         end
     end,
@@ -1608,6 +1608,8 @@ if (not ok) then
 
     if (isRealServer) then
         app:drawStatusRect(StatusRectPosX.OnError)
+        stderr:write(errMsg..'\n')
+        app:shutDownAndExit(101)
     end
 
     error(errMsg)
