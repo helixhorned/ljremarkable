@@ -1075,8 +1075,8 @@ local function ConvertMtToScreen(devx, devy)
 
     -- The MT device coordinates are flipped with respect to the
     -- framebuffer coordinates in both dimensions.
-    local sx = ScreenWidth_rM - isx
-    local sy = ScreenHeight_rM - isy
+    local sx = ScreenWidth_rM - isx - 1
+    local sy = ScreenHeight_rM - isy - 1
 
     -- NOTE: we may return fractional values here, but that's OK.
     assert(sx >= 0 and sx < ScreenWidth_rM)
