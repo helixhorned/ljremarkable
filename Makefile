@@ -15,7 +15,7 @@ extractdecls := extractdecls
 
 ########## RULES ##########
 
-.PHONY: all clean decls doc upload
+.PHONY: all clean decls doc upload veryclean ljclang_clean ljclang_veryclean
 
 linux_decls_lua := linux_decls.lua
 linux_decls_lua_tmp := $(linux_decls_lua).tmp
@@ -24,12 +24,18 @@ remarkable_decls_lua_tmp := $(remarkable_decls_lua).tmp
 
 all: decls
 
-clean:
+clean: ljclang_clean
 	$(RM) $(remarkable_decls_lua) $(remarkable_decls_lua_tmp) \
 		$(linux_decls_lua) $(linux_decls_lua_tmp)
 
-veryclean: clean
+veryclean: clean ljclang_veryclean
 	$(RM) $(remarkable_decls_lua).reject $(linux_decls_lua).reject
+
+ljclang_clean:
+	$(MAKE) -C ljclang clean
+
+ljclang_veryclean:
+	$(MAKE) -C ljclang veryclean
 
 # Linux framebuffer interface exposed to us
 
