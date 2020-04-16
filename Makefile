@@ -16,7 +16,7 @@ extractdecls := $(shell which $(EXTRACTDECLS))
 
 ########## RULES ##########
 
-.PHONY: all check_extractdecls clean decls doc upload veryclean ljclang_deps ljclang_clean ljclang_veryclean
+.PHONY: all app check_extractdecls clean decls doc upload veryclean ljclang_deps ljclang_clean ljclang_veryclean
 
 linux_decls_lua := linux_decls.lua
 linux_decls_lua_tmp := $(linux_decls_lua).tmp
@@ -24,6 +24,8 @@ remarkable_decls_lua := remarkable_decls.lua
 remarkable_decls_lua_tmp := $(remarkable_decls_lua).tmp
 
 all: decls
+
+app: grabscreen.app.lua
 
 check_extractdecls:
 	@(test -n "$(extractdecls)" && test -x "$(extractdecls)") || \
@@ -41,6 +43,9 @@ ljclang_clean:
 
 ljclang_veryclean:
 	$(MAKE) -C ljclang veryclean
+
+ljclang_deps:
+	$(MAKE) -C ljclang all app_dependencies
 
 # Linux framebuffer interface exposed to us
 
@@ -100,6 +105,7 @@ $(remarkable_decls_lua): $(remarkable_lib_h) Makefile
 		'^typedef enum _auto_update_mode {' \
 		'^} mxcfb_dithering_mode;' >> $(remarkable_decls_lua_tmp)
 	@echo ']]' >> $(remarkable_decls_lua_tmp)
+	@echo 'return {}' >> $(remarkable_decls_lua_tmp)
 	@echo ''
 	@mv $(remarkable_decls_lua_tmp) $@
 	@($(luajit) -e "require 'remarkable_decls'" && \
@@ -118,6 +124,16 @@ ifneq ($(markdown),)
 else
 	echo "* Did not generate README.html: '$(MARKDOWN)' not installed"
 endif
+
+MAKE_APP_ENV := LD_LIBRARY_PATH="./ljclang" LUA_PATH=";;./ljclang/?.lua"
+
+app_name := grabscreen.app.lua
+
+# Application unity file
+grabscreen.app.lua: grabscreen.lua $(linux_decls_lua) $(remarkable_decls_lua) ljclang_deps
+	@$(MAKE_APP_ENV) $(luajit) -l ljclang.mkapp $< -Q >/dev/null 2>&1 && test -e $(app_name) && \
+		chmod +x $(app_name) && printf "* \033[1mCreated $(app_name)\033[0m\n" || \
+		(printf "* \033[1;31mError\033[0m creating $(app_name)\n" && false)
 
 # TODO: make app_dependencies in ./ljclang
 upload: decls

@@ -130,3 +130,4 @@ typedef enum _mxcfb_dithering_mode {
 
 } mxcfb_dithering_mode;
 ]]
+return {}

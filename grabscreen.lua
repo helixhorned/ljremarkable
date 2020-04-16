@@ -51,19 +51,30 @@ local isClient = (arg[1] == "c")
 local isServer = (arg[1] == "s")
 local hostNameOrAddr = arg[2]
 
-local function errprintfAndExit(fmt, ...)
+local function errprintf(fmt, ...)
     stderr:write((fmt.."\n"):format(...))
+end
+
+local function errprintfAndExit(fmt, ...)
+    errprintf(fmt, ...)
     os.exit(1)
 end
 
 if (not ((isClient and hostNameOrAddr ~= nil) or (isServer and hostNameOrAddr == nil))) then
-    errprintfAndExit([[
+    errprintf([[
 Usage:
   %s c <host name or IPv4 address>  # on the Raspberry Pi
   %s s                              # on the reMarkable
 
-A passed host name is resolved by reading /etc/hosts.
+A passed host name is resolved by reading and parsing /etc/hosts.
 ]], arg[0], arg[0])
+
+    local quiet = (arg[1] == '-Q' and arg[2] == nil)
+    if (quiet) then
+        -- For the application unity file.
+        require("remarkable")
+    end
+    os.exit(quiet and 0 or 1)
 end
 
 ----------
