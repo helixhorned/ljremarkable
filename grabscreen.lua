@@ -111,6 +111,7 @@ end
 -- Default screen dimensions on the reMarkable.
 local ScreenWidth_rM = 1404
 local ScreenHeight_rM = 1872
+local MenuWidth_rM = 120
 -- Guesstimate for the side length of the touch-active region around the rM "eye".
 local EyeSize_rM = 128
 
@@ -1363,8 +1364,8 @@ Server = class
     end,
 
     clearUpperArea = function(self)
-        local x, y = EyeSize_rM, 0
-        local w, h = ScreenWidth_rM - 2*EyeSize_rM, DestYPixelOffset
+        local x, y = MenuWidth_rM, 0
+        local w, h = ScreenWidth_rM - MenuWidth_rM, DestYPixelOffset
         map:fill(x, y, w, h, 0xffff)
         self.rM:requestRefresh(xywh_t(x, y, w, h))
     end,
@@ -1545,6 +1546,10 @@ Server = class
                 posix.clock_nanosleep(500e6)
             end
 
+            if (isRealServer) then
+                self:clearUpperArea()
+            end
+
             local bytesWritten = self.connFd:write(Cmd.Enable)
             assert(bytesWritten == Cmd.Length, "FIXME: partial write")
             self.enabled = true
@@ -1577,10 +1582,6 @@ local app = isClient and Client() or Server()
 ----------
 
 local function main()
-    if (isRealServer) then
-        app:clearUpperArea()
-    end
-
     while (true) do
         local startMs = currentTimeMs()
         app:step()
