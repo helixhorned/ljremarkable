@@ -40,7 +40,9 @@ WORKDIR /home/user
 
 ########## Check out and build ljremarkable ##########
 
-RUN git clone https://github.com/helixhorned/ljremarkable
+ARG ljrM_branch=master
+RUN git clone https://github.com/helixhorned/ljremarkable \
+    --single-branch --branch="$ljrM_branch" --depth=1
 WORKDIR ljremarkable
 
 RUN git submodule init

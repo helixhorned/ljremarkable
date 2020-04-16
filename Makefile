@@ -50,8 +50,10 @@ ljclang_deps:
 
 # Docker
 
+LJREMARKABLE_BRANCH ?= master
+
 docker-build:
-	DOCKER_BUILDKIT=1 docker build . --tag ljremarkable-dev
+	DOCKER_BUILDKIT=1 docker build . --tag ljremarkable-dev --build-arg ljrM_branch="$(LJREMARKABLE_BRANCH)"
 
 docker-run:
 	docker run -it ljremarkable-dev
