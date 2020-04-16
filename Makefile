@@ -10,12 +10,13 @@ MARKDOWN := cmark
 markdown := $(shell which $(MARKDOWN))
 
 extractrange := ./ljclang/extractrange.lua
-# Expected to be installed:
-extractdecls := extractdecls
+# LJClang application that is expected to be installed:
+EXTRACTDECLS := extractdecls
+extractdecls := $(shell which $(EXTRACTDECLS))
 
 ########## RULES ##########
 
-.PHONY: all clean decls doc upload veryclean ljclang_clean ljclang_veryclean
+.PHONY: all check_extractdecls clean decls doc upload veryclean ljclang_deps ljclang_clean ljclang_veryclean
 
 linux_decls_lua := linux_decls.lua
 linux_decls_lua_tmp := $(linux_decls_lua).tmp
@@ -23,6 +24,10 @@ remarkable_decls_lua := remarkable_decls.lua
 remarkable_decls_lua_tmp := $(remarkable_decls_lua).tmp
 
 all: decls
+
+check_extractdecls:
+	@(test -n "$(extractdecls)" && test -x "$(extractdecls)") || \
+		(echo "ERROR: '$(EXTRACTDECLS)' not found in PATH." && false)
 
 clean: ljclang_clean
 	$(RM) $(remarkable_decls_lua) $(remarkable_decls_lua_tmp) \
@@ -39,14 +44,13 @@ ljclang_veryclean:
 
 # Linux framebuffer interface exposed to us
 
-CHECK_EXTRACTED_LINUX_CMD := $(EXTRACT_CMD_ENV) $(luajit) \
-    -e "require'linux_decls'"
+CHECK_EXTRACTED_LINUX_CMD := $(luajit) -e "require'linux_decls'"
 
 linux_fb_h ?= /usr/include/linux/fb.h
 linux_input_h ?= /usr/include/linux/input.h
 sed_replace_ints_cmds := s/__u16 /uint16_t /g; s/__u32 /uint32_t /g
 
-$(linux_decls_lua): $(EXTRACTED_ENUMS_LUA) $(linux_fb_h) Makefile
+$(linux_decls_lua): check_extractdecls $(linux_fb_h) Makefile
 	@echo 'local ffi=require"ffi"' > $(linux_decls_lua_tmp)
 	@echo 'ffi.cdef[[' >> $(linux_decls_lua_tmp)
 	@$(extractrange) $(linux_fb_h) '^struct fb_fix_screeninfo {' '^};' | sed "$(sed_replace_ints_cmds)" >> $(linux_decls_lua_tmp)
