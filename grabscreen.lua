@@ -79,7 +79,13 @@ end
 
 ----------
 
--- TODO_MOVE
+-- Check the platform so that we do not mis-declare C structs or functions.
+if (not (ffi.os == "Linux" and ffi.arch == "arm" and ffi.abi("32bit") and
+         ffi.abi("le") and ffi.abi("hardfp") and ffi.abi("eabi"))) then
+    errprintfAndExit("ERROR: This program is supposed to run on a 32-bit OS "..
+                         "on the Raspberry Pi and on the reMarkable tablet.")
+end
+
 ffi.cdef[[
 int memcmp(const void *s1, const void *s2, size_t n);
 ]]
