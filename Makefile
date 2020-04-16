@@ -5,13 +5,17 @@ luajit ?= luajit
 
 ########## PROGRAMS ##########
 
+# Will use this Markdown processor for .md -> .html if it is found:
+MARKDOWN := cmark
+markdown := $(shell which $(MARKDOWN))
+
 extractrange := ./ljclang/extractrange.lua
 # Expected to be installed:
 extractdecls := extractdecls
 
 ########## RULES ##########
 
-.PHONY: all clean decls upload
+.PHONY: all clean decls doc upload
 
 linux_decls_lua := linux_decls.lua
 linux_decls_lua_tmp := $(linux_decls_lua).tmp
@@ -94,6 +98,16 @@ $(remarkable_decls_lua): $(remarkable_lib_h) Makefile
 	    mv $@ $@.reject && false)
 
 decls: $(linux_decls_lua) $(remarkable_decls_lua)
+
+# Documentation
+.SILENT: doc
+doc: README.md
+ifneq ($(markdown),)
+	$(markdown) README.md > README.html \
+	    && printf "* \033[1mGenerated README.html\033[0m\n"
+else
+	echo "* Did not generate README.html: '$(MARKDOWN)' not installed"
+endif
 
 # TODO: make app_dependencies in ./ljclang
 upload: decls
