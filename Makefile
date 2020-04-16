@@ -17,6 +17,7 @@ extractdecls := $(shell which $(EXTRACTDECLS))
 ########## RULES ##########
 
 .PHONY: all app check_extractdecls clean decls doc upload veryclean ljclang_deps ljclang_clean ljclang_veryclean
+.PHONY: docker-build docker-run
 
 linux_decls_lua := linux_decls.lua
 linux_decls_lua_tmp := $(linux_decls_lua).tmp
@@ -46,6 +47,14 @@ ljclang_veryclean:
 
 ljclang_deps:
 	$(MAKE) -C ljclang all app_dependencies
+
+# Docker
+
+docker-build:
+	DOCKER_BUILDKIT=1 docker build . --tag ljremarkable-dev
+
+docker-run:
+	docker run -it ljremarkable-dev
 
 # Linux framebuffer interface exposed to us
 
