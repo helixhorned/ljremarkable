@@ -2,10 +2,10 @@ FROM arm32v6/alpine:3.11.5
 
 LABEL maintainer="Philipp Kutin <philipp.kutin@gmail.com>"
 
-RUN apk add git make
-RUN apk add clang-dev llvm-dev
-RUN apk add gcc
-RUN apk add libc-dev linux-headers
+# Common:
+RUN apk add git make mg
+# For building LuaJIT:
+RUN apk add gcc libc-dev
 
 RUN adduser -D user
 
@@ -40,6 +40,7 @@ WORKDIR /home/user
 
 ########## Check out and build ljremarkable ##########
 
+# NOTE: passing a branch as opposed to a commit is problematic wrt Dockerfile caching.
 ARG ljrM_branch=master
 RUN git clone https://github.com/helixhorned/ljremarkable \
     --single-branch --branch="$ljrM_branch" --depth=1
@@ -53,6 +54,22 @@ RUN mkdir -p libremarkable/legacy-c-impl/libremarkable
 WORKDIR libremarkable/legacy-c-impl/libremarkable
 RUN wget https://raw.githubusercontent.com/canselcik/libremarkable/master/legacy-c-impl/libremarkable/lib.h
 RUN sha256sum lib.h | grep -q 2e718a10e9c47e4cde5387e834b1a0d76964378cf6247e8e045bf92f6d1a6db4
+
+## Build
+
+USER root
+RUN apk add g++ bash
+RUN apk add clang-dev llvm-dev linux-headers
+USER user
+
+# Install 'extractdecls'.
+WORKDIR /home/user/ljremarkable/ljclang
+RUN mkdir /home/user/bin
+# NOTE: on Alpine Linux, clang-c/Index.h is found in /usr/include.
+# TODO: ljclang/Makefile should handle this.
+RUN sed -i 's|incdir :=.*|incdir := /usr/include|' ./Makefile
+RUN LLVM_CONFIG=llvm-config make install-dev
+WORKDIR /home/user/ljremarkable
 
 # TODO: build
 

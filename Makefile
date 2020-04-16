@@ -56,7 +56,7 @@ docker-build:
 	DOCKER_BUILDKIT=1 docker build . --tag ljremarkable-dev --build-arg ljrM_branch="$(LJREMARKABLE_BRANCH)"
 
 docker-run:
-	docker run -it ljremarkable-dev
+	docker run -it --rm ljremarkable-dev
 
 # Linux framebuffer interface exposed to us
 
