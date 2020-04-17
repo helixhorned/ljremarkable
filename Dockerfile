@@ -69,9 +69,21 @@ RUN mkdir /home/user/bin
 # TODO: ljclang/Makefile should handle this.
 RUN sed -i 's|incdir :=.*|incdir := /usr/include|' ./Makefile
 RUN LLVM_CONFIG=llvm-config make install-dev
-WORKDIR /home/user/ljremarkable
 
-# TODO: build
+# Build the application.
+WORKDIR /home/user/ljremarkable
+RUN LLVM_CONFIG=llvm-config PATH="$HOME/bin:$PATH" make app
+
+# Run the LJClang tests.
+USER root
+RUN apk add luarocks5.1
+# NOTE: CFLAGS=-I/usr/local/include/luajit-2.1 before 'luarocks-5.1' does not work:
+RUN apk add lua5.1-dev
+USER user
+RUN luarocks-5.1 --local install busted
+#
+WORKDIR /home/user/ljremarkable/ljclang
+RUN LLVM_CONFIG=llvm-config make test
 
 WORKDIR /home/user
 
