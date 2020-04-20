@@ -49,7 +49,14 @@ local stderr = io.stderr
 
 local isClient = (arg[1] == "c")
 local isServer = (arg[1] == "s")
-local hostNameOrAddr = arg[2]
+local hostNameOrAddr = isClient and arg[2] or nil
+local acceptTimeoutMsArg = isServer and arg[2] or nil
+
+local isAcceptTimeoutOk = not isServer or
+    acceptTimeoutMsArg == nil or
+    acceptTimeoutMsArg:match("^[1-9][0-9]*$")
+local acceptTimeoutMs = isAcceptTimeoutOk and
+    tonumber(acceptTimeoutMsArg) or nil
 
 local function errprintf(fmt, ...)
     stderr:write((fmt.."\n"):format(...))
@@ -60,11 +67,15 @@ local function errprintfAndExit(fmt, ...)
     os.exit(1)
 end
 
-if (not ((isClient and hostNameOrAddr ~= nil) or (isServer and hostNameOrAddr == nil))) then
+if (not ((isClient and hostNameOrAddr ~= nil) or (isServer and isAcceptTimeoutOk))) then
+    if (not isAcceptTimeoutOk) then
+        assert(isServer)
+        errprintf("ERROR: timeout must be a non-negative integer.\n")
+    end
     errprintf([[
 Usage:
-  %s c <host name or IPv4 address>  # on the Raspberry Pi
-  %s s                              # on the reMarkable
+  %s c <host name or IPv4 address>              # on the Raspberry Pi
+  %s s [<timeout waiting for connection (ms)>]  # on the reMarkable
 
 A passed host name is resolved by reading and parsing /etc/hosts.
 ]], arg[0], arg[0])
@@ -1372,9 +1383,9 @@ local InputState = class
 Server = class
 {
     function()
-        local connFd, errMsg = inet.Socket():expectConnection(Port)
+        local connFd, errMsg = inet.Socket():expectConnection(Port, acceptTimeoutMs)
         if (connFd == nil) then
-            errprintfAndExit("ERROR: failed connecting: %s", errMsg)
+            errprintfAndExit("ERROR: failed awaiting connection: %s", errMsg)
         end
 
         return {

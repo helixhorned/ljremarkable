@@ -7,6 +7,7 @@ local bit = require("bit")
 local class = require("class").class
 local error_util = require("error_util")
 local posix = require("posix")
+local posix_decls = require("posix_decls")
 
 local check = error_util.check
 local checktype = error_util.checktype
@@ -84,7 +85,9 @@ api.Socket = class
         return posix.Fd(self.fd)
     end,
 
-    expectConnection = function(self, port)
+    expectConnection = function(self, port, timeoutMs)
+        local E, F, POLL, O = posix_decls.E, posix_decls.F, posix.POLL, posix.O
+
         -- From /usr/include/netinet/in.h:
         -- /* Address to accept any incoming messages.  */
         -- #define INADDR_ANY ((in_addr_t) 0x00000000)
@@ -98,9 +101,31 @@ api.Socket = class
             return nil, "listen failed: "..posix.getErrnoString()
         end
 
-        local newFd = C.accept(self.fd, nil, nil)
-        if (newFd < 0) then
-            return nil, "accept failed: "..posix.getErrnoString()
+        if (timeoutMs ~= nil) then
+            local flags = C.fcntl(self.fd, F.GETFL)
+            if (flags == -1) then
+                return nil, "fcntl (F_GETFL) failed: "..posix.getErrnoString()
+            end
+            local newFlags = ffi.cast('int', bit.bor(flags, O.NONBLOCK))
+            local ret = C.fcntl(self.fd, F.SETFL, newFlags)
+            if (ret == -1) then
+                return nil, "fcntl (F_SETFL) failed: "..posix.getErrnoString()
+            end
+        end
+
+        local shouldWaitOnce = (timeoutMs ~= nil)
+        local newFd
+
+        for trial = 1, (shouldWaitOnce and 2 or 1) do
+            newFd = C.accept(self.fd, nil, nil)
+
+            if (newFd == -1) then
+                if (shouldWaitOnce and trial == 1 and ffi.errno() == E.AGAIN) then
+                    posix.poll({ events=POLL.IN, self.fd }, timeoutMs)
+                else
+                    return nil, "accept failed: "..posix.getErrnoString()
+                end
+            end
         end
 
         local ret = C.close(self.fd)
