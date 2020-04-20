@@ -47,6 +47,11 @@ local unpack = unpack
 local arg = arg
 local stderr = io.stderr
 
+local doFork = (arg[1] == "--fork")
+if (arg[1] == "--fork") then
+    table.remove(arg, 1)
+end
+
 local isClient = (arg[1] == "c")
 local isServer = (arg[1] == "s")
 local hostNameOrAddr = isClient and arg[2] or nil
@@ -74,8 +79,11 @@ if (not ((isClient and hostNameOrAddr ~= nil) or (isServer and isAcceptTimeoutOk
     end
     errprintf([[
 Usage:
-  %s c <host name or IPv4 address>              # on the Raspberry Pi
-  %s s [<timeout waiting for connection (ms)>]  # on the reMarkable
+  %s [--fork] c <host name or IPv4 address>              # on the Raspberry Pi
+  %s [--fork] s [<timeout waiting for connection (ms)>]  # on the reMarkable
+
+When forking is requested, it is done after having established a connection.
+In that case, the parent will exit with code zero to signal success.
 
 A passed host name is resolved by reading and parsing /etc/hosts.
 ]], arg[0], arg[0])
@@ -688,6 +696,16 @@ local function FindKeyboardDevFile()
     end
 end
 
+local function MaybeForkAndExit()
+    if (doFork) then
+        local whoami, pid = posix.fork()
+        if (whoami == "parent") then
+            print(("Child process ID: %d"):format(pid))
+            os.exit(0)
+        end
+    end
+end
+
 local Client = class
 {
     function()
@@ -696,6 +714,8 @@ local Client = class
 
         local kbEvDevice = input.EventDevice(FindKeyboardDevFile())
         local connFd = ConnectTo(inet.Socket(), address, hostNameOrAddr)
+
+        MaybeForkAndExit()
 
         return {
             enabled = false,
@@ -1387,6 +1407,8 @@ Server = class
         if (connFd == nil) then
             errprintfAndExit("ERROR: failed awaiting connection: %s", errMsg)
         end
+
+        MaybeForkAndExit()
 
         return {
             connFd = connFd,
