@@ -82,7 +82,9 @@ Usage:
   %s [--fork] c <host name or IPv4 address>              # on the Raspberry Pi
   %s [--fork] s [<timeout waiting for connection (ms)>]  # on the reMarkable
 
-When forking is requested, it is done after having established a connection.
+When forking is requested, it is done:
+ - for the client, after having connected.
+ - for the server, just before the first accept() call.
 In that case, the parent will exit with code zero to signal success.
 
 A passed host name is resolved by reading and parsing /etc/hosts.
@@ -1403,12 +1405,11 @@ local InputState = class
 Server = class
 {
     function()
-        local connFd, errMsg = inet.Socket():expectConnection(Port, acceptTimeoutMs)
+        local connFd, errMsg = inet.Socket():expectConnection(
+            Port, acceptTimeoutMs, MaybeForkAndExit)
         if (connFd == nil) then
             errprintfAndExit("ERROR: failed awaiting connection: %s", errMsg)
         end
-
-        MaybeForkAndExit()
 
         return {
             connFd = connFd,

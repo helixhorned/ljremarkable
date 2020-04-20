@@ -85,7 +85,7 @@ api.Socket = class
         return posix.Fd(self.fd)
     end,
 
-    expectConnection = function(self, port, timeoutMs)
+    expectConnection = function(self, port, timeoutMs, beforeFirstAccept)
         local E, F, POLL, O = posix_decls.E, posix_decls.F, posix.POLL, posix.O
 
         -- From /usr/include/netinet/in.h:
@@ -117,6 +117,10 @@ api.Socket = class
         local newFd
 
         for trial = 1, (shouldWaitOnce and 2 or 1) do
+            if (trial == 1 and beforeFirstAccept ~= nil) then
+                beforeFirstAccept()
+            end
+
             newFd = C.accept(self.fd, nil, nil)
 
             if (newFd == -1) then
