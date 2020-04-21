@@ -40,7 +40,7 @@ veryclean: clean ljclang_veryclean
 	$(RM) $(remarkable_decls_lua).reject $(linux_decls_lua).reject layouts/??.*
 
 layouts: mklayout.lua xkb_symbols_reader.lua
-	./mklayout.lua $(layouts)
+	./mklayout.lua -q $(layouts)
 
 ljclang_clean:
 	$(MAKE) -C ljclang clean

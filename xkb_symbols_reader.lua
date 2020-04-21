@@ -86,7 +86,7 @@ local read_symbols  -- "forward-declare" function
 -- Out: 'result' (modified in-place)
 --
 -- 'fileName' and 'lineNum' are purely for debugging purposes.
-local function parseSubLayoutLine(fileName, line, lineNum, result)
+local function parseSubLayoutLine(fileName, line, lineNum, result, quiet)
     local includedLayoutName = line:match('^include *"([^"]+)"')
     if (includedLayoutName ~= nil) then
         local PRIM = "([^%(]+)"
@@ -99,7 +99,7 @@ local function parseSubLayoutLine(fileName, line, lineNum, result)
 
         -- TODO: restructure?
         local ourLayoutSpec = primaryLayout.."."..subLayout
-        local res_, msg = read_symbols(ourLayoutSpec, result)
+        local res_, msg = read_symbols(ourLayoutSpec, result, quiet)
         if (res_ == nil) then
             error(("in processing include %s: %s"):format(ourLayoutSpec))
         end
@@ -137,8 +137,11 @@ local function parseSubLayoutLine(fileName, line, lineNum, result)
 
     local function defineKey(oki, offset, sym)
         if (sym:match"^dead_") then
-            io.stderr:write(("warning: %s:%d: blocked definition of key: %d[%d] to '%s'\n")
-                    :format(fileName, lineNum, oki/KeyIdxFactor, offset, sym))
+            if (not quiet) then
+                io.stderr:write(("warning: %s:%d: blocked definition of key: %d[%d] to '%s'\n")
+                        :format(fileName, lineNum, oki/KeyIdxFactor, offset, sym))
+            end
+            result.hadWarnings = true
             return 0
         else
             local oldSym = result[oki + offset]
@@ -162,8 +165,11 @@ local function parseSubLayoutLine(fileName, line, lineNum, result)
     end
 
     if (#redefined > 0) then
-        io.stderr:write(("warning: %s:%d: redefined key %d[%s]\n"):format(
-                fileName, lineNum, ourKeyIdx/KeyIdxFactor, redefined))
+        if (not quiet) then
+            io.stderr:write(("warning: %s:%d: redefined key %d[%s]\n"):format(
+                    fileName, lineNum, ourKeyIdx/KeyIdxFactor, redefined))
+        end
+        result.hadWarnings = true
     end
 
     result.count = result.count + n
@@ -172,8 +178,10 @@ end
 -- NOTE: location on Raspbian, pull out when necessary.
 local XkbSymbolsDir = "/usr/share/X11/xkb/symbols"
 
-function read_symbols(layout, result)
+function read_symbols(layout, result, quiet)
     assert(type(layout) == "string")
+    assert(result == nil or type(result) == "table")
+
     local baseName, subLayout = layout:match("^([^%.]+)%.([^%.]+)$")
     if (baseName == nil or subLayout == nil) then
         return nil, "Layout must consist of two names separated by a dot."
@@ -186,7 +194,8 @@ function read_symbols(layout, result)
         return nil, msg
     end
 
-    local result = result or { count = 0, hadInclude = false }
+    local isTopLevel = (result == nil)
+    local result = isTopLevel and { count = 0, hadInclude = false, hadWarnings = false } or result
     local inSubLayout = false
     local lineNum = 0
 
@@ -227,7 +236,7 @@ function read_symbols(layout, result)
                 break
             end
 
-            parseSubLayoutLine(fileName, line, lineNum, result)
+            parseSubLayoutLine(fileName, line, lineNum, result, quiet)
         end
     end
 
@@ -240,8 +249,10 @@ function read_symbols(layout, result)
     return result
 end
 
-function api.as_lua(layout)
-    local result, msg = read_symbols(layout)
+function api.as_lua(layout, quiet)
+    assert(quiet == nil or type(quiet) == "boolean")
+
+    local result, msg = read_symbols(layout, nil, quiet)
     if (result == nil) then
         return nil, msg
     end
@@ -278,7 +289,8 @@ function api.as_lua(layout)
 
     strTab[#strTab + 1] = "}\n"
 
-    return table.concat(strTab, '\n')
+    return table.concat(strTab, '\n'), (quiet and result.hadWarnings) and
+        "INFO: one or more warnings not printed." or nil
 end
 
 -- Done!

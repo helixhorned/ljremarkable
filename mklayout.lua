@@ -2,6 +2,7 @@
 
 local io = require("io")
 local os = require("os")
+local table = require("table")
 
 local xkb_symbols_reader = require("xkb_symbols_reader")
 local kb_layout_util = require("kb_layout_util")
@@ -22,12 +23,17 @@ if (arg[1] == nil) then
     os.exit(1)
 end
 
+local quiet = (arg[1] == "-q")
+if (quiet) then
+    table.remove(arg, 1)
+end
+
 for _, layout in ipairs(arg) do
     print("["..layout.."]")
 
-    local layoutAsLua, msg = xkb_symbols_reader.as_lua(layout)
+    local layoutAsLua, readAsLuaMsg = xkb_symbols_reader.as_lua(layout, quiet)
     if (layoutAsLua == nil) then
-        io.stderr:write(("ERROR: %s\n"):format(msg))
+        io.stderr:write(("ERROR: %s\n"):format(readAsLuaMsg))
         os.exit(1)
     end
     assert(type(layoutAsLua) == "string")
@@ -52,4 +58,8 @@ for _, layout in ipairs(arg) do
 
     f:write(layoutAsLua)
     f:close()
+
+    if (readAsLuaMsg ~= nil) then
+        io.stderr:write(readAsLuaMsg..'\n')
+    end
 end
