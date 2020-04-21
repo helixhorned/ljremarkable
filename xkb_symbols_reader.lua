@@ -11,10 +11,11 @@ local type = type
 
 local api = {}
 
-local KeyDefLinePat = ('^key <KEY> { %[ SYM , SYM.*%] };$')
+local SYM_Pattern = '([^, ]+)'
+local KeyDefLinePat = ('^key <KEY> { %[ SYM , SYM(.*)%] };$')
     :gsub(' ', ' ?')
     :gsub('KEY', '([^>]+)')
-    :gsub('SYM', '([^, ]+)')
+    :gsub('SYM', SYM_Pattern)
 
 -- Number of keys in the mostly-user-customizable area.
 -- Four rows of ten keys each.
@@ -75,7 +76,7 @@ local function parseSubLayoutLine(fileName, line, lineNum, result)
         return
     end
 
-    local key, sym1, sym2 = line:match(KeyDefLinePat)
+    local key, sym1, sym2, rest = line:match(KeyDefLinePat)
 
     -- TODO:
     --  - Let pass only keys representing a printable character.
@@ -87,13 +88,15 @@ local function parseSubLayoutLine(fileName, line, lineNum, result)
         return
     end
 
-    if (result[ourKeyIdx] ~= nil or result[ourKeyIdx + 1] ~= nil) then
+    local sym3 = rest:match(" ?, ?"..SYM_Pattern)
+
+    if (result[ourKeyIdx] ~= nil or result[ourKeyIdx + 1] ~= nil or result[ourKeyIdx + 2] ~= nil) then
         if (not result.hadInclude) then
             -- NOTE: it is a bit inappropriate error due to unexpected input, but we are
             --  intended to be driven from the command line or scripts.
             error(("%s:%d: key %d encountered twice, not overwriting"):format(
                     fileName, lineNum, ourKeyIdx/KeyIdxFactor))
-        elseif (result[ourKeyIdx] ~= sym1 or result[ourKeyIdx + 1] ~= sym2) then
+        elseif (result[ourKeyIdx] ~= sym1 or result[ourKeyIdx + 1] ~= sym2 or result[ourKeyIdx + 2] ~= sym3) then
             io.stderr:write(("warning: %s:%d: potentially redefining key %d\n"):format(
                     fileName, lineNum, ourKeyIdx/KeyIdxFactor))
         end
@@ -115,6 +118,11 @@ local function parseSubLayoutLine(fileName, line, lineNum, result)
         defineKey(ourKeyIdx, 0, sym1) +
         -- Secondary (shifted) key.
         defineKey(ourKeyIdx, 1, sym2)
+
+    if (sym3 ~= nil and (sym3 ~= sym1 and sym3 ~= sym2)) then
+        -- Tertiary key. (usually AltGr?)
+        n = n + defineKey(ourKeyIdx, 2, sym3)
+    end
 
     result.count = result.count + n
 end
@@ -204,17 +212,26 @@ function api.as_lua(layout)
 
     local getKeyDefLine = function(ourKeyIdx)
         local sym = result[ourKeyIdx]
+        if (sym == nil and ourKeyIdx % 10 >= 2) then
+            return nil
+        end
         return (" [%d]=%s,"):format(
             ourKeyIdx,
             sym ~= nil and ("%q"):format(sym) or "nil")
+    end
+
+    local function getKeySym(k, o)
+        return result[KeyIdxFactor*k + o]
     end
 
     for k = 1, TotalKeyCount do
         if (k > 1 and k % 10 == 1) then
             strTab[#strTab + 1] = ''
         end
-        strTab[#strTab + 1] = getKeyDefLine(KeyIdxFactor*k + 0)
-        strTab[#strTab + 1] = getKeyDefLine(KeyIdxFactor*k + 1)
+        for o = 0, 2 do
+            strTab[#strTab + 1] = getKeyDefLine(KeyIdxFactor*k + o)
+        end
+        strTab[#strTab + 1] = " --"
     end
 
     strTab[#strTab + 1] = "}\n"
