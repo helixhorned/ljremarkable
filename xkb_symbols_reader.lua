@@ -45,13 +45,33 @@ local function ourIdxForKey(key)
         KeyIdxFactor*tempKeyIdx or nil
 end
 
+local read_symbols  -- "forward-declare" function
+
 -- In: 'line'
 -- Out: 'result' (modified in-place)
 --
 -- 'fileName' and 'lineNum' are purely for debugging purposes.
 local function parseSubLayoutLine(fileName, line, lineNum, result)
-    if (line:match'^include ') then
-        -- TODO.
+    local includedLayoutName = line:match('^include *"([^"]+)"')
+    if (includedLayoutName ~= nil) then
+        local PRIM = "([^%(]+)"
+        local SUB = "%((.+)%)"
+        local primaryLayout, subLayout = includedLayoutName:match("^"..PRIM..SUB.."$")
+
+        if (primaryLayout == nil or subLayout == nil) then
+            error(("%s:%d: failed parsing 'include' directive"):format(fileName, lineNum))
+        end
+
+        -- TODO: restructure?
+        local ourLayoutSpec = primaryLayout.."."..subLayout
+        local res_, msg = read_symbols(ourLayoutSpec, result)
+        if (res_ == nil) then
+            error(("in processing include %s: %s"):format(ourLayoutSpec))
+        end
+
+        assert(res_ == result)
+        result.hadInclude = true
+
         return
     end
 
@@ -68,24 +88,41 @@ local function parseSubLayoutLine(fileName, line, lineNum, result)
     end
 
     if (result[ourKeyIdx] ~= nil or result[ourKeyIdx + 1] ~= nil) then
-        -- NOTE: it is a bit inappropriate error due to unexpected input, but we are
-        --  intended to be driven from the command line or scripts.
-        error(("%s:%d: key %d encountered twice, not overwriting"):format(
-                fileName, lineNum, ourKeyIdx/KeyIdxFactor))
+        if (not result.hadInclude) then
+            -- NOTE: it is a bit inappropriate error due to unexpected input, but we are
+            --  intended to be driven from the command line or scripts.
+            error(("%s:%d: key %d encountered twice, not overwriting"):format(
+                    fileName, lineNum, ourKeyIdx/KeyIdxFactor))
+        elseif (result[ourKeyIdx] ~= sym1 or result[ourKeyIdx + 1] ~= sym2) then
+            io.stderr:write(("warning: %s:%d: potentially redefining key %d\n"):format(
+                    fileName, lineNum, ourKeyIdx/KeyIdxFactor))
+        end
     end
 
-    -- Primary key.
-    result[ourKeyIdx + 0] = sym1
-    -- Secondary (shifted) key.
-    result[ourKeyIdx + 1] = sym2
+    local function defineKey(oki, offset, sym)
+        if (sym:match"^dead_") then
+            io.stderr:write(("warning: %s:%d: blocked definition of key: %d[%d] to '%s'\n")
+                    :format(fileName, lineNum, oki/KeyIdxFactor, offset, sym))
+            return 0
+        else
+            result[oki + offset] = sym
+            return 1
+        end
+    end
 
-    result.count = result.count + 1
+    local n =
+        -- Primary key.
+        defineKey(ourKeyIdx, 0, sym1) +
+        -- Secondary (shifted) key.
+        defineKey(ourKeyIdx, 1, sym2)
+
+    result.count = result.count + n
 end
 
 -- NOTE: location on Raspbian, pull out when necessary.
 local XkbSymbolsDir = "/usr/share/X11/xkb/symbols"
 
-local function read_symbols(layout)
+function read_symbols(layout, result)
     assert(type(layout) == "string")
     local baseName, subLayout = layout:match("^([^%.]+)%.([^%.]+)$")
     if (baseName == nil or subLayout == nil) then
@@ -99,7 +136,7 @@ local function read_symbols(layout)
         return nil, msg
     end
 
-    local result = { count=0 }
+    local result = result or { count = 0, hadInclude = false }
     local inSubLayout = false
     local lineNum = 0
 
