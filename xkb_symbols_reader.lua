@@ -96,11 +96,10 @@ local function parseSubLayoutLine(fileName, line, lineNum, result)
             --  intended to be driven from the command line or scripts.
             error(("%s:%d: key %d encountered twice, not overwriting"):format(
                     fileName, lineNum, ourKeyIdx/KeyIdxFactor))
-        elseif (result[ourKeyIdx] ~= sym1 or result[ourKeyIdx + 1] ~= sym2 or result[ourKeyIdx + 2] ~= sym3) then
-            io.stderr:write(("warning: %s:%d: potentially redefining key %d\n"):format(
-                    fileName, lineNum, ourKeyIdx/KeyIdxFactor))
         end
     end
+
+    local redefined = ""
 
     local function defineKey(oki, offset, sym)
         if (sym:match"^dead_") then
@@ -108,6 +107,10 @@ local function parseSubLayoutLine(fileName, line, lineNum, result)
                     :format(fileName, lineNum, oki/KeyIdxFactor, offset, sym))
             return 0
         else
+            local oldSym = result[oki + offset]
+            if (oldSym ~= nil and sym ~= oldSym) then
+                redefined = redefined..tonumber(offset)
+            end
             result[oki + offset] = sym
             return 1
         end
@@ -122,6 +125,11 @@ local function parseSubLayoutLine(fileName, line, lineNum, result)
     if (sym3 ~= nil and (sym3 ~= sym1 and sym3 ~= sym2)) then
         -- Tertiary key. (usually AltGr?)
         n = n + defineKey(ourKeyIdx, 2, sym3)
+    end
+
+    if (#redefined > 0) then
+        io.stderr:write(("warning: %s:%d: redefined key %d[%s]\n"):format(
+                fileName, lineNum, ourKeyIdx/KeyIdxFactor, redefined))
     end
 
     result.count = result.count + n
