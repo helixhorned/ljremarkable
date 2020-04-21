@@ -20,7 +20,9 @@ local KeyDefLinePat = ('^key <KEY> { %[ SYM , SYM(.*)%] };$')
 -- Number of keys in the mostly-user-customizable area.
 -- Four rows of ten keys each.
 -- Two of them are special though, see below.
-local TotalKeyCount = 40
+local TotalSourceKeyCount = 39
+-- NOTE [SHIFT_MOD]: The leftmost key of our fourth row is our Shift/mod:
+local TotalDestKeyCount = TotalSourceKeyCount + 1
 local KeyIdxFactor = 10
 
 local function ourIdxForKey(key)
@@ -36,14 +38,19 @@ local function ourIdxForKey(key)
     local col = tonumber(colNumStr, 10)
 
     local function isUserKey(tempKeyIdx)
-        return (tempKeyIdx >= 1 and tempKeyIdx <= TotalKeyCount
-                -- Our backspace/DEL + Shift/mod key:
-                    and not (tempKeyIdx == 30 or tempKeyIdx == 31))
+        return (tempKeyIdx >= 1 and tempKeyIdx <= TotalSourceKeyCount
+                -- Our backspace/DEL key:
+                    and tempKeyIdx ~= 30)
+    end
+
+    local function mapKey(tempKeyIdx)
+        -- SHIFT_MOD: so the affected key indexes are offset by one.
+        return tempKeyIdx + (tempKeyIdx >= 31 and 1 or 0)
     end
 
     local tempKeyIdx = (col >= 1 and col <= 10) and 10*row + col or nil
     return (tempKeyIdx and isUserKey(tempKeyIdx)) and
-        KeyIdxFactor*tempKeyIdx or nil
+        KeyIdxFactor * mapKey(tempKeyIdx) or nil
 end
 
 local read_symbols  -- "forward-declare" function
@@ -232,7 +239,7 @@ function api.as_lua(layout)
         return result[KeyIdxFactor*k + o]
     end
 
-    for k = 1, TotalKeyCount do
+    for k = 1, TotalDestKeyCount do
         if (k > 1 and k % 10 == 1) then
             strTab[#strTab + 1] = ''
         end
