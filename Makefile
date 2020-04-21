@@ -2,6 +2,9 @@
 # User configuration
 include config.make
 
+LJREMARKABLE_LAYOUTS ?=
+layouts += $(LJREMARKABLE_LAYOUTS)
+
 ########## PROGRAMS ##########
 
 markdown := $(shell which $(MARKDOWN))
@@ -14,7 +17,7 @@ extractdecls := $(shell which $(EXTRACTDECLS))
 ########## RULES ##########
 
 .PHONY: all app check_extractdecls clean decls doc upload veryclean ljclang_deps ljclang_clean ljclang_veryclean
-.PHONY: docker-build docker-run
+.PHONY: docker-build docker-run layouts
 
 linux_decls_lua := linux_decls.lua
 linux_decls_lua_tmp := $(linux_decls_lua).tmp
@@ -34,7 +37,10 @@ clean: ljclang_clean
 		$(linux_decls_lua) $(linux_decls_lua_tmp)
 
 veryclean: clean ljclang_veryclean
-	$(RM) $(remarkable_decls_lua).reject $(linux_decls_lua).reject
+	$(RM) $(remarkable_decls_lua).reject $(linux_decls_lua).reject layouts/??.*
+
+layouts: mklayout.lua xkb_symbols_reader.lua
+	./mklayout.lua $(layouts)
 
 ljclang_clean:
 	$(MAKE) -C ljclang clean
