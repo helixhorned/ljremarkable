@@ -4,13 +4,12 @@ local io = require("io")
 local os = require("os")
 
 local xkb_symbols_reader = require("xkb_symbols_reader")
+local kb_layout_util = require("kb_layout_util")
 
 local assert = assert
 local error = error
 local loadstring = loadstring
-local pcall = pcall
 local print = print
-local setfenv = setfenv
 local type = type
 
 local arg = arg
@@ -33,15 +32,11 @@ assert(type(layoutAsLua) == "string")
 
 -- Validate generated Lua code.
 do
-    local func, loadErrMsg = loadstring(layoutAsLua, "<generated>")
-    if (func == nil) then
-        error("INTERNAL ERROR: not loadable as Lua code: "..loadErrMsg)
-    end
-
-    func = setfenv(func, {})
-    local ok, callErrMsg = pcall(func)
-    if (not ok) then
-        error("INTERNAL ERROR: failed executing in an empty environment: "..callErrMsg)
+    local tab, msg = kb_layout_util.get_table(
+            -- NOTE: potentially more than one return value:
+            loadstring(layoutAsLua, "<generated>"))
+    if (tab == nil) then
+        error("INTERNAL ERROR: "..msg)
     end
 end
 
