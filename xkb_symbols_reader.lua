@@ -2,8 +2,11 @@ local io = require("io")
 local string = require("string")
 local table = require("table")
 
+local kb_layout_util = require("kb_layout_util")
+
 local assert = assert
 local error = error
+local loadfile = loadfile
 local tonumber = tonumber
 local type = type
 
@@ -25,12 +28,36 @@ local TotalSourceKeyCount = 39
 local TotalDestKeyCount = TotalSourceKeyCount + 1
 local KeyIdxFactor = 10
 
+local us_basic_AZ_map
+-- ^ obtained on demand
+local function ourKeyIdxForLat(capitalChar)
+    if (us_basic_AZ_map == nil) then
+        us_basic_AZ_map = kb_layout_util.get_AZ_map("./layouts/us.basic")
+    end
+
+    local keyIdx = us_basic_AZ_map[capitalChar]
+
+    if (keyIdx == nil or not (keyIdx >= 1 and keyIdx <= TotalDestKeyCount)) then
+        error(("INTERNAL ERROR: unexpected value in us.basic A-Z map: %s -> %s")
+                :format(capitalChar, keyIdx))
+    end
+
+    return KeyIdxFactor * keyIdx
+end
+
+-- TODO: layout merging?
+--
+--  For example, with a layout that has non-latin base characters, we may want to have
+--  '1'-'9'+'0' and ',' and '.' as stroke-down (tertiary) characters.
+
 local function ourIdxForKey(key)
     assert(type(key) == "string")
-    -- TODO: 'Lat*' for the phonetic layouts.
+
     local rowChar, colNumStr = key:match('^A([EDCB])([0-9]+)$')
     if (rowChar == nil or colNumStr == nil) then
-        return nil
+        -- Try 'Lat*', present in the phonetic layouts.
+        local capitalChar = key:match('^Lat([A-Z])$')
+        return (capitalChar ~= nil) and ourKeyIdxForLat(capitalChar) or nil
     end
 
     local row = string.byte('E') - string.byte(rowChar)

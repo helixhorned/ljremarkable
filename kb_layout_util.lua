@@ -1,5 +1,7 @@
+local assert = assert
 local error = error
 local pcall = pcall
+local loadfile = loadfile
 local setfenv = setfenv
 local type = type
 
@@ -26,6 +28,38 @@ function api.get_table(func, loadErrMsg)
     end
 
     return result
+end
+
+function api.get_AZ_map(layoutFileName)
+    local syms, msg = api.get_table(loadfile(layoutFileName))
+    if (syms == nil) then
+        error("Failed loading layout: "..msg)
+    end
+
+    local TotalDestKeyCount = 40
+    local KeyIdxFactor = 10
+
+    local count = 0
+    local map = {}
+
+    for k = 1, TotalDestKeyCount do
+        local sym = syms[KeyIdxFactor * k]
+        if (k == 30 or k == 31) then
+            assert(sym == nil, "INTERNAL ERROR: non-nil sym for reserved key index")
+        elseif (sym:match("^[a-z]$")) then
+            local upperSym = sym:upper()
+            if (map[upperSym] ~= nil) then
+                error("Ambiguous key number for symbol "..upperSym)
+            end
+
+            map[upperSym] = k
+            count = count + 1
+        end
+    end
+
+    assert(count == 26, "Unexpected final count of symbols "..count)
+
+    return map
 end
 
 -- Done!
