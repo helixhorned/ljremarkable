@@ -1,12 +1,9 @@
 
-########## CONFIG ##########
-
-luajit ?= luajit
+# User configuration
+include config.make
 
 ########## PROGRAMS ##########
 
-# Will use this Markdown processor for .md -> .html if it is found:
-MARKDOWN := cmark
 markdown := $(shell which $(MARKDOWN))
 
 extractrange := ./ljclang/extractrange.lua
