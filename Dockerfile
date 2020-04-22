@@ -58,7 +58,7 @@ RUN sha256sum lib.h | grep -q 2e718a10e9c47e4cde5387e834b1a0d76964378cf6247e8e04
 ## Build
 
 USER root
-RUN apk add g++ bash
+RUN apk add bash
 RUN apk add clang-dev llvm-dev linux-headers
 USER user
 
@@ -85,7 +85,7 @@ USER user
 RUN luarocks-5.1 --local install busted
 #
 WORKDIR /home/user/ljremarkable/ljclang
-RUN make test
+RUN LJCLANG_TESTS_NO_CXX_STDLIB=1 make test
 
 WORKDIR /home/user
 
