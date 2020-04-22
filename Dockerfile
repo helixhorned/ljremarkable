@@ -40,7 +40,10 @@ WORKDIR /home/user
 
 ########## Check out and build ljremarkable ##########
 
-# NOTE: passing a branch as opposed to a commit is problematic wrt Dockerfile caching.
+# NOTE: passing a branch as opposed to a commit is problematic wrt Dockerfile caching:
+#  advances of the remote are not picked up here if a cached build is present.
+#  And somewhat contrary to good Dockerfile style, the intent of this Dockerfile *is*
+#  to build the latest commit at the specified branch.
 ARG ljrM_branch=master
 RUN git clone https://github.com/helixhorned/ljremarkable \
     --single-branch --branch="$ljrM_branch" --depth=1
@@ -59,17 +62,25 @@ RUN sha256sum lib.h | grep -q 2e718a10e9c47e4cde5387e834b1a0d76964378cf6247e8e04
 
 USER root
 RUN apk add bash
-RUN apk add clang-dev llvm-dev linux-headers
+RUN apk add clang-dev linux-headers
 USER user
 
-ENV LLVM_CONFIG=llvm-config
+# Do not install llvm-dev, do not rely on llvm-config. (See 'sed -i' invocations below.)
+# On Alpine Linux, clang-c/Index.h is in /usr/include and libclang.so is in /usr/lib.
+#  Using 'llvm-config' of package 'llvm-dev' would wrongly point us to /usr/lib/llvm9.
+#
+# TODO in ljclang:
+#  - remove altogether in favor of an alternative detection scheme that addresses all
+#    now supported platforms (Ubuntu x86_64, Raspbian 32-bit, Alpine Linux here)?
+ENV LLVM_CONFIG=true
 
 # Install 'extractdecls'.
 WORKDIR /home/user/ljremarkable/ljclang
 RUN mkdir /home/user/bin
-# NOTE: on Alpine Linux, clang-c/Index.h is found in /usr/include.
-# TODO: ljclang/Makefile should handle this.
+RUN sed -i 's|llvm_version :=.*|llvm_version := 9.0.0|' ./Makefile
+RUN sed -i 's|bindir :=.*|bindir := /usr/bin|' ./Makefile
 RUN sed -i 's|incdir :=.*|incdir := /usr/include|' ./Makefile
+RUN sed -i 's|libdir :=.*|libdir := /does-not-exist-and-is-not-relevant-here|' ./Makefile
 RUN make install-dev
 
 # Build the application.
