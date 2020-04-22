@@ -62,17 +62,19 @@ RUN apk add g++ bash
 RUN apk add clang-dev llvm-dev linux-headers
 USER user
 
+ENV LLVM_CONFIG=llvm-config
+
 # Install 'extractdecls'.
 WORKDIR /home/user/ljremarkable/ljclang
 RUN mkdir /home/user/bin
 # NOTE: on Alpine Linux, clang-c/Index.h is found in /usr/include.
 # TODO: ljclang/Makefile should handle this.
 RUN sed -i 's|incdir :=.*|incdir := /usr/include|' ./Makefile
-RUN LLVM_CONFIG=llvm-config make install-dev
+RUN make install-dev
 
 # Build the application.
 WORKDIR /home/user/ljremarkable
-RUN LLVM_CONFIG=llvm-config PATH="$HOME/bin:$PATH" make app
+RUN PATH="$HOME/bin:$PATH" make app
 
 # Run the LJClang tests.
 USER root
@@ -83,7 +85,7 @@ USER user
 RUN luarocks-5.1 --local install busted
 #
 WORKDIR /home/user/ljremarkable/ljclang
-RUN LLVM_CONFIG=llvm-config make test
+RUN make test
 
 WORKDIR /home/user
 
