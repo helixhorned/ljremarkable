@@ -690,8 +690,7 @@ local function FindKeyboardDevFile()
     while (true) do
         local fileName = dir:read()
         if (fileName == nil) then
-            -- TODO: make optional
-            errprintfAndExit("ERROR: no keyboard found")
+            return nil
         elseif (fileName:sub(-10,-1) == "-event-kbd") then
             return Directory.."/"..fileName
         end
@@ -708,13 +707,27 @@ local function MaybeForkAndExit()
     end
 end
 
+local DummyKbEventDevice = class
+{
+    function()
+        return {}
+    end,
+
+    getRawFd = function()
+        return -1
+    end,
+}
+
 local Client = class
 {
     function()
         local address = GetAddress(hostNameOrAddr)
         address[#address + 1] = Port
 
-        local kbEvDevice = input.EventDevice(FindKeyboardDevFile())
+        local kbDevFileName = FindKeyboardDevFile()
+        local kbEvDevice = (kbDevFileName ~= nil) and input.EventDevice(kbDevFileName) or
+            DummyKbEventDevice()
+
         local connFd = ConnectTo(inet.Socket(), address, hostNameOrAddr)
 
         MaybeForkAndExit()
@@ -820,7 +833,7 @@ local Client = class
         if (readyFdCount > 0) then
             assert(readyFdCount <= #waitFds)
 
-            if (fdSet:isSet(kbEvDevFd)) then
+            if (kbEvDevFd >= 0 and fdSet:isSet(kbEvDevFd)) then
                 ReadEvents(self.kbEvDevice, self.inputBuf, 1)
             end
 
@@ -1416,7 +1429,7 @@ Server = class
             enabled = false,
 
             rM = RM.Remarkable(fb),
-            evd = nil,  -- input.EventDevice
+            evd = nil,  -- input.EventDevice or DummyKbEventDevice
             inputBuf = input_event_array_t(MaxInputEvents),
             inputState = nil,  -- InputState
             specialRequestTab = { nil },  -- can be one of the 'ServerRequest' constants
