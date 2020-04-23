@@ -38,12 +38,11 @@ clean: ljclang_clean
 veryclean: clean ljclang_veryclean
 	$(RM) $(remarkable_decls_lua).reject $(linux_decls_lua).reject layouts/??.* layouts/.codepoints
 
-layouts: mklayout.lua xkb_symbols_reader.lua
-	./mklayout.lua -q $(layouts)
-
 layoutFiles := $(layouts:%=./layouts/%)
-# NOTE/FIXME: dependency the layout files, but those have no rules -- they have to be built
-#  "manually" using the 'layouts' target.
+layouts/%: mklayout.lua xkb_symbols_reader.lua
+	@./mklayout.lua -q $@
+layouts: $(layoutFiles)
+
 layouts/.codepoints: mkcodepoints.lua $(layoutFiles)
 	./mkcodepoints.lua $(layoutFiles) > $@
 codepoints: layouts/.codepoints

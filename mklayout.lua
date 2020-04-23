@@ -19,7 +19,13 @@ local arg = arg
 ----------
 
 if (arg[1] == nil) then
-    print("Usage: mklayout.lua <layout1> [<layout2> ...]")
+    print[[
+Usage: mklayout.lua <layout1> [<layout2> ...]
+ Each layout should be of the form <baseLayout>.<subLayout>,
+ optionally prefixed by the destination directory 'layouts/'
+ or './layouts/' which is stripped. Except for this special case,
+ the layout name must not contain slashes.
+]]
     os.exit(1)
 end
 
@@ -28,7 +34,17 @@ if (quiet) then
     table.remove(arg, 1)
 end
 
+local DestDir = "layouts"
+local DestDirPat1 = "^"..DestDir.."/"
+local DestDirPat2 = "^%./"..DestDir:sub(3).."/"
+
 for _, layout in ipairs(arg) do
+    layout = layout:gsub(DestDirPat1, ""):gsub(DestDirPat2, "")
+    if (layout:match('/')) then
+        io.stderr:write("ERROR: layout name must not contain slashes.\n")
+        os.exit(1)
+    end
+
     print("["..layout.."]")
 
     local layoutAsLua, readAsLuaMsg = xkb_symbols_reader.as_lua(layout, quiet)
@@ -48,7 +64,7 @@ for _, layout in ipairs(arg) do
         end
     end
 
-    local layoutLuaFileName = ("./layouts/%s"):format(layout)
+    local layoutLuaFileName = (DestDir.."/%s"):format(layout)
 
     local f, msg = io.open(layoutLuaFileName, 'w')
     if (f == nil) then
