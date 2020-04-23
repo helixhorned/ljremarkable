@@ -175,6 +175,10 @@ endif
 
 MAKE_APP_ENV := LD_LIBRARY_PATH="./ljclang" LUA_PATH=";;./ljclang/?.lua"
 
+_setup_rM-app.lua: _setup_rM.lua $(linux_decls_lua) $(remarkable_decls_lua) ljclang_deps
+	$(MAKE_APP_ENV) $(luajit) -l ljclang.mkapp $< -Q >/dev/null 2>&1 && \
+		test -e _setup_rM.app.lua && mv _setup_rM.app.lua $@
+
 app_name := grabscreen.app.lua
 
 # Application unity file
@@ -184,4 +188,7 @@ grabscreen.app.lua: grabscreen.lua $(linux_decls_lua) $(remarkable_decls_lua) lj
 		(printf "* \033[1;31mError\033[0m creating $(app_name)\n" && false)
 
 upload: grabscreen.app.lua rM_ul_eye_menu_hidden_46-28.dat
+	scp $^ "$(LJREMARKABLE_TABLET_USER)@$(LJREMARKABLE_TABLET_HOST):"
+
+upload-debugging-setup: _setup_rM-app.lua
 	scp $^ "$(LJREMARKABLE_TABLET_USER)@$(LJREMARKABLE_TABLET_HOST):"
