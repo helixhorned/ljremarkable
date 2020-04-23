@@ -14,7 +14,10 @@ local type = type
 
 local api = {}
 
+-- NOTE: /usr/include/X11/keysymdef.h calls these "mnemonic names", actually.
+--  The keysyms are the numeric values written in hex.
 local SYM_Pattern = '([^, ]+)'
+
 local KeyDefLinePat = ('^key <KEY> { %[ SYM , SYM(.*)%] };$')
     :gsub(' ', ' ?')
     :gsub('KEY', '([^>]+)')

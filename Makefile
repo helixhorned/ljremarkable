@@ -16,7 +16,7 @@ extractdecls := $(shell which $(EXTRACTDECLS))
 ########## RULES ##########
 
 .PHONY: all app check_extractdecls clean decls doc upload veryclean ljclang_deps ljclang_clean ljclang_veryclean
-.PHONY: docker-build docker-run layouts
+.PHONY: docker-build docker-run layouts codepoints
 
 linux_decls_lua := linux_decls.lua
 linux_decls_lua_tmp := $(linux_decls_lua).tmp
@@ -36,10 +36,17 @@ clean: ljclang_clean
 		$(linux_decls_lua) $(linux_decls_lua_tmp)
 
 veryclean: clean ljclang_veryclean
-	$(RM) $(remarkable_decls_lua).reject $(linux_decls_lua).reject layouts/??.*
+	$(RM) $(remarkable_decls_lua).reject $(linux_decls_lua).reject layouts/??.* layouts/.codepoints
 
 layouts: mklayout.lua xkb_symbols_reader.lua
 	./mklayout.lua -q $(layouts)
+
+layoutFiles := $(layouts:%=./layouts/%)
+# NOTE/FIXME: dependency the layout files, but those have no rules -- they have to be built
+#  "manually" using the 'layouts' target.
+layouts/.codepoints: mkcodepoints.lua $(layoutFiles)
+	./mkcodepoints.lua $(layoutFiles) > $@
+codepoints: layouts/.codepoints
 
 ljclang_clean:
 	$(MAKE) -C ljclang clean
