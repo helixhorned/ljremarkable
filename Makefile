@@ -2,7 +2,6 @@
 # User configuration
 include config.make
 
-LJREMARKABLE_LAYOUTS ?=
 layouts += $(LJREMARKABLE_LAYOUTS)
 
 ########## PROGRAMS ##########

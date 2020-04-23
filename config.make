@@ -1,9 +1,13 @@
 
-# Keyboard layouts to extract:
+## Keyboard layouts
 #  Source: /usr/share/X11/xkb/symbols/??
 #  Destination: ./layouts/??.<sub-layout>
 # See ./mklayout.lua
+
+# Fixed ones.
 layouts := us.basic us.intl
+# User-defined.
+LJREMARKABLE_LAYOUTS ?=
 
 luajit := luajit
 
