@@ -44,7 +44,7 @@ layouts/%: mklayout.lua xkb_symbols_reader.lua
 layouts: $(layoutFiles)
 
 layouts/.codepoints: mkcodepoints.lua $(layoutFiles)
-	./mkcodepoints.lua $(layoutFiles) > $@
+	./mkcodepoints.lua $(layoutFiles) > $@ || (rm -f $@ && false)
 codepoints: layouts/.codepoints
 
 ljclang_clean:
