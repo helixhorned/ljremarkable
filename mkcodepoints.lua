@@ -92,6 +92,14 @@ local MaxShift = 2
 local mnemonics = {}  -- [<running index>] = mnemonic
 local codePts = {}  -- sub-map of 'allCodePts'
 
+local function isMnemonicUCS(mnemonic)
+    -- Notes:
+    --  * Match exactly four hex digits for now.
+    --  * For more disjointness it should be only uppercase letters, but lowercase do appear
+    --    as well. (Though less frequently.)
+    return mnemonic:match("^U[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]$")
+end
+
 local function isSpecialMnemonic(mnemonic)
     return
         mnemonic:match("^[0-9]+$") or
@@ -113,7 +121,12 @@ for _, layoutFileName in ipairs(arg) do
 
             if (mnemonic ~= nil and not isSpecialMnemonic(mnemonic)) then
                 if (codePts[mnemonic] == nil) then
-                    local codePt = allCodePts[mnemonic]
+                    -- NOTE: it's redundant to enter the mapping for 'U<hexdigit>*'
+                    --  mnemonics into the table for the mapping aspect, but since it will
+                    --  also be used for validation of input from the server, go ahead.
+                    local codePt = isMnemonicUCS(mnemonic) and
+                        tonumber("0x"..mnemonic:sub(2)) or
+                        allCodePts[mnemonic]
                     if (codePt == nil) then
                         error(("%s: failed obtaining UCS codepoint for mnemonic '%s'")
                                 :format(layoutFileName, mnemonic))
