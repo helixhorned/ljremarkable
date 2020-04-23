@@ -83,13 +83,87 @@ local function ourIdxForKey(key)
         KeyIdxFactor * mapKey(tempKeyIdx) or nil
 end
 
-local read_symbols  -- "forward-declare" function
+local parseSubLayoutLine  -- "forward-declare" function
+
+-- NOTE: location on Raspbian, pull out when necessary.
+local XkbSymbolsDir = "/usr/share/X11/xkb/symbols"
+
+local function read_symbols(layout, result, quiet)
+    assert(type(layout) == "string")
+    assert(result == nil or type(result) == "table")
+
+    local baseName, subLayout = layout:match("^([^%.]+)%.([^%.]+)$")
+    if (baseName == nil or subLayout == nil) then
+        return nil, "Layout must consist of two names separated by a dot."
+    end
+
+    local fileName = XkbSymbolsDir.."/"..baseName
+
+    local f, msg = io.open(fileName)
+    if (f == nil) then
+        return nil, msg
+    end
+
+    local isTopLevel = (result == nil)
+    local result = isTopLevel and { count = 0, hadInclude = false, hadWarnings = false } or result
+    local inSubLayout = false
+    local lineNum = 0
+
+    -- NOTE: this parsing is very ad-hoc! Expect issues with xkb symbols files not formatted
+    --  accoring to the expectations encoded here.
+    --
+    -- Examples which will not work:
+    --  - closing brace not on separate line:
+    --     xkb_symbols "lk44x"   { include "digital_vndr/us(pcxalga)" };
+    --  - key definition not on a single line. (See 'parseSubLayoutLine()'.)
+    while (true) do
+        local line = f:read("*l")
+        if (line == nil) then
+            break
+        end
+
+        lineNum = lineNum + 1
+
+        -- Remove comments.
+        line = line:gsub("//.*", "")
+        -- Trim.
+        line = line:gsub("^[ \t]+", "")
+        line = line:gsub("[ \t]+$", "")
+        -- Normalize whitespace.
+        line = line:gsub("[ \t]+", " ")
+
+        local lineSubLayout = line:match'^xkb_symbols *"([^"]+)"'
+
+        if (not inSubLayout and lineSubLayout == subLayout) then
+            inSubLayout = true
+        elseif (inSubLayout) then
+            if (lineSubLayout ~= nil) then
+                error(("%s:%d: encountered 'xkb_symbols' line before end of current sub-layout")
+                        :format(fileName, lineNum))
+            elseif (line == "};") then
+                -- Done with this <file>.<sublayout>!
+                inSubLayout = false
+                break
+            end
+
+            parseSubLayoutLine(fileName, line, lineNum, result, quiet)
+        end
+    end
+
+    f:close()
+
+    if (result.count == 0) then
+        return nil, ("Did not find sub-layout '%s' in %s"):format(subLayout, fileName)
+    end
+
+    return result
+end
 
 -- In: 'line'
 -- Out: 'result' (modified in-place)
 --
 -- 'fileName' and 'lineNum' are purely for debugging purposes.
-local function parseSubLayoutLine(fileName, line, lineNum, result, quiet)
+function parseSubLayoutLine(fileName, line, lineNum, result, quiet)
     local includedLayoutName = line:match('^include *"([^"]+)"')
     if (includedLayoutName ~= nil) then
         local PRIM = "([^%(]+)"
@@ -176,80 +250,6 @@ local function parseSubLayoutLine(fileName, line, lineNum, result, quiet)
     end
 
     result.count = result.count + n
-end
-
--- NOTE: location on Raspbian, pull out when necessary.
-local XkbSymbolsDir = "/usr/share/X11/xkb/symbols"
-
-function read_symbols(layout, result, quiet)
-    assert(type(layout) == "string")
-    assert(result == nil or type(result) == "table")
-
-    local baseName, subLayout = layout:match("^([^%.]+)%.([^%.]+)$")
-    if (baseName == nil or subLayout == nil) then
-        return nil, "Layout must consist of two names separated by a dot."
-    end
-
-    local fileName = XkbSymbolsDir.."/"..baseName
-
-    local f, msg = io.open(fileName)
-    if (f == nil) then
-        return nil, msg
-    end
-
-    local isTopLevel = (result == nil)
-    local result = isTopLevel and { count = 0, hadInclude = false, hadWarnings = false } or result
-    local inSubLayout = false
-    local lineNum = 0
-
-    -- NOTE: this parsing is very ad-hoc! Expect issues with xkb symbols files not formatted
-    --  accoring to the expectations encoded here.
-    --
-    -- Examples which will not work:
-    --  - closing brace not on separate line:
-    --     xkb_symbols "lk44x"   { include "digital_vndr/us(pcxalga)" };
-    --  - key definition not on a single line. (See 'parseSubLayoutLine()'.)
-    while (true) do
-        local line = f:read("*l")
-        if (line == nil) then
-            break
-        end
-
-        lineNum = lineNum + 1
-
-        -- Remove comments.
-        line = line:gsub("//.*", "")
-        -- Trim.
-        line = line:gsub("^[ \t]+", "")
-        line = line:gsub("[ \t]+$", "")
-        -- Normalize whitespace.
-        line = line:gsub("[ \t]+", " ")
-
-        local lineSubLayout = line:match'^xkb_symbols *"([^"]+)"'
-
-        if (not inSubLayout and lineSubLayout == subLayout) then
-            inSubLayout = true
-        elseif (inSubLayout) then
-            if (lineSubLayout ~= nil) then
-                error(("%s:%d: encountered 'xkb_symbols' line before end of current sub-layout")
-                        :format(fileName, lineNum))
-            elseif (line == "};") then
-                -- Done with this <file>.<sublayout>!
-                inSubLayout = false
-                break
-            end
-
-            parseSubLayoutLine(fileName, line, lineNum, result, quiet)
-        end
-    end
-
-    f:close()
-
-    if (result.count == 0) then
-        return nil, ("Did not find sub-layout '%s' in %s"):format(subLayout, fileName)
-    end
-
-    return result
 end
 
 function api.as_lua(layout, quiet)
