@@ -124,11 +124,14 @@ for _, layoutFileName in ipairs(arg) do
                     -- NOTE: it's redundant to enter the mapping for 'U<hexdigit>*'
                     --  mnemonics into the table for the mapping aspect, but since it will
                     --  also be used for validation of input from the server, go ahead.
-                    local codePt = isMnemonicUCS(mnemonic) and
-                        tonumber("0x"..mnemonic:sub(2)) or
-                        allCodePts[mnemonic]
+                    local directCodePt = isMnemonicUCS(mnemonic) and tonumber("0x"..mnemonic:sub(2)) or nil
+                    local mappedCodePt = allCodePts[mnemonic]
+                    local codePt = directCodePt or mappedCodePt
                     if (codePt == nil) then
                         error(("%s: failed obtaining UCS codepoint for mnemonic '%s'")
+                                :format(layoutFileName, mnemonic))
+                    elseif (directCodePt and mappedCodePt) then
+                        error(("%s: mnemonic '%s' is ambiguous")
                                 :format(layoutFileName, mnemonic))
                     end
 
