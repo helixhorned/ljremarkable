@@ -7,5 +7,8 @@ layouts := us.basic us.intl
 
 luajit := luajit
 
+LJREMARKABLE_TABLET_USER ?= $(USER)
+LJREMARKABLE_TABLET_HOST ?= remarkable
+
 # Will use this Markdown processor for .md -> .html if it is found:
 MARKDOWN := cmark

@@ -178,6 +178,5 @@ grabscreen.app.lua: grabscreen.lua $(linux_decls_lua) $(remarkable_decls_lua) lj
 		chmod +x $(app_name) && printf "* \033[1mCreated $(app_name)\033[0m\n" || \
 		(printf "* \033[1;31mError\033[0m creating $(app_name)\n" && false)
 
-# TODO: make app_dependencies in ./ljclang
-upload: decls
-	./cp2rM.sh
+upload: grabscreen.app.lua rM_ul_eye_menu_hidden_46-28.dat
+	scp $^ "$(LJREMARKABLE_TABLET_USER)@$(LJREMARKABLE_TABLET_HOST):"
