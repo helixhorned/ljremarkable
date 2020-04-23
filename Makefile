@@ -33,7 +33,8 @@ check_extractdecls:
 
 clean: ljclang_clean
 	$(RM) $(remarkable_decls_lua) $(remarkable_decls_lua_tmp) \
-		$(linux_decls_lua) $(linux_decls_lua_tmp)
+		$(linux_decls_lua) $(linux_decls_lua_tmp) \
+		grabscreen.app.lua _setup_rM-app.lua
 
 veryclean: clean ljclang_veryclean
 	$(RM) $(remarkable_decls_lua).reject $(linux_decls_lua).reject layouts/??.* layouts/.codepoints
