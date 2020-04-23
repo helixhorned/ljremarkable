@@ -88,14 +88,10 @@ local parseSubLayoutLine  -- "forward-declare" function
 -- NOTE: location on Raspbian, pull out when necessary.
 local XkbSymbolsDir = "/usr/share/X11/xkb/symbols"
 
-local function read_symbols(layout, result, quiet)
-    assert(type(layout) == "string")
+local function read_symbols(baseName, subLayout, result, quiet)
+    assert(type(baseName) == "string")
+    assert(type(subLayout) == "string")
     assert(result == nil or type(result) == "table")
-
-    local baseName, subLayout = layout:match("^([^%.]+)%.([^%.]+)$")
-    if (baseName == nil or subLayout == nil) then
-        return nil, "Layout must consist of two names separated by a dot."
-    end
 
     local fileName = XkbSymbolsDir.."/"..baseName
 
@@ -174,11 +170,10 @@ function parseSubLayoutLine(fileName, line, lineNum, result, quiet)
             error(("%s:%d: failed parsing 'include' directive"):format(fileName, lineNum))
         end
 
-        -- TODO: restructure?
-        local ourLayoutSpec = primaryLayout.."."..subLayout
-        local res_, msg = read_symbols(ourLayoutSpec, result, quiet)
+        local res_, msg = read_symbols(primaryLayout, subLayout, result, quiet)
         if (res_ == nil) then
-            error(("in processing include %s: %s"):format(ourLayoutSpec))
+            local ourLayoutSpec = primaryLayout.."."..subLayout
+            error(("in processing include %s: %s"):format(ourLayoutSpec, msg))
         end
 
         assert(res_ == result)
@@ -255,7 +250,12 @@ end
 function api.as_lua(layout, quiet)
     assert(quiet == nil or type(quiet) == "boolean")
 
-    local result, msg = read_symbols(layout, nil, quiet)
+    local baseName, subLayout = layout:match("^([^%.]+)%.([^%.]+)$")
+    if (baseName == nil or subLayout == nil) then
+        return nil, "Layout must consist of two names separated by a dot."
+    end
+
+    local result, msg = read_symbols(baseName, subLayout, nil, quiet)
     if (result == nil) then
         return nil, msg
     end
