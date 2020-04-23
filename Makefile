@@ -81,6 +81,15 @@ docker-get-artifacts:
 			| /bin/tar xzf - -C "$(HOST_OUT)" \
 				--transform="s|.*rM/src/luajit|luajit-rM|g;s|.*/||g"
 
+docker-get-dev-artifacts:
+	@mkdir -p "$(HOST_OUT)"
+	@$(DOCKER_RUN_TAR_CMD) \
+		"ljremarkable/ljclang/ljclang_linux_decls.lua" \
+		"ljremarkable/ljclang/posix_types.lua" \
+		"ljremarkable/ljclang/posix_decls.lua" \
+		"ljremarkable/linux_decls.lua" \
+			| /bin/tar xzf - -C "$(HOST_OUT)" --transform="s|.*/||g"
+
 # Linux framebuffer interface exposed to us
 
 CHECK_EXTRACTED_LINUX_CMD := $(luajit) -e "require'linux_decls'"
