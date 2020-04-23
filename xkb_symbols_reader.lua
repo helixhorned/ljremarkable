@@ -88,9 +88,10 @@ local parseSubLayoutLine  -- "forward-declare" function
 -- NOTE: location on Raspbian, pull out when necessary.
 local XkbSymbolsDir = "/usr/share/X11/xkb/symbols"
 
+-- 'subLayout' == nil means to find the default sub-layout in the symbols file.
 local function read_symbols(baseName, subLayout, result, quiet)
     assert(type(baseName) == "string")
-    assert(type(subLayout) == "string")
+    assert(subLayout == nil or type(subLayout) == "string")
     assert(result == nil or type(result) == "table")
 
     local fileName = XkbSymbolsDir.."/"..baseName
@@ -103,6 +104,7 @@ local function read_symbols(baseName, subLayout, result, quiet)
     local isTopLevel = (result == nil)
     local result = isTopLevel and { count = 0, hadInclude = false, hadWarnings = false } or result
     local inSubLayout = false
+    local previousLine
     local lineNum = 0
 
     -- NOTE: this parsing is very ad-hoc! Expect issues with xkb symbols files not formatted
@@ -129,8 +131,12 @@ local function read_symbols(baseName, subLayout, result, quiet)
         line = line:gsub("[ \t]+", " ")
 
         local lineSubLayout = line:match'^xkb_symbols *"([^"]+)"'
+        local isLineSubLayoutDefault = (previousLine ~= nil and previousLine:match("^default[ \t]") ~= nil)
+        local isSubLayoutMatch =
+            (subLayout ~= nil and lineSubLayout == subLayout) or
+            (subLayout == nil and lineSubLayout ~= nil and isLineSubLayoutDefault)
 
-        if (not inSubLayout and lineSubLayout == subLayout) then
+        if (not inSubLayout and isSubLayoutMatch) then
             inSubLayout = true
         elseif (inSubLayout) then
             if (lineSubLayout ~= nil) then
@@ -144,6 +150,8 @@ local function read_symbols(baseName, subLayout, result, quiet)
 
             parseSubLayoutLine(fileName, line, lineNum, result, quiet)
         end
+
+        previousLine = line
     end
 
     f:close()
@@ -164,10 +172,15 @@ function parseSubLayoutLine(fileName, line, lineNum, result, quiet)
     if (includedLayoutName ~= nil) then
         local PRIM = "([^%(]+)"
         local SUB = "%((.+)%)"
-        local primaryLayout, subLayout = includedLayoutName:match("^"..PRIM..SUB.."$")
+        local primaryLayout, rest = includedLayoutName:match("^"..PRIM.."(.*)")
 
-        if (primaryLayout == nil or subLayout == nil) then
+        if (primaryLayout == nil) then
             error(("%s:%d: failed parsing 'include' directive"):format(fileName, lineNum))
+        end
+
+        local subLayout = rest:match(SUB.."$")
+        if (not (rest == "" or subLayout ~= nil)) then
+            error(("%s:%d: unexpected form of 'include' directive"):format(fileName, lineNum))
         end
 
         local res_, msg = read_symbols(primaryLayout, subLayout, result, quiet)
