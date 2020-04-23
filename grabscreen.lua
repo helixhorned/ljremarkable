@@ -637,8 +637,24 @@ local MaxInputEvents = 1024
 local sizeof_input_event = ffi.sizeof("struct input_event")
 local input_event_array_t = ffi.typeof("struct input_event [?]")
 
-local function ReadEvents(evd, inputBuf, maxAllowedSynValue)
-    local events, bytesRead = evd.fd:readInto(inputBuf, true)
+local function ReadEvents(evd, inputBuf, maxAllowedSynValue, errnoAllowTab)
+    local function readEventsIntoInputBuffer()
+        if (errnoAllowTab == nil) then
+            return evd.fd:readInto(inputBuf, true)
+        else
+            return evd.fd:readIntoAllowing(inputBuf, true, errnoAllowTab)
+        end
+    end
+
+    local events, bytesRead = readEventsIntoInputBuffer()
+    if (events == nil) then
+        assert(errnoAllowTab ~= nil)
+        -- NOTE: closing also sets evd.fd to -1. This is important for proper functioning
+        --  after the keyboard has been unplugged, see INVALID_KB_EVD_FD.
+        evd:close()
+        return
+    end
+
     assert(bytesRead % sizeof_input_event == 0)
     local eventCount = tonumber(bytesRead) / sizeof_input_event
     assert(eventCount > 0, "unexpected empty read")
@@ -834,7 +850,7 @@ local Client = class
             assert(readyFdCount <= #waitFds)
 
             if (kbEvDevFd >= 0 and fdSet:isSet(kbEvDevFd)) then
-                ReadEvents(self.kbEvDevice, self.inputBuf, 1)
+                ReadEvents(self.kbEvDevice, self.inputBuf, 1, { [posix.E.NODEV]=true })
             end
 
             if (self.connFd and fdSet:isSet(self.connFd.fd)) then
@@ -1476,6 +1492,9 @@ Server = class
 
         -- Wait for input on either the multitouch device or from the network.
 
+        -- NOTE [INVALID_KB_EVD_FD]: 'evdFd' may be -1, either because we were started with
+        --  no keyboard to begin with, or because we had one when we started, but it was
+        --  unplugged later.
         local connFd, evdFd = self.connFd.fd, self.evd:getRawFd()
 
         local pollfds = posix.poll{ events=POLL.IN, connFd, evdFd }
