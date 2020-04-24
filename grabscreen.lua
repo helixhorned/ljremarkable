@@ -239,11 +239,9 @@ print(("INFO: %s%3d x %3d = %5d tiles (side length %d)"):format(
       not isRealServer and " destination: " or "",
       destTileCountX, destTileCountY, totalDestTileCount, BigSideLen))
 
--- Throttling: Destination tiles for which updates happen more frequently than this are
--- tentatively held back...
-local MinSlowChangeTime = 100
--- ... until at most this much time has passed between last sending an update and now:
-local MaxHoldBackTime = 1000
+-- Throttling: Destination tiles for which updates happen from one frame to the next are
+-- tentatively held back until the sequence number is evenly divisible by:
+local FastFrameSendPeriod = 50
 
 local Sampler = class
 {
@@ -264,8 +262,9 @@ local Sampler = class
                 PixelArray(sampleCount),
             },
 
-            lastChangedTimes = UInt32Array(totalDestTileCount),
-            lastSentTimes = UInt32Array(totalDestTileCount),
+            currentSeqNum = 2,
+            lastChangedSeqNums = UInt32Array(totalDestTileCount),
+            lastSentSeqNums = UInt32Array(totalDestTileCount),
 
             -- exposed to Client
             screenCopyBuf = screenCopyBuf,
@@ -288,11 +287,13 @@ local Sampler = class
 
         -- Compare sample pixel values with current state!
 
-        local currentTime = currentTimeMs()
+        local currentSeqNum = self.currentSeqNum
         local destTileCoords = {}
 
         -- NOTE: y first!
         for y = 0, destTileCountY - 1 do
+            local xL, xlBlocked, xrBlocked, xR
+
             for x = 0, destTileCountX - 1 do
                 -- NOTE: assumes that BigSideLen == 2 * SideLen:
                 local sx, sy = 2*x, 2*y
@@ -311,32 +312,38 @@ local Sampler = class
                     destTileChanged = destTileChanged or (fbSampleBuf[si] ~= scSampleBuf[si])
                 end
 
-                local lastChangedTime = self.lastChangedTimes[destTileIdx]
-                local lastSentTime = self.lastSentTimes[destTileIdx]
+                local lastChangedSeqNum = self.lastChangedSeqNums[destTileIdx]
+                local lastSentSeqNum = self.lastSentSeqNums[destTileIdx]
 
-                local isOutdated = destTileChanged or (lastSentTime < lastChangedTime)
-                local wantHoldBack = (currentTime - lastChangedTime < MinSlowChangeTime)
-                local canHoldBack = wantHoldBack and (currentTime - lastSentTime <= MaxHoldBackTime)
+                local isOutdated = destTileChanged or (lastSentSeqNum < lastChangedSeqNum)
+                local wantHoldBack = (destTileChanged and currentSeqNum == lastChangedSeqNum + 1)
+                local canHoldBack = wantHoldBack and (currentSeqNum % FastFrameSendPeriod ~= 0)
                 local shouldSend = isOutdated and not canHoldBack
 
+                xlBlocked = xlBlocked or (canHoldBack and x or nil)
+                xrBlocked = (canHoldBack and x or nil) or xrBlocked
+
                 if (destTileChanged) then
-                    self.lastChangedTimes[destTileIdx] = currentTime
+                    self.lastChangedSeqNums[destTileIdx] = currentSeqNum
                 end
 
                 if (shouldSend) then
-                    self.lastSentTimes[destTileIdx] = currentTime
+                    self.lastSentSeqNums[destTileIdx] = currentSeqNum
+                    xL = xL or x
+                    xR = x
+                end
+            end
 
-                    local lastCoords = destTileCoords[#destTileCoords]
-                    if (lastCoords ~= nil and lastCoords.y == y) then
-                        for xx = lastCoords.x + 1, x - 1 do
-                            destTileCoords[#destTileCoords + 1] = { x=xx, y=y }
-                        end
+            if (xL ~= nil) then
+                for xx = xL, xR do
+                    if (xlBlocked == nil or not (xx >= xlBlocked and xx <= xrBlocked)) then
+                        destTileCoords[#destTileCoords + 1] = { x=xx, y=y }
                     end
-
-                    destTileCoords[#destTileCoords + 1] = { x=x, y=y }
                 end
             end
         end
+
+        self.currentSeqNum = self.currentSeqNum + 1
 
         return destTileCoords
     end,
