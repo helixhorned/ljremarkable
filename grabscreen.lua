@@ -105,6 +105,8 @@ if (not (ffi.os == "Linux" and ffi.arch == "arm" and ffi.abi("32bit") and
          ffi.abi("le") and ffi.abi("hardfp") and ffi.abi("eabi"))) then
     errprintfAndExit("ERROR: This program is supposed to run on a 32-bit OS "..
                          "on the Raspberry Pi and on the reMarkable tablet.")
+elseif (ffi.C.geteuid() == 0) then
+    errprintfAndExit("ERROR: Refusing to run as root.")
 end
 
 ffi.cdef[[
