@@ -1,6 +1,7 @@
 #!/bin/bash
 
-pigsProgram=/usr/bin/pigs
+PIGS_PROGRAM=/usr/bin/pigs
+pigsProgram="$PIGS_PROGRAM"
 if [ ! -x "$pigsProgram" ]; then
     pigsProgram=
 fi
@@ -16,8 +17,10 @@ cmd="$1"
 rMHost="$2"
 
 if [ -z "$cmd" ]; then
-    echo "Usage: $0 [after-login|ping|kill] [<rM-host>]"
-    echo " <rM-host> defaults to '$DEFAULT_REMARKABLE_HOST'"
+    echo "Usage: $0 {after-login|ping|connect|kill} [<rM-host>]"
+    echo " * <rM-host> defaults to '$DEFAULT_REMARKABLE_HOST'"
+    echo " * If '$PIGS_PROGRAM' is present, expects GPIO pins 12 and 13 to"
+    echo "   be connected to an LED for success and failure, respectively"
     exit 1
 fi
 
