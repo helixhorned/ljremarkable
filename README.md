@@ -101,6 +101,62 @@ A successful wired link looks like this in `dmesg`:
 For the best experience, it makes sense to set up the Raspberry Pi as a wireless access
 point.
 
+Building
+--------
+
+### Building LuaJIT
+
+The only software that needs to be built in the classical sense is
+[LuaJIT](https://luajit.org/install.html). The application is implemented entirely in Lua
+with heavy usage of LuaJIT's FFI. It seems reasonable to match the compiler flags with those
+used in the [reMarkable SDK](https://remarkable.engineering/deploy/sdk/) and so build two
+versions: one targeting the Pi and one for the rM. The rM build of LuaJIT would just need
+the following in `src/Makefile`, replacing the line reading "`CCOPT_arm=`":
+
+    CCOPT_arm= -mfpu=neon -mfloat-abi=hard -mcpu=cortex-a9
+
+#### Comparison of `/proc/cpuinfo`
+
+| | reMarkable | Raspberry Pi 4 |
+| --- | --- | --- |
+| `model name`       |  `ARMv7 Processor rev 10 (v7l)`                       | `ARMv7 Processor rev 3 (v7l)` |
+| `Features`         |  `half thumb fastmult vfp edsp neon vfpv3 tls vfpd32` | additionally: `vfpv4 idiva idivt lpae evtstrm crc32` |
+| `CPU implementer`  |  `0x41`                                               | same |
+| `CPU architecture` |  `7`                                                  | same |
+| `CPU variant`      |  `0x2`                                                | `0x0` |
+| `CPU part`         |  `0xc09`                                              | `0xd08` |
+| `CPU revision`     |  `10`                                                 | `3` |
+
+On the Pi, `lscpu` gives:
+
+    Vendor ID:           ARM
+    Model:               3
+    Model name:          Cortex-A72
+
+### Building the application
+
+[musl]: https://musl.libc.org/
+[Alpine Linux]: https://alpinelinux.org/
+[Alpine Docker image]: https://hub.docker.com/_/alpine
+
+The final application is bundled into a single file `grabscreen.app.lua` obtained with `make
+app`.
+
+> **TODO**: document prerequisites.
+
+For the time being, please refer to the [`Dockerfile`](./Dockerfile). Since it describes an
+environment under the [musl]-based [Alpine Linux] distribution (using an official [Alpine
+Docker image]), slight adjustments are made relative to a build under Raspbian.
+
+Acknowledgements
+----------------
+
+The [`libremarkable`](https://github.com/canselcik/libremarkable) library by Can Selcik was
+crucial in obtaining an understanding for the functioning of the reMarkable.
+
+Several C declarations for use with the LuaJIT FFI are obtained directly from a header of
+the "legacy C implementation" of that project.
+
 
 License
 -------
