@@ -22,10 +22,11 @@ linux_decls_lua := linux_decls.lua
 linux_decls_lua_tmp := $(linux_decls_lua).tmp
 remarkable_decls_lua := remarkable_decls.lua
 remarkable_decls_lua_tmp := $(remarkable_decls_lua).tmp
+app_name := grabscreen.app.lua
 
 all: decls
 
-app: grabscreen.app.lua
+app: $(app_name)
 
 check_extractdecls:
 	@(test -n "$(extractdecls)" && test -x "$(extractdecls)") || \
@@ -35,6 +36,9 @@ clean: ljclang_clean
 	$(RM) $(remarkable_decls_lua) $(remarkable_decls_lua_tmp) \
 		$(linux_decls_lua) $(linux_decls_lua_tmp) \
 		grabscreen.app.lua _setup_rM-app.lua
+
+install: app
+	install $(app_name) $(BINDIR)/$(app_name)
 
 veryclean: clean ljclang_veryclean
 	$(RM) $(remarkable_decls_lua).reject $(linux_decls_lua).reject layouts/??.* layouts/.codepoints
@@ -179,8 +183,6 @@ MAKE_APP_ENV := LD_LIBRARY_PATH="./ljclang" LUA_PATH=";;./ljclang/?.lua"
 _setup_rM-app.lua: _setup_rM.lua $(linux_decls_lua) $(remarkable_decls_lua) ljclang_deps
 	$(MAKE_APP_ENV) $(luajit) -l ljclang.mkapp $< -Q >/dev/null 2>&1 && \
 		test -e _setup_rM.app.lua && mv _setup_rM.app.lua $@
-
-app_name := grabscreen.app.lua
 
 # Application unity file
 grabscreen.app.lua: grabscreen.lua $(linux_decls_lua) $(remarkable_decls_lua) ljclang_deps

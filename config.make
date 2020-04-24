@@ -1,4 +1,7 @@
 
+# Directory to install the application.
+BINDIR ?= $(HOME)/bin
+
 ## Keyboard layouts
 #  Source: /usr/share/X11/xkb/symbols/??
 #  Destination: ./layouts/??.<sub-layout>
@@ -8,6 +11,7 @@
 layouts := us.basic us.intl
 # User-defined.
 LJREMARKABLE_LAYOUTS ?=
+##########
 
 luajit := luajit
 
