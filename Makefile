@@ -39,6 +39,7 @@ clean: ljclang_clean
 
 install: app
 	install $(app_name) $(BINDIR)/$(app_name)
+	install pi-rM-control.sh $(BINDIR)/pi-rM-control.sh
 
 veryclean: clean ljclang_veryclean
 	$(RM) $(remarkable_decls_lua).reject $(linux_decls_lua).reject layouts/??.* layouts/.codepoints

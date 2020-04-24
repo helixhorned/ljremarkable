@@ -47,6 +47,12 @@ function rampLED() {
     done
 }
 
+function killRemoteApp() {
+    # TODO: more selective.
+    # TODO: user override.
+    ssh "$USER"@"$rMHost" killall -q luajit
+}
+
 case "$cmd" in
     after-login)
         # Indication that we logged in to a graphical session.
@@ -82,10 +88,9 @@ case "$cmd" in
         ;;
 
     kill)
+        killRemoteApp
         # TODO: more selective / careful!
-        killall --quiet ssh luajit
-        # TODO: user override.
-        ssh "$USER"@"$rMHost" killall -q luajit
+        killall --quiet luajit
 
         # green -> red
         $pigs w $G 1 mils 500 w $G 0 w $R 1 mils 500 w $R 0 pwm $R 255
@@ -99,9 +104,36 @@ case "$cmd" in
 esac
 
 if [ x"$cmd" != x"connect" ]; then
-    exit 0
+    echo "INTERNAL ERROR: should not be reachable"
+    exit 127
 fi
 
-# connect
-echo "connect: not yet implemented here"
-exit 4
+## connect
+
+# Start server (on the reMarkable).
+ssh -o ConnectionAttempts=1 -o ConnectTimeout=1 "$USER"@"$rMHost" \
+    "$HOME/bin/luajit" grabscreen.app.lua --fork s 5000
+exitCode1=$?
+
+if [ $exitCode1 == 0 ]; then
+    # Start client which must previously have been installed.
+    grabscreen.app.lua --fork c "$rMHost"
+    exitCode2=$?
+fi
+
+# Signal via LEDs.
+
+if [[ $exitCode1 -eq 0 && $exitCode2 -eq 0 ]]; then
+    led=$G
+    rampLED $led 0 255
+    ret=0
+else
+    led=$R
+    killRemoteApp
+    ret=1
+fi
+
+cmd="w $led 1 mils 300 w $led 0 mils 300"
+$pigs $cmd $cmd $cmd $cmd
+
+exit $ret
