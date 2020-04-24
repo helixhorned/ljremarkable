@@ -747,7 +747,14 @@ local function GetKbEventDevice()
         return DummyKbEventDevice()
     end
 
-    return input.EventDevice(kbDevFileName)
+    local evDev = input.EventDevice(kbDevFileName)
+    if (evDev.errMsg ~= nil) then
+        io.stderr:write(("WARNING: failed opening keyboard event device file: %s\n")
+                :format(evDev.errMsg))
+        io.stderr:write(("INFO:    %s\n"):format(kbDevFileName))
+        io.stderr:write("INFO:    Will not react to keyboard input.\n")
+    end
+    return evDev
 end
 
 local Client = class

@@ -195,12 +195,11 @@ api.EventDevice = class
             device
 
         local fd = ffi.C.open(devFileName, posix.O.RDONLY)
-        if (fd == -1) then
-            error(("failed opening %s: %s"):format(devFileName, posix.getErrnoString()))
-        end
+        local errMsg = (fd == -1) and posix.getErrnoString() or nil
 
         return {
-            fd = posix.Fd(fd)
+            fd = posix.Fd(fd),
+            errMsg = errMsg,
         }
     end,
 
