@@ -741,16 +741,22 @@ local DummyKbEventDevice = class
     end,
 }
 
+local function GetKbEventDevice()
+    local kbDevFileName = FindKeyboardDevFile()
+    if (kbDevFileName == nil) then
+        return DummyKbEventDevice()
+    end
+
+    return input.EventDevice(kbDevFileName)
+end
+
 local Client = class
 {
     function()
         local address = GetAddress(hostNameOrAddr)
         address[#address + 1] = Port
 
-        local kbDevFileName = FindKeyboardDevFile()
-        local kbEvDevice = (kbDevFileName ~= nil) and input.EventDevice(kbDevFileName) or
-            DummyKbEventDevice()
-
+        local kbEvDevice = GetKbEventDevice()
         local connFd = ConnectTo(inet.Socket(), address, hostNameOrAddr)
 
         MaybeForkAndExit()
