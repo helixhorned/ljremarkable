@@ -9,6 +9,7 @@ Table of Contents
 **[Requirements](#requirements)**\
 **[Preliminary setup](#preliminary-setup)**\
 **[Building](#building)**\
+**[Running](#running)**\
 **[Acknowledgements](#acknowledgements)**\
 **[License](#license)**
 
@@ -158,6 +159,49 @@ app`.
 For the time being, please refer to the [`Dockerfile`](./Dockerfile). Since it describes an
 environment under the [musl]-based [Alpine Linux] distribution (using an official [Alpine
 Docker image]), slight adjustments are made relative to a build under Raspbian.
+
+### Installation
+
+- On the Pi: `make install`, which places the generated `grabscreen.app.lua` and the helper
+  script `pi-rM-control.sh` into `$HOME/bin` by default.
+- To the reMarkable: `make upload`.
+
+Several variables such as the rM user and host name are configurable in
+[`config.make`](config.make).
+
+
+Running
+-------
+
+The application needs to be started first on the reMarkable to await a request for a
+connection initiated by the counterpart on the Pi.
+
+    Usage:
+      grabscreen.app.lua [--fork] c <host name or IPv4 address>              # on the Raspberry Pi
+      grabscreen.app.lua [--fork] s [<timeout waiting for connection (ms)>]  # on the reMarkable
+    
+    (...)
+    
+    A passed host name is resolved by reading and parsing /etc/hosts.
+
+The helper script [`pi-rM-control.sh`](pi-rM-control.sh), intended to be invoked from
+hotkeys, makes the above procedure a one-step process and features related convenience
+functionality:
+
+    Usage: pi-rM-control.sh {after-login|ping|connect|kill} [<rM-host>]
+     * <rM-host> defaults to 'remarkable'
+     * If '/usr/bin/pigs' is present, expects GPIO pins 12 and 13 to
+       be connected to an LED for success and failure, respectively
+
+> **Attention**:
+>  * If the mentioned GPIO pins are already used otherwise, the script can and should be
+>    adapted
+>  * Commands `connect` and `kill` currently kill any LuaJIT process indescriminately using
+>    `killall luajit`
+>  * When connecting an LED, do not forget an appropriate resistor
+>
+> <small>Feel free to notify me if the limitations implied by the the first two points cause
+> any inconvenience.</small>
 
 Acknowledgements
 ----------------
