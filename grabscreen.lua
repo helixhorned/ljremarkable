@@ -1156,9 +1156,8 @@ local RectSet = class
 --== All times in milliseconds.
 local Duration = {
     MaxLeftClick = 500,
-    -- Time that the upper right corner has to be kept tapped to request shutdown.
-    ShutdownRequest = 2000,
-    -- Time that an initial tap must be held to commence generic dragging:
+    -- Time that an initial tap must be held to commence generic (as opposed to
+    -- vertical-only) dragging:
     GenericDragTapWait = 500,
     -- Time after which input is considered to be "locked up":
     LockedUp = 10000,
@@ -1241,6 +1240,9 @@ local InputState = class
             stage = Stage.None,
             ourEventType = nil,
             ourData = nil,
+            -- Set when starting dragging:
+            onlyVerticalDrag = nil,
+            isShutdownGesture = nil,
         }
     end,
 
@@ -1294,13 +1296,26 @@ local InputState = class
             if (math.abs(delta) > MaxDeviation) then
                 self.ourEventType = OurEventType.Drag  -- <- ...this.
                 assert(self.lastFirstPressedTime ~= math.huge)
+
                 local msSinceTap = currentTimeMs() - self.lastFirstPressedTime
-                self.onlyVerticalDrag = (msSinceTap < Duration.GenericDragTapWait)
+                self.isShutdownGesture = self:isStartShutdownGesturePos()
+                self.onlyVerticalDrag = (msSinceTap < Duration.GenericDragTapWait) or
+                    self.isShutdownGesture
                 return i + 1
             end
         end
 
         return eventCount
+    end,
+
+    isStartShutdownGesturePos = function(self)
+        local sx, sy = ConvertMtToScreen(self.ourData.x, self.ourData.y)
+        return (sx >= ScreenWidth_rM - EyeSize_rM and sy < EyeSize_rM)
+    end,
+
+    isEndShutdownGesturePos = function(self)
+        local sx, sy = ConvertMtToScreen(self.ourData.nx, self.ourData.ny)
+        return (sx >= ScreenWidth_rM - EyeSize_rM and sy >= ScreenHeight_rM - EyeSize_rM)
     end,
 
     handleDrag = function(self, events, startEventIdx, eventCount)
@@ -1400,22 +1415,19 @@ local InputState = class
             self:reset()
         elseif (self.ourEventType == OurEventType.SingleClick) then
             local isAlternative = self:timedOut(Duration.MaxLeftClick)
-            if (isAlternative and self:timedOut(Duration.ShutdownRequest)) then
-                local sx, sy = ConvertMtToScreen(self.ourData.x, self.ourData.y)
-                -- NOTE: use upper right corner. Using "eye" leads to order problems.
-                -- TODO: draw the rM "cross in circle"?
-                if (sx >= ScreenWidth_rM - EyeSize_rM and sy < EyeSize_rM) then
+            self.ourData.button = isAlternative and Button.Right or Button.Left
+            self.stage = Stage.Finished
+        elseif (self.ourEventType == OurEventType.Drag) then
+            if (self.isShutdownGesture) then
+                if (self:isEndShutdownGesturePos()) then
                     specialRqTab[1] = ServerRequest.Shutdown
                 end
                 self:reset()
             else
-                self.ourData.button = isAlternative and Button.Right or Button.Left
+                self.ourData.button =
+                    self.onlyVerticalDrag and Button.VerticalDrag or Button.GenericDrag
                 self.stage = Stage.Finished
             end
-        elseif (self.ourEventType == OurEventType.Drag) then
-            self.ourData.button =
-                self.onlyVerticalDrag and Button.VerticalDrag or Button.GenericDrag
-            self.stage = Stage.Finished
         end
     end,
 
@@ -1448,6 +1460,8 @@ local InputState = class
         self.stage = Stage.None
         self.ourEventType = nil
         self.ourData = nil
+        self.onlyVerticalDrag = nil
+        self.isShutdownGesture = nil
     end,
 }
 
@@ -1666,6 +1680,7 @@ Server = class
 
             if (isRealServer) then
                 self:clearUpperArea()
+                -- TODO: draw the rM "cross in circle"?
             end
 
             local bytesWritten = self.connFd:write(Cmd.Enable)
