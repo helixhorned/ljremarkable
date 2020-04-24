@@ -1,6 +1,9 @@
 #!/bin/bash
 
-pigs=/usr/bin/pigs
+pigsProgram=/usr/bin/pigs
+if [ ! -x "$pigsProgram" ]; then
+    pigsProgram=
+fi
 
 # LED GPIO pins.
 R=13
@@ -21,6 +24,12 @@ fi
 if [ -z "$rMHost" ]; then
     rMHost=$DEFAULT_REMARKABLE_HOST
 fi
+
+function pigs() {
+    if [ -n "$pigsProgram" ]; then
+        "$pigsProgram" "$@"
+    fi
+}
 
 function rampLED() {
     led="$1"
@@ -43,7 +52,7 @@ function rampLED() {
 
     while [[ $current -ne $stop ]]; do
         current=$((current + step))
-        $pigs pwm $led $current
+        pigs pwm $led $current
     done
 }
 
@@ -58,11 +67,11 @@ case "$cmd" in
         # Indication that we logged in to a graphical session.
 
         # Clear red LED.
-        $pigs w $R 0
+        pigs w $R 0
 
         # Blink green LED a couple of times.
         for i in {1..5}; do
-            $pigs w $G 1 mils 500 w $G 0 mils 500
+            pigs w $G 1 mils 500 w $G 0 mils 500
         done
         ;;
 
@@ -78,9 +87,9 @@ case "$cmd" in
             on=$R
         fi
 
-        $pigs w $off 0
+        pigs w $off 0
         cmd="w $on 1 mils 300 w $on 0 mils 300"
-        $pigs $cmd $cmd
+        pigs $cmd $cmd
         ;;
 
     connect)
@@ -93,7 +102,7 @@ case "$cmd" in
         killall --quiet luajit
 
         # green -> red
-        $pigs w $G 1 mils 500 w $G 0 w $R 1 mils 500 w $R 0 pwm $R 255
+        pigs w $G 1 mils 500 w $G 0 w $R 1 mils 500 w $R 0 pwm $R 255
         # fade red
         rampLED $R 255 0
         ;;
@@ -104,8 +113,7 @@ case "$cmd" in
 esac
 
 if [ x"$cmd" != x"connect" ]; then
-    echo "INTERNAL ERROR: should not be reachable"
-    exit 127
+    exit 0
 fi
 
 ## connect
@@ -134,6 +142,6 @@ else
 fi
 
 cmd="w $led 1 mils 300 w $led 0 mils 300"
-$pigs $cmd $cmd $cmd $cmd
+pigs $cmd $cmd $cmd $cmd
 
 exit $ret
