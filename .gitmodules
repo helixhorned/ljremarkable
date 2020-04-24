@@ -1,7 +1,6 @@
 [submodule "ljclang"]
 	path = ljclang
 	url = https://github.com/helixhorned/ljclang
-	shallow = true
 [submodule "libremarkable"]
 	path = libremarkable
 	url = https://github.com/canselcik/libremarkable.git
