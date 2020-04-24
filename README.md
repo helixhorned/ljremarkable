@@ -10,6 +10,7 @@ Table of Contents
 **[Preliminary setup](#preliminary-setup)**\
 **[Building](#building)**\
 **[Running](#running)**\
+**[Using](#using)**\
 **[Acknowledgements](#acknowledgements)**\
 **[License](#license)**
 
@@ -74,6 +75,10 @@ has to be commented out.
 *Optionally*, the user may also be added to group `input`. Doing so will enable the
 application to react on (otherwise discarded) keyboard events by initiating a re-scan for
 updated screen regions.<sup>**[2]**</sup>
+
+Finally, for the application to carry out mouse actions on the desktop for certain gestures
+made on the tablet, `xdotool` needs to be installed, available as Raspbian `apt`
+package. Running it does not require any special privileges.
 
 <sup>**[2]**</sup> <small>Checking for updates happens in intervals with an exponential
 backoff, so enabling this may shorten the time from typing something to seeing the effects
@@ -202,6 +207,53 @@ functionality:
 >
 > <small>Feel free to notify me if the limitations implied by the the first two points cause
 > any inconvenience.</small>
+
+Using
+-----
+
+Since the application co-exists with the rM's main user-visible process `xochitl`, there
+needs to be a way for the two to live together peacefully. Currently, the Pi screen will
+display on the rM only if the touch-sensitive "eye" of the tablet UI is in the upper left
+and looking "down", that is, when the menu is in its default *portrait* orientation and
+*hidden*.
+
+### Controls
+
+Various gestures carried out on the tablet lead to the injection of mouse events into the
+graphical session from which the application was started on the Pi.
+
+Some terminology: The endpoint of the application running on the Pi is called the *client*
+because it initiates the connection to the waiting *server* on the rM.**<sup>[3]</sup>** The
+screen portion of the rM display that contains the visible portion of the Pi desktop will
+here be called *view* for brevity.
+
+* Tap on a point on the view: single mouse click. If held for more than a threshold
+  duration,**<sup>[4]</sup>** a right click is issued instead of a left click.
+
+* Drag with a single finger starting on the Pi screen portion:
+
+  - When the finger rests on the initial tap position less than a threshold
+    time before moving,**<sup>[4]</sup>** only vertical swipes are allowed, within some
+    tolerance. On the Pi, a number of mouse wheel events proportional to the length of the
+    trail of the finger are injected. The final position may be off the view.  Before the
+    event is injected, the mouse is temporarily moved to the point *initially tapped* on the
+    view.
+    
+    This provides a fairly reasonable emulation of dragging a page beneath one's finger in a
+    variety of use cases such as browsers, PDF readers and text editors. The initial
+    positioning means that e.g frames in web pages will work as expected. The downside of
+    using mouse wheel events is that the relation between distance traveled on the tablet
+    screen only approximately and coincidentally corresponds to the respective distance on
+    desktop on the the Pi.
+
+  - **TODO**
+
+* Drag with a single finger from *below* the Pi screen portion to *above* it: request the
+  client to re-send the complete screen contents.
+
+**<sup>[3]</sup>** This is exactly reverse to the notion of the server being side that is
+biased towards *sending* data.\
+**<sup>[4]</sup>** (currently half a second)
 
 Acknowledgements
 ----------------
