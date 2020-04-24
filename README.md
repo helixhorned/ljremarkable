@@ -2,6 +2,17 @@
 ljremarkable: A LuaJIT interface to the reMarkable tablet and Raspberry Pi ⟷ rM application
 ===========================================================================================
 
+Table of Contents
+-----------------
+
+**[Introduction](#introduction)**\
+**[Requirements](#requirements)**\
+**[Preliminary setup](#preliminary-setup)**\
+**[Building](#building)**\
+**[Acknowledgements](#acknowledgements)**\
+**[License](#license)**
+
+
 Introduction
 ------------
 
