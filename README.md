@@ -11,6 +11,7 @@ Table of Contents
 **[Building](#building)**\
 **[Running](#running)**\
 **[Using](#using)**\
+**[Details and troubleshooting](#details-and-troubleshooting)**\
 **[Acknowledgements](#acknowledgements)**\
 **[License](#license)**
 
@@ -93,8 +94,8 @@ does not seem to support the convenience form present in Raspbian, this has to b
 editing `/etc/group` directly. Refer to `man 5 group` for its format.
 
 > **CAUTION**: Do **not** leave the SSH session as `root` until you have verified that the
-edits have their intended effect! That is, after editing, one should verify that it is still
-possible to log in as `root` and as the new user.
+edits have their intended effect! That is, after editing and saving the file, one should
+verify that it is still possible to log in as `root` and as the new user.
 
 ### Putting it together
 
@@ -214,7 +215,7 @@ Using
 Since the application co-exists with the rM's main user-visible process `xochitl`, there
 needs to be a way for the two to live together peacefully. Currently, the Pi screen will
 display on the rM only if the touch-sensitive "eye" of the tablet UI is in the upper left
-and looking "down", that is, when the menu is in its default *portrait* orientation and
+and "looking down", that is, when the menu is in its default *portrait* orientation and
 *hidden*.
 
 ### Controls
@@ -263,9 +264,54 @@ here be called *view* for brevity.
   client to re-send the complete screen contents. Useful after an accidental page change, or
   when artifacts have accumulated on the rM screen and one wishes to refresh the view.
 
+* Drag with a single finger from the top right corner to the bottom right corner of the rM
+  screen: shut down the connection and exit the application.
+
 **<sup>[3]</sup>** This is exactly reverse to the notion of the server being side that is
 biased towards *sending* data.\
 **<sup>[4]</sup>** (currently half a second)
+
+### Miscellaneous features
+
+* Frame rate limiting. Since frequent updates of the same rM screen portion lead to
+  artifacts that hinder enjoyment of a video displayed there, a heuristic is implemented to
+  detect areas with fast-changing content and send updates in them only once in a
+  while. Currently, this heuristic is based on sequence numbers (as opposed to time stamps).
+  
+  > **Note**: This feature is still a bit rough on the edges. However, since it is always
+  > active it may have undesirable consequences on non-video-watching usage of the
+  > application.
+  >
+  > **CAUTION**: It is important to keep in mind that the image displayed on the rM is
+  > always somewhat behind what would be displayed on a monitor, even without this
+  > feature. (This is even more compounded by latency incurred by connecting wirelessly.)
+  > Currently, it is possible that a tap on a point in the view will issue a mouse click on
+  > a portion that has changed in the time since the tap.
+
+Details and troubleshooting
+---------------------------
+
+**Q:** There is a horizontal stripe at the top missing!
+
+**A:** The application operates on two kinds of *tiles* into which it decomposes the Pi
+framebuffer image: 8-pixel-by-8-pixel tiles is the granularity at which changes are
+detected, each such tile being sampled for a pseudo-random pixel within it. Over the
+network, 16x16 tiles are sent to the rM for reconstruction of the image.
+
+Currently, the height of the target image has to be evenly divisibly by the side length of
+these "big tiles". The remainder of dividing 1080 (presumably the maximum vertical
+resolution when not using `vc4-fkms-v3d`) by 16 is 8. The decision to crop at the top is
+somewhat arbitrary, and it is planned to remove the limitation in the future.
+
+**Q:** There is a vertical stripe at the right not covered!
+
+**A:** The visible portion of the rM screen is 1404 pixels wide. A line of the rM
+framebuffer is actually 1408 pixels wide and thus *is* evenly divisible by 16. The decision
+to clamp the horizontal resolution to 1392 is due to the fact that scroll bars happen to be
+already usable only with difficulty, being (i) reduced in physical size and (ii) likely
+suffering from an analogous problem as when attempting to write with the stylus near the
+right or bottom borders.
+
 
 Acknowledgements
 ----------------
