@@ -48,7 +48,7 @@ local arg = arg
 local stderr = io.stderr
 
 local doFork = (arg[1] == "--fork")
-if (arg[1] == "--fork") then
+if (doFork) then
     table.remove(arg, 1)
 end
 
