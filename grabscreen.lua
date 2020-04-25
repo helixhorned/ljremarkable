@@ -290,6 +290,7 @@ local Sampler = class
         -- Compare sample pixel values with current state!
 
         local currentSeqNum = self.currentSeqNum
+        local blockedTileCount = 0
         local destTileCoords = {}
 
         -- NOTE: y first!
@@ -338,16 +339,20 @@ local Sampler = class
 
             if (xL ~= nil) then
                 for xx = xL, xR do
-                    if (xlBlocked == nil or not (xx >= xlBlocked and xx <= xrBlocked)) then
-                        destTileCoords[#destTileCoords + 1] = { x=xx, y=y }
-                    end
+                    local isBlocked =
+                        (xlBlocked ~= nil and xx >= xlBlocked and xx <= xrBlocked)
+
+                    blockedTileCount = blockedTileCount + (isBlocked and 1 or 0)
+                    destTileCoords[#destTileCoords + 1] = {
+                        x=xx, y=y, blocked=isBlocked
+                    }
                 end
             end
         end
 
         self.currentSeqNum = self.currentSeqNum + 1
 
-        return destTileCoords
+        return destTileCoords, blockedTileCount
     end,
 
 -- private:
@@ -816,21 +821,25 @@ local Client = class
     step = function(self)
         self:enable()
 
-        local destTileCoords = self.sampler:sampleAndCompare()
+        local destTileCoords, blockedTileCount = self.sampler:sampleAndCompare()
+        local updatedTileCount = #destTileCoords
 
-        if (#destTileCoords > 0) then
-            self:captureUpdates(destTileCoords, self.sampler.screenCopyBuf)
-            local encodingLength = self:encodeUpdates(#destTileCoords)
+        local packedTileCount = (updatedTileCount > 0) and
+            self:captureUpdates(destTileCoords, self.sampler.screenCopyBuf) or 0
+        assert(packedTileCount == updatedTileCount - blockedTileCount)
+
+        if (packedTileCount > 0) then
+            local encodingLength = self:encodeUpdates(packedTileCount)
 
             if (self.connFd ~= nil) then
-                self:sendUpdates(destTileCoords, encodingLength)
+                self:sendUpdates(destTileCoords, packedTileCount, encodingLength)
             else
-                local fmt = "changed, #destTiles=%d, encoded=%d halfwords (factor = %.03f)\n"
-                stderr:write(fmt:format(#destTileCoords, encodingLength,
-                                        #destTileCoords * BigSquareSize / encodingLength))
+                local fmt = "changed, #packedTiles=%d, encoded=%d halfwords (factor = %.03f)\n"
+                stderr:write(fmt:format(packedTileCount, encodingLength,
+                                        packedTileCount * BigSquareSize / encodingLength))
                 local tileCount = DecodeUpdates(self.codedBuf, encodingLength, self.decodedBuf_)
                 -- Check correctness of decoding.
-                assert(tileCount == #destTileCoords)
+                assert(tileCount == packedTileCount)
                 assert(ffi.C.memcmp(self.updateBuf, self.decodedBuf_,
                                     tileCount * BigSquareSize * DestPixelSize) == 0)
             end
@@ -886,19 +895,26 @@ local Client = class
     captureUpdates = function(self, destTileCoords, screenCopyBuf)
         local updatedTileCount = #destTileCoords
         assert(updatedTileCount <= totalDestTileCount)
+        local packedTileCount = 0
 
         for i, coord in ipairs(destTileCoords) do
             assert(i > 0 and i <= updatedTileCount)
             CopyBigTile(fbPtr, screenCopyBuf, coord, CopyFormat.Same)
-            local destPtr = self.tempBuf + BigSquareSize * (i - 1)
-            CopyBigTile(screenCopyBuf, destPtr, coord, CopyFormat.Packed)
+            if (not coord.blocked) then
+                local destPtr = self.tempBuf + BigSquareSize*packedTileCount
+                CopyBigTile(screenCopyBuf, destPtr, coord, CopyFormat.Packed)
+                packedTileCount = packedTileCount + 1
+            end
         end
 
-        local updatedPixelCount = updatedTileCount * BigSquareSize
+        local packedPixelCount = packedTileCount * BigSquareSize
 
-        for i = 0, updatedPixelCount - 1 do
+        for i = 0, packedPixelCount - 1 do
+            -- TODO: 'updated' in the top local does not mean the same as 'update' here.
             self.updateBuf[i] = narrow(self.tempBuf[i])
         end
+
+        return packedTileCount
     end,
 
     encodeUpdates = function(self, updatedTileCount)
@@ -915,24 +931,26 @@ local Client = class
         return offset
     end,
 
-    sendUpdates = function(self, destTileCoords, encodingLength)
+    sendUpdates = function(self, destTileCoords, changedTileCount, encodingLength)
         local connFd = self.connFd
         assert(connFd ~= nil)
 
-        local changedTileCount = #destTileCoords
         local header = UpdateHeader_t(UpdateMagic, changedTileCount, encodingLength)
-
         connFd:writeFull(header)
 
-        -- TODO: store 'destTileCoords' in an FFI array in the first place.
         local coords = coord_array_t(changedTileCount)
 
-        for i, coord in ipairs(destTileCoords) do
-            coords[i - 1] = coord_t(coord.x, coord.y)
+        local i = 0
+        for _, coord in ipairs(destTileCoords) do
+            if (not coord.blocked) then
+                coords[i] = coord_t(coord.x, coord.y)
+                i = i + 1
+            end
         end
 
-        connFd:writeFull(coords)
+        assert(i == changedTileCount)
 
+        connFd:writeFull(coords)
         connFd:writeFull(self.codedBuf, encodingLength * HalfwordSize)
 
         self:receiveFromServerAndHandle()
