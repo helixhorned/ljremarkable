@@ -242,14 +242,26 @@ here be called *view* for brevity.
     This provides a fairly reasonable emulation of dragging a page beneath one's finger in a
     variety of use cases such as browsers, PDF readers and text editors. The initial
     positioning means that e.g frames in web pages will work as expected. The downside of
-    using mouse wheel events is that the relation between distance traveled on the tablet
-    screen only approximately and coincidentally corresponds to the respective distance on
-    desktop on the the Pi.
+    using mouse wheel events is that the distance traveled on the tablet screen only
+    approximately and coincidentally corresponds to the respective distance on the Pi
+    desktop.
 
-  - **TODO**
+  - When the threshold time is exceeded, *general drag mode* is activated: the swipe does
+    not need to be vertical, but has to be fully inside the view. On the Pi desktop, the
+    mouse is moved to the initially tapped point, left-clicked and held, moved to the final
+    point, and released. This can be used for dragging a page in a distance-matched
+    fashion with software that interprets the sequence accordingly, such as PDF readers.
+    
+    This gesture can also be used to select a portion of text in e.g. a web browser. Take
+    care though: `xochitl` being active means that it will interpret a left or right swipe
+    as moving one page back or forward, respectively. In order to prevent it from doing so,
+    it seems to suffice to carry out the drag slowly. Note that non-horizontal drags are not
+    interpreted, so another way to avoid accidentally changing the page (and overdrawing the
+    Pi screen view) is to move the finger in an arc.
 
 * Drag with a single finger from *below* the Pi screen portion to *above* it: request the
-  client to re-send the complete screen contents.
+  client to re-send the complete screen contents. Useful after an accidental page change, or
+  when artifacts have accumulated on the rM screen and one wishes to refresh the view.
 
 **<sup>[3]</sup>** This is exactly reverse to the notion of the server being side that is
 biased towards *sending* data.\
