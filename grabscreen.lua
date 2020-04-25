@@ -247,8 +247,8 @@ print(("INFO: %s%3d x %3d = %5d tiles (side length %d)"):format(
 -- Note that in general this does not mean a fixed period in terms of wall-clock time since
 -- we operate in varying time steps due to exponential backoff. However, for a video playing
 -- whose content changes often enough, this will be approximately the case.
-local FastFrameHoldBackWindow = 2
-local FastFrameSendPeriod = 50
+local FastFrameHoldBackWindow = 3
+local FastFrameSendPeriod = 40
 
 local Sampler = class
 {

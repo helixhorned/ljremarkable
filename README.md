@@ -255,7 +255,7 @@ here be called *view* for brevity.
     
     This gesture can also be used to select a portion of text in e.g. a web browser. Take
     care though: `xochitl` being active means that it will interpret a left or right swipe
-    as moving one page back or forward, respectively. In order to prevent it from doing so,
+    as moving one page forward or back, respectively. In order to prevent it from doing so,
     it seems to suffice to carry out the drag slowly. Note that non-horizontal drags are not
     interpreted, so another way to avoid accidentally changing the page (and overdrawing the
     Pi screen view) is to move the finger in an arc.
@@ -276,11 +276,11 @@ biased towards *sending* data.\
 * Frame rate limiting. Since frequent updates of the same rM screen portion lead to
   artifacts that hinder enjoyment of a video displayed there, a heuristic is implemented to
   detect areas with fast-changing content and send updates in them only once in a
-  while. Currently, this heuristic is based on sequence numbers (as opposed to time stamps).
+  while. This heuristic is based on sequence numbers as opposed to time stamps.
   
-  > **Note**: This feature is still a bit rough on the edges. However, since it is always
-  > active it may have undesirable consequences on non-video-watching usage of the
-  > application.
+  > **Note**: This feature works best on videos in which the the whole image changes every
+  > frame, for example because the camera is moving. It does not work as well with videos
+  > where there is a static background.
   >
   > **CAUTION**: It is important to keep in mind that the image displayed on the rM is
   > always somewhat behind what would be displayed on a monitor, even without this
