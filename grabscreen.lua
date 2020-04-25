@@ -241,8 +241,13 @@ print(("INFO: %s%3d x %3d = %5d tiles (side length %d)"):format(
       not isRealServer and " destination: " or "",
       destTileCountX, destTileCountY, totalDestTileCount, BigSideLen))
 
--- Throttling: Destination tiles for which updates happen from one frame to the next are
--- tentatively held back until the sequence number is evenly divisible by:
+-- Throttling: Destination tiles for which changes were present within the last '...Window'
+-- updates are tentatively held back until the sequence number is evenly divisible by the
+-- period. This ensures that all updates for formerly held-back tiles are synchronized.
+-- Note that in general this does not mean a fixed period in terms of wall-clock time since
+-- we operate in varying time steps due to exponential backoff. However, for a video playing
+-- whose content changes often enough, this will be approximately the case.
+local FastFrameHoldBackWindow = 2
 local FastFrameSendPeriod = 50
 
 local Sampler = class
@@ -264,7 +269,7 @@ local Sampler = class
                 PixelArray(sampleCount),
             },
 
-            currentSeqNum = 2,
+            currentSeqNum = FastFrameHoldBackWindow + 1,
             lastChangedSeqNums = UInt32Array(totalDestTileCount),
             lastSentSeqNums = UInt32Array(totalDestTileCount),
 
@@ -319,7 +324,8 @@ local Sampler = class
                 local lastSentSeqNum = self.lastSentSeqNums[destTileIdx]
 
                 local isOutdated = destTileChanged or (lastSentSeqNum < lastChangedSeqNum)
-                local wantHoldBack = (destTileChanged and currentSeqNum == lastChangedSeqNum + 1)
+                local wantHoldBack = destTileChanged and
+                    (currentSeqNum <= lastChangedSeqNum + FastFrameHoldBackWindow)
                 local canHoldBack = wantHoldBack and (currentSeqNum % FastFrameSendPeriod ~= 0)
                 local shouldSend = isOutdated and not canHoldBack
 
