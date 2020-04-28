@@ -51,6 +51,9 @@ desired user name as argument). For convenience, it makes sense that the newly c
 account is made accessible [without providing a
 password](https://remarkablewiki.com/tech/ssh/#setting_up_ssh-keys).
 
+For me, the home directory of the new user has persisted across updates of the reMarkable
+software.
+
 ### On the Raspberry Pi
 
 The user needs to be made a member of group `video`, since the application will read
@@ -58,9 +61,7 @@ directly from the Linux framebuffer device `/dev/fb0`:
 
     sudo adduser $USER video
 
-(This is the last form as documented in `man 8 adduser`.) \
-For me, the home directory of the new user has persisted across updates of the reMarkable
-software.
+(This is the last form as documented in `man 8 adduser`.)
 
 Because of the direct framebuffer access, it is not possible to have the DRM VC4 V3D driver
 enabled on the Pi 4: in
