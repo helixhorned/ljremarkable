@@ -221,7 +221,7 @@ local StatusRectPosX = {
     OnShutdown_rM_Init = ScreenWidth_rM / 2 - StatusRectWidth - 8,
     OnShutdown_rM_Finish = ScreenWidth_rM / 2 + 8,
 
-    OnLockedUp = ScreenWidth_rM - 2 * EyeSize_rM,
+    RightMarker = ScreenWidth_rM - 2 * EyeSize_rM,
 }
 
 local srcTileCountX = targetXres / SideLen
@@ -1082,7 +1082,6 @@ local Client = class
 }
 
 local ServerRequest = {
-    InputIsLockedUp = 1,
     Shutdown = 2,
 }
 
@@ -1188,8 +1187,6 @@ local Duration = {
     -- Time that an initial tap must be held to commence generic (as opposed to
     -- vertical-only) dragging:
     GenericDragTapWait = 500,
-    -- Time after which input is considered to be "locked up":
-    LockedUp = 10000,
 }
 
 local MaxSingleClickDeviation = 9  -- in delta x/y rM screen coordinates (9: 1 mm)
@@ -1300,13 +1297,6 @@ local InputState = class
 
         if (didFinallyRelease) then
             self.lastFirstPressedTime = math.huge
-        end
-
-        if (specialRqTab[1] == nil and
-            (currentTimeMs() >= self.lastFirstPressedTime + Duration.LockedUp)) then
-            -- Indicate a locked up state.
-            -- TODO: remove?
-            specialRqTab[1] = ServerRequest.InputIsLockedUp
         end
     end,
 
@@ -1602,10 +1592,7 @@ Server = class
             -- Handle special requests.
             local specialRequest = self.specialRequestTab[1]
 
-            if (specialRequest == ServerRequest.InputIsLockedUp) then
-                self:drawStatusRect(StatusRectPosX.OnLockedUp)
-                self.specialRequestTab[1] = nil
-            elseif (specialRequest == ServerRequest.Shutdown) then
+            if (specialRequest == ServerRequest.Shutdown) then
                 self:shutDownAndExit(0)
             end
         end
