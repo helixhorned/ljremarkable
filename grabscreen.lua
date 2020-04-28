@@ -250,6 +250,8 @@ print(("INFO: %s%3d x %3d = %5d tiles (side length %d)"):format(
 local FastFrameHoldBackWindow = 3
 local FastFrameSendPeriod = 40
 
+local isFrameThrottlingEnabled = true
+
 local Sampler = class
 {
     function()
@@ -326,7 +328,8 @@ local Sampler = class
                 local isOutdated = destTileChanged or (lastSentSeqNum < lastChangedSeqNum)
                 local wantHoldBack = destTileChanged and
                     (currentSeqNum <= lastChangedSeqNum + FastFrameHoldBackWindow)
-                local canHoldBack = wantHoldBack and (currentSeqNum % FastFrameSendPeriod ~= 0)
+                local canHoldBack = isFrameThrottlingEnabled and
+                    wantHoldBack and (currentSeqNum % FastFrameSendPeriod ~= 0)
                 local shouldSend = isOutdated and not canHoldBack
 
                 xlBlocked = xlBlocked or (canHoldBack and x or nil)
