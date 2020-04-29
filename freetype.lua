@@ -88,22 +88,26 @@ local Face = class
         local bitmap = slot.bitmap
         assert(bitmap ~= nil)
 
-        assert(bitmap.pitch > 0, "Unexpected non-down-flowing bitmap")
+        local size = bitmap.pitch * bitmap.rows
+        assert(not (size == 0) or bitmap.pitch == 0, "Unexpected non-zero pitch for empty bitmap")
+        assert(not (size ~= 0) or (bitmap.pitch > 0), "Unexpected non-down-flowing bitmap")
         assert(bitmap.pixel_mode == FT.PIXEL_MODE_GRAY, "Unexpected pixel mode")
         assert(bitmap.num_grays == 256, "Unexpected number of gray levels")
 
-        -- Create a copy of the bitmap data to pass outwards.
-        local size = bitmap.pitch * bitmap.rows
-        local array = uint8_array_t(size)
-        ffi.copy(array, bitmap.buffer, size)
+        local function getData()
+            -- Create a copy of the bitmap data to pass outwards.
+            local array = uint8_array_t(size)
+            ffi.copy(array, bitmap.buffer, size)
+            return array
+        end
 
         -- TODO: information about offsets.
 
-        return {
+        return (size > 0) and {
             w = bitmap.pitch,
             h = bitmap.rows,
-            data = array
-        }
+            data = getData()
+        } or nil
     end,
 }
 
