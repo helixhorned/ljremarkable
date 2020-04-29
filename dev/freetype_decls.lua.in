@@ -1,0 +1,68 @@
+local ffi=require"ffi"
+
+local assert = assert
+local tonumber = tonumber
+
+----------
+
+ffi.cdef[[
+@@ -w TypedefDecl -A -I/usr/include/freetype2 ./dev/freetype.h \
+    -p ^FT_Error$ -p ^FT_Library$ -p ^FT_Face$ \
+    -p ^FT_Int$ -p ^FT_Int32$ -p ^FT_Long$ -p ^FT_UInt$ -p ^FT_ULong$ -p ^FT_F26Dot6$ \
+    -p ^FT_GlyphSlot$ -p ^FT_Fixed$ -p ^FT_SubGlyph$ -p ^FT_Slot_Internal$ \
+    -p ^FT_Pos$
+
+typedef struct
+@@ -m ljclang.dev.exdecl_struct_def -A -I/usr/include/freetype2 ./dev/freetype.h \
+    -p ^FT_Bitmap_$
+FT_Bitmap;
+
+typedef
+@@ -m ljclang.dev.exdecl_surrogate_struct -A -I/usr/include/freetype2 ./dev/freetype.h \
+    -p ^FT_Generic$
+FT_Generic;
+
+typedef struct
+@@ -m ljclang.dev.exdecl_struct_def -A -I/usr/include/freetype2 ./dev/freetype.h \
+    -p ^FT_Glyph_Metrics_$
+FT_Glyph_Metrics;
+
+typedef
+@@ -m ljclang.dev.exdecl_surrogate_struct -A -I/usr/include/freetype2 ./dev/freetype.h \
+    -p ^FT_Outline$
+FT_Outline;
+
+typedef struct
+@@ -m ljclang.dev.exdecl_struct_def -A -I/usr/include/freetype2 ./dev/freetype.h \
+    -p ^FT_Vector_$
+FT_Vector;
+
+// TODO: extract automatically.
+typedef enum  FT_Glyph_Format_
+{
+  FT_GLYPH_FORMAT_NONE = 0,
+
+  FT_GLYPH_FORMAT_COMPOSITE = ('c' << 24) | ('o' << 16) | ('m' << 8) | 'p',
+  FT_GLYPH_FORMAT_BITMAP    = ('b' << 24) | ('i' << 16) | ('t' << 8) | 's',
+  FT_GLYPH_FORMAT_OUTLINE   = ('o' << 24) | ('u' << 16) | ('t' << 8) | 'l',
+  FT_GLYPH_FORMAT_PLOTTER   = ('p' << 24) | ('l' << 16) | ('o' << 8) | 't',
+} FT_Glyph_Format;
+
+typedef struct
+@@ -m ljclang.dev.exdecl_struct_def -A -I/usr/include/freetype2 ./dev/freetype.h \
+    -p ^FT_GlyphSlotRec_$
+FT_GlyphSlotRec;
+
+@@ -w FunctionDecl -A -I/usr/include/freetype2 ./dev/freetype.h \
+    -p ^FT_Init_FreeType(.*)$ -p ^FT_New_Face(.*)$ -p ^FT_Set_Char_Size(.*)$ -p ^FT_Load_Char(.*)$ \
+    -p ^FT_Done_FreeType(.*)$ -p ^FT_Done_Face(.*)$
+]]
+
+assert(ffi.sizeof("FT_GlyphSlotRec") == 160)
+
+return {
+-- TODO: extract automatically.
+FT=ffi.new[[struct {
+static const int LOAD_RENDER = (1 << 2);
+}]],
+}

@@ -22,6 +22,8 @@ linux_decls_lua := linux_decls.lua
 linux_decls_lua_tmp := $(linux_decls_lua).tmp
 remarkable_decls_lua := remarkable_decls.lua
 remarkable_decls_lua_tmp := $(remarkable_decls_lua).tmp
+freetype_decls_lua := freetype_decls.lua
+freetype_decls_lua_tmp := $(freetype_decls_lua).tmp
 app_name := grabscreen.app.lua
 
 all: decls
@@ -167,7 +169,15 @@ $(remarkable_decls_lua): $(remarkable_lib_h) Makefile
 	|| (printf "* \033[1;31mError\033[0m generating $@\n" && \
 	    mv $@ $@.reject && false)
 
-decls: $(linux_decls_lua) $(remarkable_decls_lua)
+$(freetype_decls_lua): ./dev/freetype_decls.lua.in Makefile
+	@LJCLANG_EXTRACTDECLS=$(extractdecls) ./ljclang/mkdecls.sh $< > $(freetype_decls_lua_tmp)
+	@mv $(freetype_decls_lua_tmp) $@
+	@($(luajit) -e "require 'freetype_decls'" && \
+	    printf "* \033[1mGenerated $@\033[0m\n") \
+	|| (printf "* \033[1;31mError\033[0m generating $@\n" && \
+	    mv $@ $@.reject && false)
+
+decls: $(linux_decls_lua) $(remarkable_decls_lua) $(freetype_decls_lua)
 
 # Documentation
 .SILENT: doc

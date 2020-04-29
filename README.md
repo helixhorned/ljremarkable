@@ -323,6 +323,9 @@ crucial in obtaining an understanding for the functioning of the reMarkable.
 Several C declarations for use with the LuaJIT FFI are obtained directly from a header of
 the "legacy C implementation" of that project.
 
+Portions of this software are copyright (C) 1996-2020 The FreeType Project
+([www.freetype.org](https://www.freetype.org)). All rights reserved.
+
 
 License
 -------
