@@ -9,8 +9,9 @@ ffi.cdef[[
 @@ -w TypedefDecl -A -I/usr/include/freetype2 ./dev/freetype.h \
     -p ^FT_Error$ -p ^FT_Library$ -p ^FT_Face$ \
     -p ^FT_Int$ -p ^FT_Int32$ -p ^FT_Long$ -p ^FT_UInt$ -p ^FT_ULong$ -p ^FT_F26Dot6$ \
+    -p ^FT_Short$ -p ^FT_UShort$ -p ^FT_Size$ \
     -p ^FT_GlyphSlot$ -p ^FT_Fixed$ -p ^FT_SubGlyph$ -p ^FT_Slot_Internal$ \
-    -p ^FT_Pos$
+    -p ^FT_Pos$ -p ^FT_String$ -p ^FT_CharMap$ -p ^FT_Face_Internal$
 
 typedef struct
 @@ -m ljclang.dev.exdecl_struct_def -A -I/usr/include/freetype2 ./dev/freetype.h \
@@ -53,12 +54,51 @@ typedef struct
     -p ^FT_GlyphSlotRec_$
 FT_GlyphSlotRec;
 
+typedef struct
+@@ -m ljclang.dev.exdecl_struct_def -A -I/usr/include/freetype2 ./dev/freetype.h \
+    -p ^FT_BBox_$
+FT_BBox;
+
+typedef struct
+@@ -m ljclang.dev.exdecl_struct_def -A -I/usr/include/freetype2 ./dev/freetype.h \
+    -p ^FT_Bitmap_Size_$
+FT_Bitmap_Size;
+
+// ---------- BEGIN Data types of PRIVATE members
+
+typedef
+@@ -m ljclang.dev.exdecl_surrogate_struct -A -I/usr/include/freetype2 ./dev/freetype.h \
+    -p ^FT_Driver$
+FT_Driver;
+
+typedef
+@@ -m ljclang.dev.exdecl_surrogate_struct -A -I/usr/include/freetype2 ./dev/freetype.h \
+    -p ^FT_Memory$
+FT_Memory;
+
+typedef
+@@ -m ljclang.dev.exdecl_surrogate_struct -A -I/usr/include/freetype2 ./dev/freetype.h \
+    -p ^FT_Stream$
+FT_Stream;
+
+typedef
+@@ -m ljclang.dev.exdecl_surrogate_struct -A -I/usr/include/freetype2 ./dev/freetype.h \
+    -p ^FT_ListRec$
+FT_ListRec;
+
+// ---------- END Data types of PRIVATE members
+
+typedef struct
+@@ -m ljclang.dev.exdecl_struct_def -A -I/usr/include/freetype2 ./dev/freetype.h -p ^FT_FaceRec_$
+FT_FaceRec;
+
 @@ -w FunctionDecl -A -I/usr/include/freetype2 ./dev/freetype.h \
     -p ^FT_Init_FreeType(.*)$ -p ^FT_New_Face(.*)$ -p ^FT_Set_Char_Size(.*)$ -p ^FT_Load_Char(.*)$ \
     -p ^FT_Done_FreeType(.*)$ -p ^FT_Done_Face(.*)$
 ]]
 
 assert(ffi.sizeof("FT_GlyphSlotRec") == 160)
+assert(ffi.sizeof("FT_FaceRec") == 132)
 
 return {
 -- TODO: extract automatically.
