@@ -27,6 +27,9 @@ local function DefaultZero(value)
     return value ~= nil and value or 0
 end
 
+--local uint8_ptr_t = ffi.typeof("uint8_t *")
+local uint8_array_t = ffi.typeof("uint8_t [?]")
+
 local Face = class
 {
     function(face, parent)
@@ -80,7 +83,27 @@ local Face = class
             error('FT_Load_Char() failed')
         end
 
-        -- TODO: return value
+        local slot = self._face.glyph
+        assert(slot ~= nil)
+        local bitmap = slot.bitmap
+        assert(bitmap ~= nil)
+
+        assert(bitmap.pitch > 0, "Unexpected non-down-flowing bitmap")
+        assert(bitmap.pixel_mode == FT.PIXEL_MODE_GRAY, "Unexpected pixel mode")
+        assert(bitmap.num_grays == 256, "Unexpected number of gray levels")
+
+        -- Create a copy of the bitmap data to pass outwards.
+        local size = bitmap.pitch * bitmap.rows
+        local array = uint8_array_t(size)
+        ffi.copy(array, bitmap.buffer, size)
+
+        -- TODO: information about offsets.
+
+        return {
+            w = bitmap.pitch,
+            h = bitmap.rows,
+            data = array
+        }
     end,
 }
 

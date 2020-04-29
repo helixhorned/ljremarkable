@@ -104,5 +104,8 @@ return {
 -- TODO: extract automatically.
 FT=ffi.new[[struct {
 static const int LOAD_RENDER = (1 << 2);
+
+@@ -w EnumConstantDecl -A -I/usr/include/freetype2 ./dev/freetype.h \
+    -C -p ^FT_PIXEL_MODE_ -s ^FT_
 }]],
 }
