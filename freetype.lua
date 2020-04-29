@@ -33,7 +33,9 @@ local Face = class
         assert(ffi.istype(FT_Face, face))
         assert(type(parent) == "table")
 
-        face = ffi.gc(face, ft.FT_Done_Face)
+        -- FIXME [GC_ORDER]: why do we have nondeterministic order between GC of FT_Library
+        --  and FT_Face even when we link the latter to the former using '_parent'?
+--        face = ffi.gc(face, ft.FT_Done_Face)
 
         return {
             _face = face,
@@ -93,7 +95,9 @@ api.Library = class
         assert(libAr[0] ~= nil)
 
         return {
-            _lib = ffi.gc(libAr[0], ft.FT_Done_FreeType)
+            _lib = libAr[0]
+            -- FIXME GC_ORDER:
+--            _lib = ffi.gc(libAr[0], ft.FT_Done_FreeType)
         }
     end,
 
