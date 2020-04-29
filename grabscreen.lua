@@ -713,7 +713,8 @@ local function GetAddress(nameOrQuad)
     end
 
     for line in io.lines("/etc/hosts") do
-        local a, b, c, d, name = line:match('^'..IPAddressPattern.."\t"..HostNamePattern..'$')
+        local a, b, c, d, name = line:match(
+            '^[ \t]*'..IPAddressPattern.."[ \t]+"..HostNamePattern..'[ \t]*$')
         if (a ~= nil and name == nameOrQuad) then
             return {tonumber(a), tonumber(b), tonumber(c), tonumber(d)}
         end
