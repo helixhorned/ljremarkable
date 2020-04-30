@@ -38,15 +38,9 @@ typedef struct
     -p ^FT_Vector_$
 FT_Vector;
 
-// TODO: extract automatically.
-typedef enum  FT_Glyph_Format_
-{
-  FT_GLYPH_FORMAT_NONE = 0,
-
-  FT_GLYPH_FORMAT_COMPOSITE = ('c' << 24) | ('o' << 16) | ('m' << 8) | 'p',
-  FT_GLYPH_FORMAT_BITMAP    = ('b' << 24) | ('i' << 16) | ('t' << 8) | 's',
-  FT_GLYPH_FORMAT_OUTLINE   = ('o' << 24) | ('u' << 16) | ('t' << 8) | 'l',
-  FT_GLYPH_FORMAT_PLOTTER   = ('p' << 24) | ('l' << 16) | ('o' << 8) | 't',
+typedef enum  FT_Glyph_Format_ {
+@@ -w EnumConstantDecl -A -I/usr/include/freetype2 ./dev/freetype.h \
+    -p ^FT_GLYPH_FORMAT_
 } FT_Glyph_Format;
 
 typedef struct
