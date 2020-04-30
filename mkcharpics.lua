@@ -7,8 +7,10 @@ local os = require("os")
 
 local freetype = require("freetype")
 local build = require("build")
+local class = require("class").class
 local parsecmdline = require("ljclang.parsecmdline_pk")
 
+local assert = assert
 local print = print
 local tonumber = tonumber
 
@@ -26,7 +28,7 @@ Usage: mkcharpics.lua <mandatoty options...> <options...> [[<startCodePt>]:<endC
     if (hline == nil) then
         print[[
   Mandatory options:
-    -f <font-file>
+    -f {<font-file>|<file>.fontdesc}
     -o <out-file>{.ART|.charpics}
   Options:
     -c <codepoints-file>
@@ -61,12 +63,17 @@ do
 end
 
 -- TODO: extend to allow multiple fonts.
-local fontFileName = opts.f
+local fontFileOrMapName = opts.f
 local outFileName = opts.o
 
 if (not outFileName:match("%.ART$")) then
     -- TODO: .charpics
     usage("Output file name must end in '.ART'")
+end
+
+local isFontMap = fontFileOrMapName:match("%.fontmap")
+if (isFontMap) then
+    usage(".fontmap input not yet implemented")
 end
 
 local function GetCodePtRange()
@@ -92,9 +99,32 @@ local FontSearchPath = {
     "/usr/share/fonts"
 }
 
-local lib = freetype.Library()
-local face = lib:face(fontFileName):setCharSize(nil, 120)
-local artTab = {}
+local function CreateFace(lib, fontFileName)
+    return lib:face(fontFileName):setCharSize(nil, 120)
+end
+
+local FontRenderer = class
+{
+    function()
+        assert(not isFontMap)
+
+        local lib = freetype.Library()
+        local faces = {
+            not isFontMap and CreateFace(lib, fontFileOrMapName) or nil
+        }
+
+        return {
+           lib_ = lib,
+           faces_ = faces,
+        }
+    end,
+
+    renderChar = function(self, ...)
+        return self.faces_[1]:renderChar(...)
+    end,
+}
+
+local renderer = FontRenderer()
 
 local uint8_array_t = ffi.typeof("uint8_t [?]")
 local function transpose(srcData, sx, sy)
@@ -114,19 +144,21 @@ local function convertForBUILD(tileTab)
     return tileTab
 end
 
--- Make sure there is a tile 0 so that LunART renders it at the top left border instead of
--- the first present tile. This is for alignment convenience. Ideally, LunART should handle
--- it though.
-artTab[0] = {
-    w = 1,
-    h = 1,
-    data = uint8_array_t(1)
+local artTab = {
+    -- Make sure there is a tile 0 so that LunART renders it at the top left border instead
+    -- of the first present tile. This is for alignment convenience. Ideally, LunART should
+    -- handle it though.
+    [0] = {
+        w = 1,
+        h = 1,
+        data = uint8_array_t(1)
+    }
 }
 
 for c = codePtRange[1], codePtRange[2] do
     -- NOTE: allow char 1 to render as 'not defined' / "[?]" glyph to have one instance of
     --  it somewhere.
-    local tileTab = face:renderChar(c, {[1]=true})
+    local tileTab = renderer:renderChar(c, {[1]=true})
     if (tileTab ~= nil) then
         -- TODO: keep this only for debugging.
         artTab[c] = convertForBUILD(tileTab)
