@@ -80,13 +80,18 @@ local Face = class
         return self
     end,
 
-    renderChar = function(self, codePoint, alsoUndefined)
+    renderChar = function(self, codePoint, allowedUndefChars)
         checktype(codePoint, 1, "number", 2)
-        check(alsoUndefined == nil or type(alsoUndefined) == "boolean",
-              "argument #2 must be nil or a boolean")
+        check(allowedUndefChars == nil or type(allowedUndefChars) == "table",
+              "argument #2 must be nil or a table")
+
+        local function allowUndef()
+            return allowedUndefChars ~= nil and
+                allowedUndefChars[codePoint] == true
+        end
 
         local charIdx = ft.FT_Get_Char_Index(self._face, codePoint)
-        if (not alsoUndefined and charIdx == 0) then
+        if (charIdx == 0 and not allowUndef()) then
             return nil
         end
 
