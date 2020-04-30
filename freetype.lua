@@ -27,7 +27,6 @@ local function DefaultZero(value)
     return value ~= nil and value or 0
 end
 
---local uint8_ptr_t = ffi.typeof("uint8_t *")
 local uint8_array_t = ffi.typeof("uint8_t [?]")
 
 local Face = class
@@ -39,6 +38,17 @@ local Face = class
         -- FIXME [GC_ORDER]: why do we have nondeterministic order between GC of FT_Library
         --  and FT_Face even when we link the latter to the former using '_parent'?
 --        face = ffi.gc(face, ft.FT_Done_Face)
+
+        -- Select the Unicode charmap. This seems to be the default, but let's be explicit
+        -- so that we do not miss failure. From the documentation of the enum type
+        -- 'FT_Encoding':
+        --
+        -- *   By default, FreeType enables a Unicode charmap and tags it with
+        -- *   `FT_ENCODING_UNICODE` when it is either provided or can be generated
+        -- *   from PostScript glyph name dictionaries in the font file.
+        if (ft.FT_Select_Charmap(face, ffi.C.FT_ENCODING_UNICODE) ~= 0) then
+            error("FT_Select_Charmap() with FT_ENCODING_UNICODE failed")
+        end
 
         return {
             _face = face,
@@ -69,12 +79,6 @@ local Face = class
         return self
     end,
 
-    -- NOTE: we do not set up the character map as UCS code points seem to be the default:
-    --  from the documentation of the enum type 'FT_Encoding':
-    --
-    -- *   By default, FreeType enables a Unicode charmap and tags it with
-    -- *   `FT_ENCODING_UNICODE` when it is either provided or can be generated
-    -- *   from PostScript glyph name dictionaries in the font file.
     renderChar = function(self, codePoint)
         checktype(codePoint, 1, "number", 2)
 
