@@ -16,7 +16,7 @@ extractdecls := $(shell which $(EXTRACTDECLS))
 ########## RULES ##########
 
 .PHONY: all app check_extractdecls clean decls doc upload veryclean ljclang_deps ljclang_clean ljclang_veryclean
-.PHONY: docker-build docker-run layouts codepoints
+.PHONY: docker-build docker-run layouts codepoints moonglow_deps moonglow_clean showtiles
 
 linux_decls_lua := linux_decls.lua
 linux_decls_lua_tmp := $(linux_decls_lua).tmp
@@ -34,7 +34,7 @@ check_extractdecls:
 	@(test -n "$(extractdecls)" && test -x "$(extractdecls)") || \
 		(echo "ERROR: '$(EXTRACTDECLS)' not found in PATH." && false)
 
-clean: ljclang_clean
+clean: ljclang_clean moonglow_clean
 	$(RM) $(remarkable_decls_lua) $(remarkable_decls_lua_tmp) \
 		$(linux_decls_lua) $(linux_decls_lua_tmp) \
 		grabscreen.app.lua _setup_rM-app.lua
@@ -63,6 +63,12 @@ ljclang_veryclean:
 
 ljclang_deps:
 	$(MAKE) -C ljclang all app_dependencies
+
+moonglow_clean:
+	$(MAKE) -C moonglow clean
+
+moonglow_deps:
+	$(MAKE) -C moonglow all
 
 # Docker
 
@@ -206,3 +212,15 @@ upload: grabscreen.app.lua rM_ul_eye_menu_hidden_46-28.dat
 
 upload-debugging-setup: _setup_rM-app.lua
 	scp $^ "$(LJREMARKABLE_TABLET_USER)@$(LJREMARKABLE_TABLET_HOST):"
+
+## Visual debugging
+PALETTE.DAT: ./dev/mkpalette.lua
+	$< $@
+
+TILES000.ART: ./mkcharpics.lua ./layouts/.fontmap ./layouts/.codepoints
+	./mkcharpics.lua -f ./layouts/.fontmap -c ./layouts/.codepoints -o $@
+
+SHOW_TILES_ENV := LUA_PATH=";;ljclang/?.lua;./moonglow/?.lua"
+
+showtiles: TILES000.ART PALETTE.DAT moonglow_deps ./moonglow/lunart.lua
+	@$(SHOW_TILES_ENV) ./moonglow/lunart.lua $<
