@@ -1,0 +1,10 @@
+#!/bin/false ljremarkable font selection
+-- -*-lua-*-
+return {
+defaults = {
+    "quicksand/Quicksand-Regular.ttf",
+    "freefont/FreeMono.ttf",
+    "freefont/FreeSans.ttf",
+    "freefont/FreeSerif.ttf",
+},
+}

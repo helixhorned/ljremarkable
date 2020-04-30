@@ -8,11 +8,15 @@ local os = require("os")
 local freetype = require("freetype")
 local build = require("build")
 local class = require("class").class
+local kb_layout_util = require("kb_layout_util")
 local parsecmdline = require("ljclang.parsecmdline_pk")
 
 local assert = assert
+local ipairs = ipairs
+local loadfile = loadfile
 local print = print
 local tonumber = tonumber
+local type = type
 
 local arg = arg
 
@@ -62,7 +66,6 @@ do
     end
 end
 
--- TODO: extend to allow multiple fonts.
 local fontFileOrMapName = opts.f
 local outFileName = opts.o
 
@@ -72,9 +75,6 @@ if (not outFileName:match("%.ART$")) then
 end
 
 local isFontMap = fontFileOrMapName:match("%.fontmap")
-if (isFontMap) then
-    usage(".fontmap input not yet implemented")
-end
 
 local function GetCodePtRange()
     local startCodePtStr, endCodePtStr = codePtRangeStr:match("([^:]*):([^:]+)$")
@@ -94,10 +94,57 @@ local codePtRange = GetCodePtRange()
 
 ----------
 
+local function errprintfAndExit(fmt, ...)
+    io.stderr:write(("ERROR: "..fmt..'\n'):format(...))
+    os.exit(2)
+end
+
+local function checkOrExit(cond, fmt, ...)
+    if (not cond) then
+        errprintfAndExit(fmt, ...)
+    end
+end
+
+local function ReadFontMapDefaults(fontMapFileName)
+    local tab, msg = kb_layout_util.get_table(loadfile(fontMapFileName))
+    checkOrExit(tab ~= nil, "Failed reading %s as Lua table: %s\n",
+                    fontMapFileName, msg)
+
+    local function check(cond, fmt, ...)
+        checkOrExit(cond, "%s: "..fmt, fontMapFileName, ...)
+    end
+
+    local defaults = tab.defaults
+    check(type(defaults) == "table", ".defaults must be a table")
+
+    local defaultsCount = #defaults
+    for i = 1, defaultsCount do
+        check(type(defaults[i]) == "string",
+              ".defaults must be a contiguous sequence of strings")
+    end
+
+    -- NOTE: other named or integer fields of the table are reserved for future use.
+    --  (Such as actually mapping characters / character ranges to fonts.)
+    return defaults
+end
+
 -- TODO on demand: Extend as necessary, potentially with user-provided directories.
 local FontSearchPath = {
-    "/usr/share/fonts"
+    "/usr/share/fonts/truetype"
 }
+
+local function FindFontFile(fontName)
+    local fontFileName = FontSearchPath[1]..'/'..fontName
+
+    local f = io.open(fontFileName)
+    if (f == nil) then
+        errprintfAndExit("Font %s not found in font search path %s",
+                         fontName, FontSearchPath[1])
+    end
+
+    f:close()
+    return fontFileName
+end
 
 local function CreateFace(lib, fontFileName)
     return lib:face(fontFileName):setCharSize(nil, 120)
@@ -106,12 +153,17 @@ end
 local FontRenderer = class
 {
     function()
-        assert(not isFontMap)
-
         local lib = freetype.Library()
         local faces = {
             not isFontMap and CreateFace(lib, fontFileOrMapName) or nil
         }
+
+        if (isFontMap) then
+            local defaults = ReadFontMapDefaults(fontFileOrMapName)
+            for i = 1, #defaults do
+                faces[i] = CreateFace(lib, FindFontFile(defaults[i]))
+            end
+        end
 
         return {
            lib_ = lib,
@@ -120,7 +172,15 @@ local FontRenderer = class
     end,
 
     renderChar = function(self, ...)
-        return self.faces_[1]:renderChar(...)
+        for _, face in ipairs(self.faces_) do
+            local tileTab = face:renderChar(...)
+            if (tileTab ~= nil) then
+                return tileTab
+            end
+        end
+
+        -- No font was able to render the character.
+        return nil
     end,
 }
 
