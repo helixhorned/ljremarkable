@@ -4,6 +4,7 @@ local ffi = require("ffi")
 
 local io = require("io")
 local os = require("os")
+local table = require("table")
 
 local freetype = require("freetype")
 local build = require("build")
@@ -14,6 +15,7 @@ local parsecmdline = require("ljclang.parsecmdline_pk")
 local assert = assert
 local ipairs = ipairs
 local loadfile = loadfile
+local pairs = pairs
 local print = print
 local tonumber = tonumber
 local type = type
@@ -58,9 +60,6 @@ do
         usage(haveAnyOpt and "Must pass code point range or option -c" or nil)
     elseif (codePtRangeStr ~= nil and codePointsFileName ~= nil) then
         usage("Must pass either code point range or option -c, but not both")
-    elseif (codePointsFileName ~= nil) then
-        -- TODO:
-        usage("Option -c not yet implemented")
     elseif (not (opts.f and opts.o)) then
         usage(haveAnyOpt and "Must provide both -f and -o options" or nil)
     end
@@ -90,7 +89,7 @@ local function GetCodePtRange()
     return { startCodePt, endCodePt }
 end
 
-local codePtRange = GetCodePtRange()
+local codePtRange = (codePtRangeStr ~= nil) and GetCodePtRange() or nil
 
 ----------
 
@@ -104,6 +103,33 @@ local function checkOrExit(cond, fmt, ...)
         errprintfAndExit(fmt, ...)
     end
 end
+
+local function ReadCodePoints(codePtsFileName)
+    local tab, msg = kb_layout_util.get_table(loadfile(codePtsFileName))
+    checkOrExit(tab ~= nil, "Failed reading %s as Lua table: %s\n",
+                    codePtsFileName, msg)
+
+    local function check(cond, fmt, ...)
+        checkOrExit(cond, "%s: "..fmt, codePtsFileName, ...)
+    end
+
+    local codePoints = {}
+
+    for mnemonic, codePt in pairs(tab) do
+        check(type(mnemonic) == "string", "table keys must be strings")
+        local isNumber = (type(codePt) == "number")
+        check(isNumber or codePt == true,
+              "table values must be numbers or the boolean value true")
+        if (isNumber) then
+            codePoints[#codePoints + 1] = codePt
+        end
+    end
+
+    table.sort(codePoints)
+    return codePoints
+end
+
+local codePoints = (codePointsFileName ~= nil) and ReadCodePoints(codePointsFileName) or nil
 
 local function ReadFontMapDefaults(fontMapFileName)
     local tab, msg = kb_layout_util.get_table(loadfile(fontMapFileName))
@@ -215,7 +241,18 @@ local artTab = {
     }
 }
 
-for c = codePtRange[1], codePtRange[2] do
+local function iota(b, e)
+    local t = {}
+    for i = b, e do
+        t[i - b + 1] = i
+    end
+    return t
+end
+
+assert((codePoints ~= nil) ~= (codePtRange ~= nil))
+codePoints = codePoints or iota(codePtRange[1], codePtRange[2])
+
+for _, c in ipairs(codePoints) do
     -- NOTE: allow char 1 to render as 'not defined' / "[?]" glyph to have one instance of
     --  it somewhere.
     local tileTab = renderer:renderChar(c, {[1]=true})
