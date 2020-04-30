@@ -5,3 +5,6 @@
 	path = libremarkable
 	url = https://github.com/canselcik/libremarkable.git
 	shallow = true
+[submodule "moonglow"]
+	path = moonglow
+	url = https://github.com/helixhorned/moonglow
