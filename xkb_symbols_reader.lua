@@ -273,6 +273,13 @@ function api.as_lua(layout, quiet)
         return nil, msg
     end
 
+    -- Hard-code special characters.
+    -- TODO: allow customization and/or more general operations over the 'result' table.
+    assert(result[300] == nil and result[301] == nil and result[310] == nil)
+    result[300] = "U232B" -- ⌫ ERASE TO THE LEFT
+    result[301] = "U2326" -- ⌦ ERASE TO THE RIGHT
+    result[310] = "U2302" -- ⌂ HOUSE
+
     local strTab = {
         "#!/bin/false ljremarkable keyboard layout definition",
         "-- -*-lua-*-",
