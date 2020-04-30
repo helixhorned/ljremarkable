@@ -97,7 +97,8 @@ typedef enum  FT_Render_Mode_ {
 } FT_Render_Mode;
 
 @@ -w FunctionDecl -A -I/usr/include/freetype2 ./dev/freetype.h \
-    -p ^FT_Init_FreeType(.*)$ -p ^FT_New_Face(.*)$ -p ^FT_Set_Char_Size(.*)$ -p ^FT_Load_Char(.*)$ \
+    -p ^FT_Init_FreeType(.*)$ -p ^FT_New_Face(.*)$ -p ^FT_Set_Char_Size(.*)$ \
+    -p ^FT_Get_Char_Index(.*)$ -p ^FT_Load_Glyph(.*)$ \
     -p ^FT_Done_FreeType(.*)$ -p ^FT_Done_Face(.*)$ -p ^FT_Select_Charmap(.*)$ -p ^FT_Render_Glyph(.*)$
 ]]
 

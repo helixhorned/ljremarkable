@@ -7,6 +7,7 @@ local ft = ffi.load("freetype")
 local class = require("class").class
 local error_util = require("error_util")
 local checktype = error_util.checktype
+local check = error_util.check
 
 local assert = assert
 local error = error
@@ -79,13 +80,20 @@ local Face = class
         return self
     end,
 
-    renderChar = function(self, codePoint)
+    renderChar = function(self, codePoint, alsoUndefined)
         checktype(codePoint, 1, "number", 2)
+        check(alsoUndefined == nil or type(alsoUndefined) == "boolean",
+              "argument #2 must be nil or a boolean")
+
+        local charIdx = ft.FT_Get_Char_Index(self._face, codePoint)
+        if (not alsoUndefined and charIdx == 0) then
+            return nil
+        end
 
         -- NOTE: from FreeType's freetype.h:
         --  "If FT_Load_Glyph is called with default flags (...). [Since 2.9] The prospective
         --   bitmap metrics are calculated (...), even if FT_LOAD_RENDER is not set."
-        local err = ft.FT_Load_Char(self._face, codePoint, FT.LOAD_DEFAULT)
+        local err = ft.FT_Load_Glyph(self._face, charIdx, FT.LOAD_DEFAULT)
         if (err ~= 0) then
             error('FT_Load_Char() failed')
         end
