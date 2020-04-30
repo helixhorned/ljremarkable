@@ -82,12 +82,20 @@ local Face = class
     renderChar = function(self, codePoint)
         checktype(codePoint, 1, "number", 2)
 
-        local err = ft.FT_Load_Char(self._face, codePoint, FT.LOAD_RENDER)
+        -- NOTE: from FreeType's freetype.h:
+        --  "If FT_Load_Glyph is called with default flags (...). [Since 2.9] The prospective
+        --   bitmap metrics are calculated (...), even if FT_LOAD_RENDER is not set."
+        local err = ft.FT_Load_Char(self._face, codePoint, FT.LOAD_DEFAULT)
         if (err ~= 0) then
             error('FT_Load_Char() failed')
         end
 
         local slot = self._face.glyph
+        err = ft.FT_Render_Glyph(slot, FT.RENDER_MODE_NORMAL)
+        if (err ~= 0) then
+            error('FT_Render_Glyph() failed')
+        end
+
         assert(slot ~= nil)
         local bitmap = slot.bitmap
         assert(bitmap ~= nil)

@@ -91,20 +91,24 @@ typedef enum  FT_Encoding_ {
     -p ^FT_ENCODING_
 } FT_Encoding;
 
+typedef enum  FT_Render_Mode_ {
+@@ -w EnumConstantDecl -A -I/usr/include/freetype2 ./dev/freetype.h \
+    -p ^FT_RENDER_MODE_
+} FT_Render_Mode;
+
 @@ -w FunctionDecl -A -I/usr/include/freetype2 ./dev/freetype.h \
     -p ^FT_Init_FreeType(.*)$ -p ^FT_New_Face(.*)$ -p ^FT_Set_Char_Size(.*)$ -p ^FT_Load_Char(.*)$ \
-    -p ^FT_Done_FreeType(.*)$ -p ^FT_Done_Face(.*)$ -p ^FT_Select_Charmap(.*)$
+    -p ^FT_Done_FreeType(.*)$ -p ^FT_Done_Face(.*)$ -p ^FT_Select_Charmap(.*)$ -p ^FT_Render_Glyph(.*)$
 ]]
 
 assert(ffi.sizeof("FT_GlyphSlotRec") == 160)
 assert(ffi.sizeof("FT_FaceRec") == 132)
 
 return {
--- TODO: extract automatically.
 FT=ffi.new[[struct {
-static const int LOAD_RENDER = (1 << 2);
-
+@@ -w MacroDefinition -A -I/usr/include/freetype2 ./dev/freetype.h \
+    -C -p ^FT_LOAD_DEFAULT$ -s ^FT_
 @@ -w EnumConstantDecl -A -I/usr/include/freetype2 ./dev/freetype.h \
-    -C -p ^FT_PIXEL_MODE_ -s ^FT_
+    -C -p ^FT_PIXEL_MODE_GRAY$ -p ^FT_RENDER_MODE_NORMAL$ -s ^FT_
 }]],
 }
