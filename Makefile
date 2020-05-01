@@ -218,10 +218,10 @@ PALETTE.DAT: ./dev/mkpalette.lua
 	$< $@
 
 # Not debugging, but here because the invocation is the same as for TILES000.ART
-layouts/.charpics: ./mkcharpics.lua ./layouts/.fontmap ./layouts/.codepoints
+layouts/.charpics: ./charpics.lua ./mkcharpics.lua ./layouts/.fontmap ./layouts/.codepoints
 	./mkcharpics.lua -f ./layouts/.fontmap -c ./layouts/.codepoints -o $@
 
-TILES000.ART: ./mkcharpics.lua ./layouts/.fontmap ./layouts/.codepoints
+TILES000.ART: ./charpics.lua ./mkcharpics.lua ./layouts/.fontmap ./layouts/.codepoints
 	./mkcharpics.lua -f ./layouts/.fontmap -c ./layouts/.codepoints -o $@
 
 SHOW_TILES_ENV := LUA_PATH=";;ljclang/?.lua;./moonglow/?.lua"
