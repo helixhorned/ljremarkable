@@ -101,8 +101,8 @@ verify that it is still possible to log in as `root` and as the new user.
 ### Putting it together
 
 For connecting the Pi to the rM, a USB cable can be used initially. Experimental evidence
-suggests better chance of working with thicker, shorter cables. On my Pi4 (but not the Pi3),
-using the cable shipped with the rM fails, with Linux reporting in `dmesg`:
+suggests better chance of working with thicker, shorter cables. On my Pi 4 (but not the Pi
+3), using the cable shipped with the rM fails, with Linux reporting in `dmesg`:
 
     usb 1-1-port1: Cannot enable. Maybe the USB cable is bad?
 
