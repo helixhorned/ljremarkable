@@ -23,6 +23,7 @@ local table = require("table")
 local art_table = require("art_table")
 
 local assert = assert
+local error = error
 local ipairs = ipairs
 local pairs = pairs
 local type = type
@@ -58,6 +59,8 @@ local Bits = {
 }
 
 assert(Bits.IsMaxCov > MAXPIXVAL)
+
+local ValidateOnWrite = true
 
 local Header_t = ffi.typeof[[struct {
     char magic[7];
@@ -197,6 +200,63 @@ local function Encode(data, width, height)
     return comprData, comprSize
 end
 
+local function ReplaySpec(spec, ptr, remainingLen)
+    assert(remainingLen >= 1)
+
+    if (bit.band(spec, Bits.IsRLE) == 0) then
+        ptr[0] = spec
+        return 1
+    end
+
+    local length = bit.band(spec, MAXRUNLEN)
+    local value = (bit.band(spec, Bits.IsMaxCov) ~= 0) and MAXPIXVAL or 0
+    assert(length <= remainingLen)
+
+    for i = 0, length - 1 do
+        ptr[i] = value
+    end
+
+    return length
+end
+
+-- NOTE: does not fill 'dstPtr'. The caller prepares it as it likes.
+-- TODO: pass back errors due to improper input data instead of asserting.
+local function Decode(srcPtr, srcLen, width, height, dstPtr)
+    assert(type(srcPtr) == "cdata" and type(dstPtr) == "cdata")
+    assert(srcLen > 0)
+    assert(width > 0 and height > 0)
+
+    local srcEnd = srcPtr + srcLen
+
+    for row = 0, height - 1 do
+        assert(srcEnd - srcPtr >= 2)
+        local offset, specCount = srcPtr[0], srcPtr[1]
+        assert((offset == width) == (specCount == 0))
+
+        srcPtr = srcPtr + 2
+        assert(srcEnd - srcPtr >= specCount)
+
+        local remainingLen = width - offset
+        local dstPtrOffset = offset
+
+        for s = 0, specCount - 1 do
+            local step = ReplaySpec(srcPtr[s], dstPtr + dstPtrOffset, remainingLen)
+            assert(step <= remainingLen)
+            dstPtrOffset = dstPtrOffset + step
+            remainingLen = remainingLen - step
+        end
+
+        -- NOTE: may have pixels left over at the right border (which were omitted from
+        --  being encoded in the first place because they had value 0).
+        assert(remainingLen >= 0)
+
+        srcPtr = srcPtr + specCount
+        dstPtr = dstPtr + width
+    end
+
+    assert(srcPtr == srcEnd)
+end
+
 -- 'artTab': [codePt] = { w=<width>, h=<height>, data=<cdata> }
 function api.write(fileName, artTab)
     assert(type(fileName) == "string", "argument #1 must be a string")
@@ -243,9 +303,24 @@ function api.write(fileName, artTab)
         local descRef = entryDescs[i - 1]
         local tileTab = artTab[codePoints[i]]
         local w, h = tileTab.w, tileTab.h
-
         descRef.w, descRef.h = w, h
-        comprEntries[i], descRef.comprSize = Encode(tileTab.data, w, h)
+
+        local comprEntry, comprSize = Encode(tileTab.data, w, h)
+        comprEntries[i], descRef.comprSize = comprEntry, comprSize
+
+        if (ValidateOnWrite) then
+            local size = w * h
+            local tempBuf = uint8_array_t(size)
+            Decode(comprEntry, comprSize, w, h, tempBuf)
+
+            for k = 0, size - 1 do
+                local pix, ref = tempBuf[k], tileTab.data[k]
+                if (pix ~= ShiftPixel(ref)) then
+                    local fmt = "RLE validation: codept %d, pix offset %d (w=%d); ref=%d>>%d but pix=%d"
+                    error(("INTERNAL: "..fmt):format(codePoints[i], k, w, ref, PIXSHIFT, pix))
+                end
+            end
+        end
     end
 
     write(entryDescs)
