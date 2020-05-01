@@ -8,7 +8,7 @@ Table of Contents
 **[Introduction](#introduction)**\
 **[Requirements](#requirements)**\
 **[Preliminary setup](#preliminary-setup)**\
-**[Building](#building)**\
+**[Installation](#installation)**\
 **[Running](#running)**\
 **[Using](#using)**\
 **[Details and troubleshooting](#details-and-troubleshooting)**\
@@ -32,7 +32,7 @@ Requirements
 
 * reMarkable 1 tablet
 * Raspberry Pi 4 running 32-bit [Raspbian]<sup>**[1]**</sup>
-* LuaJIT 2.1 [built](https://luajit.org/install.html) for the Pi and for the rM
+* [LuaJIT] 2.1
 
 <sup>**[1]**</sup> <small>Pi 3 might work and was used originally, but has not since been
 tested. Some aspects of the setup are simpler on the Pi 3 though. Likewise, other
@@ -120,19 +120,14 @@ A successful wired link looks like this in `dmesg`:
 For the best experience, it makes sense to set up the Raspberry Pi as a wireless access
 point.
 
-Building
---------
+Installation
+------------
 
-### Building LuaJIT
+### LuaJIT
 
-The only software that needs to be built in the classical sense is
-[LuaJIT](https://luajit.org/install.html). The application is implemented entirely in Lua
-with heavy usage of LuaJIT's FFI. It seems reasonable to match the compiler flags with those
-used in the [reMarkable SDK](https://remarkable.engineering/deploy/sdk/) and so build two
-versions: one targeting the Pi and one for the rM. The rM build of LuaJIT would just need
-the following in `src/Makefile`, replacing the line reading "`CCOPT_arm=`":
+The application is implemented entirely in Lua with heavy usage of LuaJIT's FFI.
 
-    CCOPT_arm= -mfpu=neon -mfloat-abi=hard -mcpu=cortex-a9
+It is possible to use the binary from the Raspbian `luajit` APT package on the reMarkable.
 
 #### Comparison of `/proc/cpuinfo`
 
@@ -152,14 +147,14 @@ On the Pi, `lscpu` gives:
     Model:               3
     Model name:          Cortex-A72
 
-### Building the application
+### Packaging the application
 
 [musl]: https://musl.libc.org/
 [Alpine Linux]: https://alpinelinux.org/
 [Alpine Docker image]: https://hub.docker.com/_/alpine
 
-The final application is bundled into a single file `grabscreen.app.lua` obtained with `make
-app`.
+The final application is bundled into a single file `grabscreen.app.lua`, obtained by
+invoking `make app`.
 
 > **TODO**: document prerequisites.
 
@@ -167,11 +162,12 @@ For the time being, please refer to the [`Dockerfile`](./Dockerfile). Since it d
 environment under the [musl]-based [Alpine Linux] distribution (using an official [Alpine
 Docker image]), slight adjustments are made relative to a build under Raspbian.
 
-### Installation
+### Placing files
 
 - On the Pi: `make install`, which places the generated `grabscreen.app.lua` and the helper
   script `pi-rM-control.sh` into `$HOME/bin` by default.
-- To the reMarkable: `make upload`.
+- To the reMarkable: `make upload`. Besides the unity app file, this will also copy the
+  necessary resources, currently only `rM_ul_eye_menu_hidden_46-28.dat`.
 
 Several variables such as the rM user and host name are configurable in
 [`config.make`](config.make).
