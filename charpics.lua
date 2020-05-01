@@ -21,6 +21,8 @@ local math = require("math")
 local table = require("table")
 
 local art_table = require("art_table")
+local class = require("class").class
+local posix = require("posix")
 
 local assert = assert
 local error = error
@@ -76,8 +78,10 @@ assert(code_point_t(-MAXCHARCODE) == -MAXCHARCODE)
 assert(code_point_t(MAXCHARCODE) == MAXCHARCODE)
 
 local code_point_array_t = ffi.typeof("$ [?]", code_point_t)
+local code_point_ptr_t = ffi.typeof("const $ *", code_point_t)
 local uint8_t = ffi.typeof("uint8_t")
 local uint8_array_t = ffi.typeof("$ [?]", uint8_t)
+local uint8_ptr_t = ffi.typeof("const $ *", uint8_t)
 
 local EntryDesc_t = ffi.typeof[[struct {
     uint8_t w;
@@ -86,6 +90,7 @@ local EntryDesc_t = ffi.typeof[[struct {
 }]]
 
 local EntryDesc_array_t = ffi.typeof("$ [?]", EntryDesc_t)
+local EntryDesc_ptr_t = ffi.typeof("const $ *", EntryDesc_t)
 
 local function FindFirstNonZero(ptr, len)
     for i = 0, len - 1 do
@@ -258,6 +263,165 @@ local function Decode(srcPtr, srcLen, width, height, dstPtr)
     end
 
     assert(srcPtr == srcEnd)
+end
+
+local MagicSize = #MAGIC
+local HeaderSize = ffi.sizeof(Header_t)
+local Header_ptr_t = ffi.typeof("const $ *", Header_t)
+
+local CharPicsFile = class
+{
+    function(memMapPtr, memMapSize)
+        assert(memMapPtr ~= nil)
+        local maxBound = memMapSize - MagicSize
+        local uMemMapPtr = ffi.cast(uint8_ptr_t, memMapPtr)
+
+        local header = ffi.cast(Header_ptr_t, memMapPtr)
+        local entryCount = header.entryCount
+
+        local function byteIncremented(ptrCType, ptr, inc)
+            local uptr = ffi.cast(uint8_ptr_t, ptr) + inc
+            return ffi.cast(ptrCType, uptr), uptr - uMemMapPtr
+        end
+
+        -- TODO: instead of data-dependent asserts, pass back errors.
+
+        local function incremented(resultCType, ptr, elementCType)
+            local inc = entryCount
+            local uptr = ffi.cast(uint8_ptr_t, ptr)
+            local offset = uptr - uMemMapPtr
+
+            local byteInc = ffi.sizeof(elementCType) * inc
+            local newOffset = offset + byteInc
+
+            assert(newOffset < maxBound)
+            return ffi.cast(resultCType, uMemMapPtr + newOffset), newOffset
+        end
+
+        local codePoints = byteIncremented(code_point_ptr_t, memMapPtr, HeaderSize)
+        local entryDescs = incremented(EntryDesc_ptr_t, codePoints, code_point_t)
+        local comprData, startOffset = incremented(uint8_ptr_t, entryDescs, EntryDesc_t)
+
+        local comprDataPtrs = {}  -- code point -> pointer into this memory map: compressed tile
+        local entryDescRefs = {}  -- code point -> reference into this memory map: entry description
+        local currentOffset = startOffset
+
+        for i = 0, entryCount-1 do
+            local desc = entryDescs[i]
+            local comprSize = desc.comprSize
+            assert(desc.w > 0 and desc.h > 0 and comprSize > 0)
+            assert(desc.w <= MAXSIDELEN and desc.h <= MAXSIDELEN)
+
+            assert(currentOffset + comprSize <= maxBound)
+            assert((currentOffset + comprSize < maxBound) == (i ~= entryCount - 1))
+
+            local codePt = codePoints[i]
+            assert(codePt >= -MAXCHARCODE and codePt <= MAXCHARCODE)
+            comprDataPtrs[codePt] = ffi.cast(uint8_ptr_t, uMemMapPtr + currentOffset)
+            entryDescRefs[codePt] = desc
+
+            currentOffset = currentOffset + comprSize
+        end
+
+        assert(ffi.string(uMemMapPtr + currentOffset, MagicSize) == MAGIC)
+
+        return {
+            -- Must be held on to prevent GC -> munmap:
+            ptr_ = memMapPtr,
+
+            comprDataPtrs = comprDataPtrs,
+            entryDescRefs = entryDescRefs,
+        }
+    end,
+
+    descAndData = function(self, codePoint)
+        assert(type(codePoint) == "number", "argument #1 must be a number")
+
+        local entryDescRef = self.entryDescRefs[codePoint]
+        if (entryDescRef == nil) then
+            return nil
+        end
+
+        local comprDataPtr = self.comprDataPtrs[codePoint]
+        assert(comprDataPtr ~= nil)
+
+        return entryDescRef, comprDataPtr
+    end,
+}
+
+local function GetMemoryMappedPtr(fileName, fileSize)
+    local MAP, PROT = posix.MAP, posix.PROT
+
+    local fd = ffi.C.open(fileName, posix.O.RDONLY)
+    if (fd == -1) then
+        return nil, "failed opening file: "..posix.getErrnoString()
+    end
+
+    local ptr = posix.mmap(nil, fileSize, PROT.READ, MAP.PRIVATE, fd, 0)
+    ffi.C.close(fd)
+    return ptr
+end
+
+function api.load(fileName)
+    assert(type(fileName) == "string", "argument #1 must be a string")
+
+    local f, msg = io.open(fileName)
+    if (f == nil) then
+        return nil, msg
+    end
+
+    local function failure(msg)
+        f:close()
+        return nil, msg
+    end
+
+    --== Read the header
+
+    local headerStr = f:read(HeaderSize)
+    if (headerStr == nil or #headerStr ~= HeaderSize) then
+        return failure("failed reading header or it is too short")
+    end
+
+    local header = Header_t()
+    ffi.copy(header, headerStr, HeaderSize)
+
+    --== Check the header
+
+    if (ffi.string(header.magic, MagicSize) ~= MAGIC) then
+        return failure("leading magic marker does not match")
+    elseif (header.version ~= VERSION) then
+        return failure("version does not match")
+    elseif (header.fileSize < HeaderSize + MagicSize) then
+        -- TODO on demand: be even stricter. We could.
+        return failure("file size in file is too small")
+    end
+
+    local offset = f:seek("end", -MagicSize)
+    if (offset == nil) then
+        -- The Lua docs do not document a failure case, but check regardless.
+        -- (What if the file happened to be a pipe?)
+        return failure("failed seeking to the end")
+    elseif (offset ~= header.fileSize - MagicSize) then
+        return failure("file size in file does not match actual one")
+    end
+
+    local tailMagic = f:read(MagicSize)
+    if (tailMagic == nil) then
+        return failure("failed reading trailing magic marker")
+    elseif (ffi.string(tailMagic, MagicSize) ~= MAGIC) then
+        return failure("trailing magic marker does not match")
+    end
+
+    --== All OK so far, let the class take over.
+
+    f:close()
+
+    local ptr = GetMemoryMappedPtr(fileName, header.fileSize)
+    if (ptr == nil) then
+        return failure("failed memory mapping file")
+    end
+
+    return CharPicsFile(ptr, header.fileSize)
 end
 
 -- 'artTab': [codePt] = { w=<width>, h=<height>, data=<cdata> }
