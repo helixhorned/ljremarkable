@@ -289,6 +289,12 @@ only once in a while.
 > Currently, it is possible that a tap on a point in the view will issue a mouse click on
 > a portion that has changed in the time since the tap.
 
+#### Other
+
+* It is explicitly a feature to be able to unplug the keyboard from the Pi, even if the
+  application is watching keyboard input (because it was started with group `input`
+  permissions present).
+
 Details and troubleshooting
 ---------------------------
 
