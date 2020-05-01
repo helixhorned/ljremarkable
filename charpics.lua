@@ -261,6 +261,7 @@ local function Decode(srcPtr, srcLen, width, height, dstPtr)
 end
 
 -- 'artTab': [codePt] = { w=<width>, h=<height>, data=<cdata> }
+-- Returns: sequence table with indexes into 'artTab' with overlarge dimensions.
 function api.write(fileName, artTab)
     assert(type(fileName) == "string", "argument #1 must be a string")
     assert(type(artTab) == "table", "argument #2 must be a table")
@@ -273,10 +274,13 @@ function api.write(fileName, artTab)
     end
 
     local codePoints = {}
+    local droppedCodePoints = {}
+
     for codePt, tileTab in pairs(artTab) do
         local sx, sy = tileTab.w, tileTab.h
-        assert(sx <= MAXSIDELEN and sy <= MAXSIDELEN, "Tile dimensions out of range")
-        codePoints[#codePoints + 1] = codePt
+        local tabRef = (sx <= MAXSIDELEN and sy <= MAXSIDELEN) and codePoints
+            or droppedCodePoints
+        tabRef[#tabRef + 1] = codePt
     end
     table.sort(codePoints)
 
@@ -352,6 +356,8 @@ function api.write(fileName, artTab)
     write(header)
 
     f:close()
+
+    return droppedCodePoints
 end
 
 -- Done!

@@ -253,17 +253,39 @@ end
 assert((codePoints ~= nil) ~= (codePtRange ~= nil))
 codePoints = codePoints or iota(codePtRange[1], codePtRange[2])
 
+local missingCount = 0
+
 for _, c in ipairs(codePoints) do
     -- NOTE: allow char 1 to render as 'not defined' / "[?]" glyph to have one instance of
     --  it somewhere.
     local tileTab = renderer:renderChar(c, {[1]=true})
     if (tileTab ~= nil) then
         artTab[c] = isART and convertForBUILD(tileTab) or tileTab
+    else
+        missingCount = missingCount + 1
     end
 end
 
 if (isART) then
     build.writeart(outFileName, artTab)
+    -- When writing to ART, there is exploration / debugging intent,
+    -- so signal error only if there was no character rendered at all.
+    os.exit(missingCount == #codePoints and 1 or 0)
 else
-    charpics.write(outFileName, artTab)
+    -- When writing to .charpics, signal success only if all characters end up in the file.
+    local droppedCodePoints = charpics.write(outFileName, artTab)
+    local exitCode =
+        (missingCount > 0 and 1 or 0) +
+        (#droppedCodePoints > 0 and 2 or 0)
+
+    if (missingCount) then
+        io.stderr:write(("WARNING: Failed rendering %d out of %d characters.\n")
+                :format(missingCount, #codePoints))
+    end
+    if (#droppedCodePoints > 0) then
+        io.stderr:write(("WARNING: Failed packing %d out of %d character tiles.\n")
+                :format(#droppedCodePoints, #codePoints - missingCount))
+    end
+
+    os.exit(exitCode)
 end
