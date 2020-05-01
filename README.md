@@ -295,6 +295,9 @@ only once in a while.
   application is watching keyboard input (because it was started with group `input`
   permissions present).
 
+* Unintentional but maybe useful: when starting to erase any portion of the screen using the
+  menu eraser tool, the whole rendering of the Pi screen is cleared.
+
 Details and troubleshooting
 ---------------------------
 
