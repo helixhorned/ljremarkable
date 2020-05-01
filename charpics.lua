@@ -209,11 +209,14 @@ local function ReplaySpec(spec, ptr, remainingLen)
     end
 
     local length = bit.band(spec, MAXRUNLEN)
-    local value = (bit.band(spec, Bits.IsMaxCov) ~= 0) and MAXPIXVAL or 0
     assert(length <= remainingLen)
 
-    for i = 0, length - 1 do
-        ptr[i] = value
+    -- Only write non-zero pixels.
+    -- TODO on demand: blending.
+    if (bit.band(spec, Bits.IsMaxCov) ~= 0) then
+        for i = 0, length - 1 do
+            ptr[i] = MAXPIXVAL
+        end
     end
 
     return length
