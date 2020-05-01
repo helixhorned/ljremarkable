@@ -214,17 +214,18 @@ upload-debugging-setup: _setup_rM-app.lua
 	scp $^ "$(LJREMARKABLE_TABLET_USER)@$(LJREMARKABLE_TABLET_HOST):"
 
 ## Visual exploration / debugging
+
+VIS_ENV := LUA_PATH=";;ljclang/?.lua;./moonglow/?.lua"
+
 PALETTE.DAT: ./dev/mkpalette.lua
 	$< $@
 
 # Not debugging, but here because the invocation is the same as for TILES000.ART
 layouts/.charpics: ./charpics.lua ./mkcharpics.lua ./layouts/.fontmap ./layouts/.codepoints
-	./mkcharpics.lua -f ./layouts/.fontmap -c ./layouts/.codepoints -o $@
+	$(VIS_ENV) ./mkcharpics.lua -f ./layouts/.fontmap -c ./layouts/.codepoints -o $@
 
 TILES000.ART: ./charpics.lua ./mkcharpics.lua ./layouts/.fontmap ./layouts/.codepoints
-	./mkcharpics.lua -f ./layouts/.fontmap -c ./layouts/.codepoints -o $@
-
-SHOW_TILES_ENV := LUA_PATH=";;ljclang/?.lua;./moonglow/?.lua"
+	$(VIS_ENV) ./mkcharpics.lua -f ./layouts/.fontmap -c ./layouts/.codepoints -o $@
 
 showtiles: TILES000.ART PALETTE.DAT moonglow_deps ./moonglow/lunart.lua
-	@$(SHOW_TILES_ENV) ./moonglow/lunart.lua $<
+	@$(VIS_ENV) $(SHOW_TILES_ENV) ./moonglow/lunart.lua $<
