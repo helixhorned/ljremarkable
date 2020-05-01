@@ -274,20 +274,24 @@ biased towards *sending* data.\
 
 ### Miscellaneous features
 
-* Frame rate limiting. Since frequent updates of the same rM screen portion lead to
-  artifacts that hinder enjoyment of a video displayed there, a heuristic is implemented to
-  detect areas with fast-changing content and send updates in them only once in a
-  while. This heuristic is based on sequence numbers as opposed to time stamps.
+#### Frame rate limiting
+
+Under several update modes of the reMarkable screen, including the one currently used in the
+application, changing the value of a pixel to or from a gray may transition via one of the
+two extreme colors, leading to a visible "flash". This makes many videos appear garbled as
+pixels spend most of the time in that indirect transition stage. For this reason, a
+heuristic is implemented to detect areas with fast-changing content and send updates in them
+only once in a while.
   
-  > **Note**: This feature works best on videos in which the the whole image changes every
-  > frame, for example because the camera is moving. It does not work as well with videos
-  > where there is a static background.
-  >
-  > **CAUTION**: It is important to keep in mind that the image displayed on the rM is
-  > always somewhat behind what would be displayed on a monitor, even without this
-  > feature. (This is even more compounded by latency incurred by connecting wirelessly.)
-  > Currently, it is possible that a tap on a point in the view will issue a mouse click on
-  > a portion that has changed in the time since the tap.
+> **Note**: This feature works best on videos in which the the whole image changes every
+> frame, for example because the camera is moving. It does not work as well with videos
+> where there is a static background.
+>
+> **CAUTION**: It is important to keep in mind that the image displayed on the rM is
+> always somewhat behind what would be displayed on a monitor, even without this
+> feature. (This is even more compounded by latency incurred by connecting wirelessly.)
+> Currently, it is possible that a tap on a point in the view will issue a mouse click on
+> a portion that has changed in the time since the tap.
 
 Details and troubleshooting
 ---------------------------
