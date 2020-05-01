@@ -8,6 +8,7 @@ local table = require("table")
 
 local freetype = require("freetype")
 local build = require("build")
+local charpics = require("charpics")
 local class = require("class").class
 local kb_layout_util = require("kb_layout_util")
 local parsecmdline = require("ljclang.parsecmdline_pk")
@@ -68,9 +69,9 @@ end
 local fontFileOrMapName = opts.f
 local outFileName = opts.o
 
-if (not outFileName:match("%.ART$")) then
-    -- TODO: .charpics
-    usage("Output file name must end in '.ART'")
+local isART = outFileName:match("%.ART$")
+if (not (isART or outFileName:match("%.charpics"))) then
+    usage("Output file name must end in '.ART' or '.charpics'")
 end
 
 local isFontMap = fontFileOrMapName:match("%.fontmap")
@@ -257,9 +258,12 @@ for _, c in ipairs(codePoints) do
     --  it somewhere.
     local tileTab = renderer:renderChar(c, {[1]=true})
     if (tileTab ~= nil) then
-        -- TODO: keep this only for debugging.
-        artTab[c] = convertForBUILD(tileTab)
+        artTab[c] = isART and convertForBUILD(tileTab) or tileTab
     end
 end
 
-build.writeart(outFileName, artTab)
+if (isART) then
+    build.writeart(outFileName, artTab)
+else
+    charpics.write(outFileName, artTab)
+end

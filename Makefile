@@ -213,9 +213,13 @@ upload: grabscreen.app.lua rM_ul_eye_menu_hidden_46-28.dat
 upload-debugging-setup: _setup_rM-app.lua
 	scp $^ "$(LJREMARKABLE_TABLET_USER)@$(LJREMARKABLE_TABLET_HOST):"
 
-## Visual debugging
+## Visual exploration / debugging
 PALETTE.DAT: ./dev/mkpalette.lua
 	$< $@
+
+# Not debugging, but here because the invocation is the same as for TILES000.ART
+layouts/.charpics: ./mkcharpics.lua ./layouts/.fontmap ./layouts/.codepoints
+	./mkcharpics.lua -f ./layouts/.fontmap -c ./layouts/.codepoints -o $@
 
 TILES000.ART: ./mkcharpics.lua ./layouts/.fontmap ./layouts/.codepoints
 	./mkcharpics.lua -f ./layouts/.fontmap -c ./layouts/.codepoints -o $@
