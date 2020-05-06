@@ -2,6 +2,7 @@
 # User configuration
 include config.make
 
+layouts := $(fixed_layouts)
 layouts += $(LJREMARKABLE_LAYOUTS)
 
 ########## PROGRAMS ##########
@@ -16,7 +17,7 @@ extractdecls := $(shell which $(EXTRACTDECLS))
 ########## RULES ##########
 
 .PHONY: all app check_extractdecls clean decls doc upload veryclean ljclang_deps ljclang_clean ljclang_veryclean
-.PHONY: docker-build docker-run layouts codepoints moonglow_deps moonglow_clean showtiles
+.PHONY: docker-build docker-run layouts codepoints moonglow_deps moonglow_clean committed-generated showtiles
 
 linux_decls_lua := linux_decls.lua
 linux_decls_lua_tmp := $(linux_decls_lua).tmp
@@ -25,6 +26,11 @@ remarkable_decls_lua_tmp := $(remarkable_decls_lua).tmp
 freetype_decls_lua := freetype_decls.lua
 freetype_decls_lua_tmp := $(freetype_decls_lua).tmp
 app_name := grabscreen.app.lua
+
+fixedLayoutFiles := $(fixed_layouts:%=./layouts/%)
+layoutFiles := $(layouts:%=./layouts/%)
+
+committed_generated_files := $(fixedLayoutFiles) $(linux_decls_lua) $(remarkable_decls_lua)
 
 all: decls
 
@@ -39,6 +45,8 @@ clean: ljclang_clean moonglow_clean
 		$(linux_decls_lua) $(linux_decls_lua_tmp) \
 		grabscreen.app.lua _setup_rM-app.lua
 
+committed-generated: $(committed_generated_files)
+
 install: app
 	install $(app_name) $(BINDIR)/$(app_name)
 	install pi-rM-control.sh $(BINDIR)/pi-rM-control.sh
@@ -46,7 +54,6 @@ install: app
 veryclean: clean ljclang_veryclean
 	$(RM) $(remarkable_decls_lua).reject $(linux_decls_lua).reject layouts/??.* layouts/.codepoints
 
-layoutFiles := $(layouts:%=./layouts/%)
 layouts/%: mklayout.lua xkb_symbols_reader.lua
 	@./mklayout.lua -q $@
 layouts: $(layoutFiles)

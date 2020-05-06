@@ -7,8 +7,8 @@ BINDIR ?= $(HOME)/bin
 #  Destination: ./layouts/??.<sub-layout>
 # See ./mklayout.lua
 
-# Fixed ones.
-layouts := us.basic us.intl
+# Fixed ones, committed to the repo.
+fixed_layouts := us.basic us.intl
 # User-defined.
 LJREMARKABLE_LAYOUTS ?=
 ##########
