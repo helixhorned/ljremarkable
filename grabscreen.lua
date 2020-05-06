@@ -1185,6 +1185,7 @@ local RectSet = class
 --== All times in milliseconds.
 local Duration = {
     MaxLeftClick = 500,
+    MaxRightClick = 2000,
     -- Time that an initial tap must be held to commence generic (as opposed to
     -- vertical-only) dragging:
     GenericDragTapWait = 500,
@@ -1434,8 +1435,10 @@ local InputState = class
         if (eventCount ~= 1) then
             self:reset()
         elseif (self.ourEventType == OurEventType.SingleClick) then
-            local isAlternative = self:timedOut(Duration.MaxLeftClick)
-            self.ourData.button = isAlternative and Button.Right or Button.Left
+            self.ourData.button =
+                self:timedOut(Duration.MaxRightClick) and Button.Middle or
+                self:timedOut(Duration.MaxLeftClick) and Button.Right or
+                Button.Left
             self.stage = Stage.Finished
         elseif (self.ourEventType == OurEventType.Drag) then
             if (self.isShutdownGesture) then

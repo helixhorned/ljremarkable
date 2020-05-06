@@ -225,12 +225,13 @@ because it initiates the connection to the waiting *server* on the rM.**<sup>[3]
 screen portion of the rM display that contains the visible portion of the Pi desktop will
 here be called *view* for brevity.
 
-* Tap on a point on the view: single mouse click. If held for more than a threshold
-  duration,**<sup>[4]</sup>** a right click is issued instead of a left click.
+* Tap on a point on the view: single mouse click. If held for more than a short threshold
+  duration,**<sup>[4]</sup>** a right click is issued instead of a left click. Holding even
+  longer (currently, for at least two seconds) produces a middle click.
 
 * Drag with a single finger starting on the Pi screen portion:
 
-  - When the finger rests on the initial tap position less than a threshold
+  - When the finger rests on the initial tap position less than a short threshold
     time before moving,**<sup>[4]</sup>** only vertical swipes are allowed, within some
     tolerance. On the Pi, a number of mouse wheel events proportional to the length of the
     trail of the finger are injected. The final position may be off the view.  Before the
