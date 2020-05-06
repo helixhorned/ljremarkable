@@ -46,6 +46,8 @@ clean: ljclang_clean moonglow_clean
 		grabscreen.app.lua _setup_rM-app.lua
 
 committed-generated: $(committed_generated_files)
+	$(MAKE) -C ljclang committed-generated
+	$(MAKE) -C moonglow committed-generated
 
 install: app
 	install $(app_name) $(BINDIR)/$(app_name)
