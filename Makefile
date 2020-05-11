@@ -5,6 +5,10 @@ include config.make
 layouts := $(fixed_layouts)
 layouts += $(LJREMARKABLE_LAYOUTS)
 
+last_release := v0.9.0
+# Obtained using: git checkout <version-tag>; git ls-files -s <file>
+last_release_app_blob := 999defb07
+
 ########## PROGRAMS ##########
 
 markdown := $(shell which $(MARKDOWN))
@@ -18,6 +22,7 @@ extractdecls := $(shell which $(EXTRACTDECLS))
 
 .PHONY: all app check_extractdecls clean decls doc upload veryclean ljclang_deps ljclang_clean ljclang_veryclean
 .PHONY: docker-build docker-run layouts codepoints moonglow_deps moonglow_clean committed-generated showtiles
+.PHONY: checkout-last-release install-last-release
 
 linux_decls_lua := linux_decls.lua
 linux_decls_lua_tmp := $(linux_decls_lua).tmp
@@ -52,6 +57,15 @@ committed-generated: $(committed_generated_files)
 install: app
 	install $(app_name) $(BINDIR)/$(app_name)
 	install pi-rM-control.sh $(BINDIR)/pi-rM-control.sh
+
+# NOTE: use 'cat-file' and not 'checkout' so as not to add the file to the Git staging area.
+checkout-last-release:
+	git cat-file blob $(last_release_app_blob) > $(app_name)
+	touch --date=`git for-each-ref --format='%(creatordate:iso-strict)' refs/tags/$(last_release)` $(app_name)
+
+# TODO: upload-last-release?
+install-last-release: checkout-last-release
+	@$(MAKE) --assume-old=$(app_name) install
 
 veryclean: clean ljclang_veryclean
 	$(RM) $(remarkable_decls_lua).reject $(linux_decls_lua).reject layouts/??.* layouts/.codepoints
