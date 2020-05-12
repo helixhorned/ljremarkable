@@ -1124,8 +1124,7 @@ end
 local RM = isRealServer and require("remarkable") or nil
 local xywh_t = RM and RM.xywh or nil
 
--- TODO: rename
-local RectSet = class
+local UpdateRectManager = class
 {
     function()
         return {
@@ -1628,7 +1627,7 @@ Server = class
                   "too many updated tiles")
 
         local yTileOffset = DestYPixelOffset / BigSideLen
-        local updateRectSet = RectSet()
+        local updateRectMgr = UpdateRectManager()
 
         for i = 0, tileCount - 1 do
             local tx, ty = tileCoords[i].x, tileCoords[i].y
@@ -1639,7 +1638,7 @@ Server = class
             if (ty < destTileCountY) then
                 local rect = xywh_t(BigSideLen * tx, BigSideLen * (ty),
                                     BigSideLen, BigSideLen)
-                updateRectSet:add(rect)
+                updateRectMgr:add(rect)
 
                 -- Write updated tile to the framebuffer.
                 map:writeRect(rect.x, rect.y, rect.w, rect.h, tileBuf + BigSquareSize * i)
@@ -1647,7 +1646,7 @@ Server = class
         end
 
         assert(tileCount >= 1)
-        local updateRects = updateRectSet:getRects()
+        local updateRects = updateRectMgr:getRects()
 
         -- Request update of the changed screen portions.
         for i, rect in ipairs(updateRects) do
