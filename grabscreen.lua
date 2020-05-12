@@ -1124,61 +1124,32 @@ end
 local RM = isRealServer and require("remarkable") or nil
 local xywh_t = RM and RM.xywh or nil
 
+-- TODO: rename
 local RectSet = class
 {
     function()
         return {
-            rects = {}
+            x1 = math.huge,
+            y1 = math.huge,
+            x2 = -math.huge,
+            y2 = -math.huge,
         }
     end,
 
     add = function(self, rect)
         assert(ffi.istype(xywh_t, rect))
 
-        local rects = self.rects
-        rects[#rects + 1] = self.MergeHorizontally(rects[#rects], rect)
-    end,
-
-    finish = function(self)
-        local oldRects = self.rects
-        local newRects = {}
-
-        for _, rect in ipairs(oldRects) do
-            newRects[#newRects + 1] = self.MergeVertically(newRects[#newRects], rect)
-        end
-
-        self.rects = newRects
+        self.x1 = math.min(self.x1, rect.x)
+        self.y1 = math.min(self.y1, rect.y)
+        self.x2 = math.max(self.x2, rect.x + rect.w)
+        self.y2 = math.max(self.y2, rect.y + rect.h)
     end,
 
     getRects = function(self)
-        return self.rects
-    end,
-
--- static private:
-    MergeHorizontally = function(lastRect, rect)
-        if (lastRect ~= nil) then
-            if (lastRect.y == rect.y and lastRect.h == rect.h and
-                    rect.x == lastRect.x + lastRect.w) then
-                -- Merge last update rect with incoming adjacent (next right) one.
-                lastRect.w = lastRect.w + rect.w
-                return nil
-            end
-        end
-
-        return xywh_t(rect)
-    end,
-
-    MergeVertically = function(lastRect, rect)
-        if (lastRect ~= nil) then
-            if (lastRect.x == rect.x and lastRect.w == rect.w and
-                    rect.y == lastRect.y + lastRect.h) then
-                -- Merge last update rect with incoming adjacent (next below) one.
-                lastRect.h = lastRect.h + rect.h
-                return nil
-            end
-        end
-
-        return xywh_t(rect)
+        return {
+            xywh_t(self.x1, self.y1,
+                   self.x2 - self.x1, self.y2 - self.y1)
+        }
     end,
 }
 
@@ -1675,7 +1646,7 @@ Server = class
             end
         end
 
-        updateRectSet:finish()
+        assert(tileCount >= 1)
         local updateRects = updateRectSet:getRects()
 
         -- Request update of the changed screen portions.
