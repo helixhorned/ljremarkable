@@ -278,7 +278,7 @@ else
         (missingCount > 0 and 1 or 0) +
         (#droppedCodePoints > 0 and 2 or 0)
 
-    if (missingCount) then
+    if (missingCount > 0) then
         io.stderr:write(("WARNING: Failed rendering %d out of %d characters.\n")
                 :format(missingCount, #codePoints))
     end

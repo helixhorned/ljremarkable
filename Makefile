@@ -247,7 +247,7 @@ PALETTE.DAT: ./dev/mkpalette.lua
 layouts/.charpics: ./charpics.lua ./mkcharpics.lua ./layouts/.fontmap ./layouts/.codepoints
 	$(VIS_ENV) ./mkcharpics.lua -f ./layouts/.fontmap -c ./layouts/.codepoints -o $@
 
-TILES000.ART: ./charpics.lua ./mkcharpics.lua ./layouts/.fontmap ./layouts/.codepoints
+TILES000.ART: ./charpics.lua ./mkcharpics.lua ./layouts/.fontmap ./layouts/.codepoints $(freetype_decls_lua)
 	$(VIS_ENV) ./mkcharpics.lua -f ./layouts/.fontmap -c ./layouts/.codepoints -o $@
 
 showtiles: TILES000.ART PALETTE.DAT moonglow_deps ./moonglow/lunart.lua
