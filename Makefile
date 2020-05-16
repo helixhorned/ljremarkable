@@ -231,9 +231,11 @@ grabscreen.app.lua: grabscreen.lua $(linux_decls_lua) $(remarkable_decls_lua) lj
 		(printf "* \033[1;31mError\033[0m creating $(app_name)\n" && false)
 
 upload: grabscreen.app.lua rM_ul_eye_menu_hidden_46-28.dat
+	@if [ x`uname -m` != x"armv7l" ]; then echo "ERROR: Cannot upload app to the rM: processor architecture does not match"; false; fi
 	scp $^ "$(LJREMARKABLE_TABLET_USER)@$(LJREMARKABLE_TABLET_HOST):"
 
 upload-debugging-setup: _setup_rM-app.lua
+	@if [ x`uname -m` != x"armv7l" ]; then echo "ERROR: Cannot upload app to the rM: processor architecture does not match"; false; fi
 	scp $^ "$(LJREMARKABLE_TABLET_USER)@$(LJREMARKABLE_TABLET_HOST):"
 
 ## Visual exploration / debugging
