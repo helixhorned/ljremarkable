@@ -22,7 +22,7 @@ extractdecls := $(shell which $(EXTRACTDECLS))
 
 .PHONY: all app check_extractdecls clean decls doc upload veryclean ljclang_deps ljclang_clean ljclang_veryclean
 .PHONY: docker-build docker-run layouts codepoints moonglow_deps moonglow_clean committed-generated showtiles
-.PHONY: checkout-last-release install-last-release
+.PHONY: checkout-last-release install-last-release capture-local-screen capture-rM-screen
 
 linux_decls_lua := linux_decls.lua
 linux_decls_lua_tmp := $(linux_decls_lua).tmp
@@ -239,6 +239,12 @@ upload-debugging-setup: _setup_rM-app.lua
 ## Visual exploration / debugging
 
 VIS_ENV := LUA_PATH=";;ljclang/?.lua;./moonglow/?.lua"
+
+capture-local-screen:
+	./dev/capture-fb.sh local screen-local-`date +%Y%m%d-%H%M%S`.png
+
+capture-rM-screen:
+	./dev/capture-fb.sh rM screen-rM-`date +%Y%m%d-%H%M%S`.png
 
 PALETTE.DAT: ./dev/mkpalette.lua
 	$< $@
