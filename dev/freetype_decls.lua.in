@@ -102,8 +102,9 @@ typedef enum  FT_Render_Mode_ {
     -p ^FT_Done_FreeType(.*)$ -p ^FT_Done_Face(.*)$ -p ^FT_Select_Charmap(.*)$ -p ^FT_Render_Glyph(.*)$
 ]]
 
-assert(ffi.sizeof("FT_GlyphSlotRec") == 160)
-assert(ffi.sizeof("FT_FaceRec") == 132)
+local is64Bit = ffi.abi("64bit")
+assert(ffi.sizeof("FT_GlyphSlotRec") == (is64Bit and 304 or 160))
+assert(ffi.sizeof("FT_FaceRec") == (is64Bit and 248 or 132))
 
 return {
 FT=ffi.new[[struct {
