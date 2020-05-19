@@ -725,6 +725,10 @@ end
 
 local function FindKeyboardDevFile()
     local Directory = "/dev/input/by-path"
+    if (io.open(Directory) == nil) then
+        return nil
+    end
+
     local dir = posix.Dir(Directory)
 
     while (true) do
