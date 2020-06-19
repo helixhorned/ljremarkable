@@ -121,6 +121,12 @@ fi
 
 ## connect
 
+# Ensure single grabscreen process on the reMarkable.
+killRemoteApp
+# Prevent "bind: address already in use" after even what is intended to be a clean shutdown.
+secsSinceEpoch=$(date +%s)
+portOffset=$((secsSinceEpoch % 100))
+
 # Start server (on the reMarkable).
 ssh -o ConnectionAttempts=1 -o ConnectTimeout=1 "$USER"@"$rMHost" \
     "$HOME/bin/luajit" grabscreen.app.lua --fork s 5000

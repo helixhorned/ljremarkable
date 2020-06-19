@@ -52,8 +52,15 @@ if (doFork) then
     table.remove(arg, 1)
 end
 
-local isClient = (arg[1] == "c")
-local isServer = (arg[1] == "s")
+local function ParseClientServerArgument(firstArg)
+    local cORs, numStr = firstArg:match("^([cs])%+([0-9][0-9]?)$")
+    if (numStr == nil) then
+        return (firstArg == 'c'), (firstArg == 's'), 0
+    end
+    return (cORs == 'c'), (cORs == 's'), tonumber(numStr)
+end
+
+local isClient, isServer, portOffset = ParseClientServerArgument(arg[1])
 local hostNameOrAddr = isClient and arg[2] or nil
 local acceptTimeoutMsArg = isServer and arg[2] or nil
 
@@ -79,8 +86,10 @@ if (not ((isClient and hostNameOrAddr ~= nil) or (isServer and isAcceptTimeoutOk
     end
     errprintf([[
 Usage:
-  %s [--fork] c <host name or IPv4 address>              # on the Raspberry Pi
-  %s [--fork] s [<timeout waiting for connection (ms)>]  # on the reMarkable
+  %s [--fork] c[+<portOffset>] <host name or IPv4 address>              # on the Raspberry Pi
+  %s [--fork] s[+<portOffset>] [<timeout waiting for connection (ms)>]  # on the reMarkable
+
+If provided, the port offset must consist of one or two decimal digits.
 
 When forking is requested, it is done:
  - for the client, after having connected.
@@ -541,8 +550,8 @@ end
 
 ---------- Connection-related ----------
 
--- Mnemonic for the port number is "P2R" ("Pi to reMarkable").
-local Port = 16218
+-- Mnemonic for the base port number is "P2R" ("Pi to reMarkable").
+local Port = 16218 + portOffset
 
 -- Client -> server
 local UpdateMagic = "UpDatE"
