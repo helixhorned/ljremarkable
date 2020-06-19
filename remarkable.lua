@@ -96,7 +96,8 @@ local api = {
 local function MakeEventDevice()
     local MTC = input.MultiTouchCode
     local evd = input.EventDevice(1)
-    evd:ioctl(input.EVIOC.SMASK, input.EV.ABS, {MTC.POSX, MTC.POSY, MTC.TRACKING_ID})
+    evd:ioctl(input.EVIOC.SMASK, input.EV.ABS,
+              {MTC.SLOT, MTC.POSX, MTC.POSY, MTC.TRACKING_ID})
     return evd
 end
 

@@ -174,6 +174,7 @@ local api = {
 --  https://github.com/canselcik/libremarkable/wiki/Reading-Parade-TrueTouch-Gen5-Multitouch-Input
 api.MultiTouchCode = util.MakeBimap
 {
+    { "SLOT", ABS.MT_SLOT },
     { "POSX", ABS.MT_POSITION_X },
     { "POSY", ABS.MT_POSITION_Y },
     { "PRESSURE", ABS.MT_PRESSURE },

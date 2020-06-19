@@ -612,8 +612,8 @@ local OurEventDesc = {
 local OurEvent_t = ffi.typeof[[struct {
     uint8_t ourType;
     uint8_t button;
-    uint16_t x, y;
-    uint16_t nx, ny;  // Drag only
+    int16_t x, y;
+    int16_t nx, ny;  // Drag only
 }]]
 
 ----------
@@ -1174,6 +1174,7 @@ local Duration = {
     GenericDragTapWait = 500,
 }
 
+local SecondFingerDragMultiplier = 3
 local MaxSingleClickDeviation = 9  -- in delta x/y rM screen coordinates (9: 1 mm)
 
 local Stage = {
@@ -1241,15 +1242,29 @@ local TouchState = class
     end,
 }
 
-local function MakeEventToSend(ourEventType, ourData)
-    local button = ourData.button
-    local sx, sy = ConvertMtToScreen(ourData.x, ourData.y)
+local function MakeEventToSend(ourEventType, touchState)
+    local button = touchState.button
+    local sx, sy = ConvertMtToScreen(touchState.x, touchState.y)
     assert(button ~= nil and sx ~= nil and sy ~= nil)
 
-    local snx, sny = ConvertMtToScreen(ourData.nx, ourData.ny)
+    local snx, sny = ConvertMtToScreen(touchState.nx, touchState.ny)
     assert(snx ~= nil and sny ~= nil)
 
     return OurEvent_t(ourEventType, button, sx, sy, snx, sny)
+end
+
+local function MergeEventToSend(eventToSend, dummyEvent)
+    -- Multi-finger drag.
+    local dyFirst = eventToSend.ny - eventToSend.y
+    local dySecond = dummyEvent.ny - dummyEvent.y
+
+    if ((dySecond < 0) ~= (dyFirst < 0)) then
+        return nil
+    end
+
+    eventToSend.ny = eventToSend.ny + SecondFingerDragMultiplier * dySecond
+
+    return eventToSend
 end
 
 local MTC = input.MultiTouchCode
@@ -1265,10 +1280,13 @@ local InputState = class
 
             stage = Stage.None,
             ourEventType = nil,
-            ourData = nil,  -- TouchState
+            slot = nil,  -- set on first touch
+            ourData = nil,  -- { [<slot>]=TouchState }
             -- Set when starting dragging:
             onlyVerticalDrag = nil,
             isShutdownGesture = nil,
+            -- Set to 1 on the first touch of the second finger, to 2 when accounted for:
+            multiFingerDragStage = 0,
         }
     end,
 
@@ -1291,7 +1309,16 @@ local InputState = class
                 end
             end
         elseif (self.stage == Stage.Finished) then
-            outputTab[1] = MakeEventToSend(self.ourEventType, self.ourData)
+            local eventToSend = MakeEventToSend(self.ourEventType, self.ourData[0])
+            if (self.ourData[1] ~= nil) then
+                self.ourData[1].button = self.ourData[0].button
+                local dummyEvent = MakeEventToSend(self.ourEventType, self.ourData[1])
+                eventToSend = MergeEventToSend(eventToSend, dummyEvent)
+            end
+
+            if (eventToSend ~= nil) then
+                outputTab[1] = eventToSend
+            end
             self:reset()
         end
 
@@ -1301,8 +1328,33 @@ local InputState = class
     end,
 
 -- private:
+    setupMultiFingerDrag = function(self)
+        self.multiFingerDragStage = 2
+        self.ourEventType = OurEventType.Drag
+        self.isShutdownGesture = false
+        self.onlyVerticalDrag = true
+    end,
+
+    isConsistentWithMultiDrag = function(self)
+        assert(self.multiFingerDragStage == 2)
+        assert(self.ourEventType == OurEventType.Drag)
+        return self.onlyVerticalDrag and not self.isShutdownGesture
+    end,
+
+    isMultiFingerDragRequested = function(self)
+        return (self.multiFingerDragStage == 1)
+    end,
+
     handleSingleClick = function(self, events, eventCount)
         local MaxDeviation = MaxSingleClickDeviation * MultiTouchScreenUnitRatio
+
+        local isMultiDragRequested = self:isMultiFingerDragRequested()
+        assert(self.multiFingerDragStage == 0 or isMultiDragRequested)
+
+        if (isMultiDragRequested) then
+            self:setupMultiFingerDrag()
+            return 0
+        end
 
         for i = 0, eventCount - 1 do
             local delta = self:updateNewPos(events[i])
@@ -1328,28 +1380,61 @@ local InputState = class
     end,
 
     isStartShutdownGesturePos = function(self)
-        local sx, sy = ConvertMtToScreen(self.ourData.x, self.ourData.y)
+        local sx, sy = ConvertMtToScreen(self.ourData[0].x, self.ourData[0].y)
         return (sx >= ScreenWidth_rM - EyeSize_rM and sy < EyeSize_rM)
     end,
 
     isEndShutdownGesturePos = function(self)
-        local sx, sy = ConvertMtToScreen(self.ourData.nx, self.ourData.ny)
+        local sx, sy = ConvertMtToScreen(self.ourData[0].nx, self.ourData[0].ny)
         return (sx >= ScreenWidth_rM - EyeSize_rM and sy >= ScreenHeight_rM - EyeSize_rM)
+    end,
+
+    initOurData = function(self, eventTriple)
+        local evID, evX, evY = eventTriple[0], eventTriple[1], eventTriple[2]
+
+        assert(evID.code == MTC.TRACKING_ID)
+        assert(evID.value >= 0)
+
+        assert(evX.code == MTC.POSX)
+        assert(evY.code == MTC.POSY)
+
+        self.ourData[self.slot] = TouchState(evX.value, evY.value)
     end,
 
     handleDrag = function(self, events, startEventIdx, eventCount)
         local MinSlope = 3
         local TriangRegionCheckXOffset = SingleWheelRollDistance * MultiTouchScreenUnitRatio
 
+        if (self:isMultiFingerDragRequested()) then
+            self.multiFingerDragStage = 2
+        end
+
+        if (self.multiFingerDragStage == 2 and not self:isConsistentWithMultiDrag()) then
+            return self:reset()
+        end
+
         for i = startEventIdx, eventCount - 1 do
-            if (self:updateNewPos(events[i]) == nil) then
-                return self:reset()
-            end
+            local ev = events[i]
+            assert(ev.type == EV.ABS, "unexpected event type")
 
-            local data = self.ourData
-            local ody = data.ny - data.y
+            if (ev.code == MTC.SLOT) then
+                assert(self.multiFingerDragStage == 2)
+                self.slot = ev.value
 
-            if (self.onlyVerticalDrag) then
+                if (self.ourData[self.slot] == nil) then
+                    assert(eventCount - i >= 4)  -- assuming SLOT, TRACKING_ID, POSX, POSY
+                    self:initOurData(events + i+1)
+                    -- NOTE: events [i+1 .. i+3] are handled to ultimately no effect.
+                end
+            elseif (ev.code == MTC.TRACKING_ID) then
+                -- Do nothing. Note that ev.value may be negative! (Touch released.)
+                --  This is OK: it has been accounted for in handlePressOrRelease().
+            elseif (self:updateNewPos(ev) == nil) then
+                self:reset()
+                return
+            elseif (self.onlyVerticalDrag) then
+                local data = self.ourData[self.slot]
+                local ody = data.ny - data.y
                 local dx, dy = data.nx - data.x, data.ny - data.y
                 -- After the initial single click tolerance, vertical dragging
                 -- has to proceed (1) up or down consistently, and (2) in an
@@ -1361,7 +1446,8 @@ local InputState = class
                      math.abs(dy) / (math.abs(dx) - TriangRegionCheckXOffset) < MinSlope)
 
                 if (isInconsistentUpDown or isOutsideTriangle) then
-                    return self:reset()
+                    self:reset()
+                    return
                 end
             end
         end
@@ -1373,9 +1459,11 @@ local InputState = class
         if (m == nil) then
             return nil
         end
+        local touchState = self.ourData[self.slot]
+        assert(touchState ~= nil)
         local newValue = event.value
-        self.ourData['n'..m] = newValue  -- update 'new' coordinate
-        return newValue - self.ourData[m]
+        touchState['n'..m] = newValue  -- update 'new' coordinate
+        return newValue - touchState[m]
     end,
 
     handlePressOrRelease = function(self, events, eventCount, specialRqTab)  --> "did finally release?"
@@ -1398,8 +1486,14 @@ local InputState = class
         end
 
         if (self.pressedCount > 1) then
-            -- We do not currently allow multi-finger gestures.
-            self:reset()
+            -- Multi-finger gesture.
+            -- NOTE: currently, allows at most two fingers.
+            if (self.pressedCount == 2 and
+                (self.stage == Stage.Prefix and self.multiFingerDragStage == 0)) then
+                self.multiFingerDragStage = 1
+            else
+                self:reset()
+            end
         elseif (self.stage == Stage.None and haveInitiallyPressed) then
             self:handleInitialPress(events, eventCount)
         elseif (self.stage == Stage.Prefix and haveFinallyReleased) then
@@ -1411,13 +1505,15 @@ local InputState = class
 
     handleInitialPress = function(self, events, eventCount)
         -- First finger down: begin single click, but only we get all coordinates with the
-        -- first input frame.
+        -- first input frame. Note that there is no MTC.SLOT event, but slot 0 is implied.
         if (eventCount >= 3 and
                 events[1].code == MTC.POSX and
                 events[2].code == MTC.POSY) then
             self.stage = Stage.Prefix
             self.ourEventType = OurEventType.SingleClick
-            self.ourData = TouchState(events[1].value, events[2].value)
+
+            self.slot = 0
+            self.ourData = { [self.slot] = TouchState(events[1].value, events[2].value) }
         end
     end,
 
@@ -1427,7 +1523,7 @@ local InputState = class
         if (eventCount ~= 1) then
             self:reset()
         elseif (self.ourEventType == OurEventType.SingleClick) then
-            self.ourData.button =
+            self.ourData[0].button =
                 self:timedOut(Duration.MaxRightClick) and Button.Middle or
                 self:timedOut(Duration.MaxLeftClick) and Button.Right or
                 Button.Left
@@ -1439,7 +1535,7 @@ local InputState = class
                 end
                 self:reset()
             else
-                self.ourData.button =
+                self.ourData[0].button =
                     self.onlyVerticalDrag and Button.VerticalDrag or Button.GenericDrag
                 self.stage = Stage.Finished
             end
@@ -1459,7 +1555,7 @@ local InputState = class
             local ev = events[i]
             assert(ev.type == EV.ABS, "unexpected event type")
 
-            if (ev.code == input.MultiTouchCode.TRACKING_ID) then
+            if (ev.code == MTC.TRACKING_ID) then
                 local delta = (ev.value >= 0) and 1 or -1
 
                 totalDelta = totalDelta + delta
@@ -1474,9 +1570,11 @@ local InputState = class
     reset = function(self)
         self.stage = Stage.None
         self.ourEventType = nil
+        self.slot = nil
         self.ourData = nil
         self.onlyVerticalDrag = nil
         self.isShutdownGesture = nil
+        self.multiFingerDragStage = 0
     end,
 }
 
