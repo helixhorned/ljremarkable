@@ -4,11 +4,11 @@ whose="$1"
 outFile="$2"
 
 function usage() {
-    echo "Usage: $0 {local|rM} <outFile>.png"
+    echo "Usage: $0 {local|rM|rM-offscreen} <outFile>.png"
     exit 1
 }
 
-if [[ x"$whose" != x"local" && x"$whose" != x"rM" ]]; then
+if [[ x"$whose" != x"local" && x"$whose" != x"rM" && x"$whose" != x"rM-offscreen" ]]; then
     if [ -n "$whose" ]; then
         echo "ERROR: sub-command is unexpected." >&2
     fi
@@ -18,7 +18,10 @@ elif [ -z "$outFile" ]; then
     usage
 fi
 
-REMARKABLE_FB_SIZE=1408,1872
+REMARKABLE_FB_WIDTH=1408
+REMARKABLE_FB_HEIGHT=1872
+REMARKABLE_FB_SIZE=$REMARKABLE_FB_WIDTH,$REMARKABLE_FB_HEIGHT
+REMARKABLE_FB_BYTE_SIZE=$((2*REMARKABLE_FB_WIDTH*REMARKABLE_FB_HEIGHT))
 
 function do_ffmpeg() {
     pixfmt="$1"
@@ -57,5 +60,10 @@ else
         host=remarkable
     fi
 
-    ssh "$user"@"$host" "cat /dev/fb0" | do_ffmpeg rgb565le $REMARKABLE_FB_SIZE
+    filterCmd=cat
+    if [ $whose == rM-offscreen ]; then
+        filterCmd="tail --bytes=+$REMARKABLE_FB_BYTE_SIZE"
+    fi
+
+    ssh "$user"@"$host" "cat /dev/fb0" | $filterCmd | do_ffmpeg rgb565le $REMARKABLE_FB_SIZE
 fi

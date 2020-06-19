@@ -248,6 +248,9 @@ capture-local-screen:
 capture-rM-screen:
 	./dev/capture-fb.sh rM screen-rM-`date +%Y%m%d-%H%M%S`.png
 
+capture-rM-offscreen:
+	./dev/capture-fb.sh rM-offscreen screen-rM.off-`date +%Y%m%d-%H%M%S`.png
+
 PALETTE.DAT: ./dev/mkpalette.lua
 	$< $@
 
