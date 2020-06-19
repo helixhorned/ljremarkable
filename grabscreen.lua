@@ -1217,6 +1217,21 @@ local function ConvertMtToScreen(devx, devy)
     return sx, sy
 end
 
+local TouchState = class
+{
+    function(x, y)
+        return {
+            x = x,
+            y = y,
+            -- For Drag -- the destination ("new") coordinates.
+            nx = x,
+            ny = y,
+
+            button = nil,  -- Button.* constants
+        }
+    end,
+}
+
 local function MakeEventToSend(ourEventType, ourData)
     local button = ourData.button
     local sx, sy = ConvertMtToScreen(ourData.x, ourData.y)
@@ -1241,7 +1256,7 @@ local InputState = class
 
             stage = Stage.None,
             ourEventType = nil,
-            ourData = nil,
+            ourData = nil,  -- TouchState
             -- Set when starting dragging:
             onlyVerticalDrag = nil,
             isShutdownGesture = nil,
@@ -1393,13 +1408,7 @@ local InputState = class
                 events[2].code == MTC.POSY) then
             self.stage = Stage.Prefix
             self.ourEventType = OurEventType.SingleClick
-            self.ourData = {
-                x = events[1].value,
-                y = events[2].value,
-                -- For Drag -- the destination ("new") coordinates.
-                nx = events[1].value,
-                ny = events[2].value
-            }
+            self.ourData = TouchState(events[1].value, events[2].value)
         end
     end,
 
