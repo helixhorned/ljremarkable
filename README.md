@@ -20,18 +20,19 @@ Introduction
 ------------
 
 [LuaJIT]: https://luajit.org/
-[Raspbian]: https://www.raspberrypi.org/downloads/raspbian/
+[Raspberry Pi OS]: https://www.raspberrypi.org/downloads/raspberry-pi-os/
 
 *ljremarkable* is a LuaJIT library supporting its main application: making the reMarkable
 tablet usable as a front-end to the Raspberry Pi. The application, called `grabscreen` for
 historical reasons, allows you to view the content of your screen on the rM as well as take
-input from the tablet and translate it to mouse events in a Raspbian desktop user session.
+input from the tablet and translate it to mouse events in a Raspberry Pi OS desktop user
+session.
 
 Requirements
 ------------
 
 * reMarkable 1 tablet
-* Raspberry Pi 4 running 32-bit [Raspbian]<sup>**[1]**</sup>
+* Raspberry Pi 4 running 32-bit [Raspberry Pi OS]<sup>**[1]**</sup>
 * [LuaJIT] 2.1
 
 <sup>**[1]**</sup> <small>Pi 3 might work and was used originally, but has not since been
@@ -79,7 +80,7 @@ application to react on (otherwise discarded) keyboard events by initiating a re
 updated screen regions.<sup>**[2]**</sup>
 
 Finally, for the application to carry out mouse actions on the desktop for certain gestures
-made on the tablet, `xdotool` needs to be installed, available as Raspbian `apt`
+made on the tablet, `xdotool` needs to be installed, available as Raspberry Pi OS `apt`
 package. Running it does not require any special privileges.
 
 <sup>**[2]**</sup> <small>Checking for updates happens in intervals with an exponential
@@ -91,8 +92,8 @@ tablet.</small>
 
 On the reMarkable, the non-root user needs to be a member of groups `video` (for writing to
 the framebuffer) and `input` (for reading the input). Since the `busybox`-provided `adduser`
-does not seem to support the convenience form present in Raspbian, this has to be done by
-editing `/etc/group` directly. Refer to `man 5 group` for its format.
+does not seem to support the convenience form present in Raspberry Pi OS, this has to be
+done by editing `/etc/group` directly. Refer to `man 5 group` for its format.
 
 > **CAUTION**: Do **not** leave the SSH session as `root` until you have verified that the
 edits have their intended effect! That is, after editing and saving the file, one should
@@ -127,7 +128,7 @@ Installation
 
 The application is implemented entirely in Lua with heavy usage of LuaJIT's FFI.
 
-It is possible to use the binary from the Raspbian `luajit` APT package on the reMarkable.
+It is possible to use the binary from the Raspberry Pi OS `luajit` APT package on the reMarkable.
 
 #### Comparison of `/proc/cpuinfo`
 
@@ -160,7 +161,7 @@ invoking `make app`.
 
 For the time being, please refer to the [`Dockerfile`](./Dockerfile). Since it describes an
 environment under the [musl]-based [Alpine Linux] distribution (using an official [Alpine
-Docker image]), slight adjustments are made relative to a build under Raspbian.
+Docker image]), slight adjustments are made relative to a build under Raspberry Pi OS.
 
 ### Placing files
 
