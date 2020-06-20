@@ -1417,6 +1417,11 @@ local InputState = class
             return self:reset()
         end
 
+        local dysPreLoop = {
+            [0] = self.ourData[0].ny - self.ourData[0].y,
+            [1] = self.ourData[1] and (self.ourData[1].ny - self.ourData[1].y) or 0,
+        }
+
         for i = startEventIdx, eventCount - 1 do
             local ev = events[i]
             assert(ev.type == EV.ABS, "unexpected event type")
@@ -1438,7 +1443,8 @@ local InputState = class
                 return
             elseif (self.onlyVerticalDrag) then
                 local data = self.ourData[self.slot]
-                local ody = data.ny - data.y
+                local ody = dysPreLoop[self.slot]
+                assert(ody ~= nil)
                 local dx, dy = data.nx - data.x, data.ny - data.y
                 -- After the initial single click tolerance, vertical dragging
                 -- has to proceed (1) up or down consistently, and (2) in an
