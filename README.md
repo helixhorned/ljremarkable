@@ -97,7 +97,8 @@ done by editing `/etc/group` directly. Refer to `man 5 group` for its format.
 
 > **CAUTION**: Do **not** leave the SSH session as `root` until you have verified that the
 edits have their intended effect! That is, after editing and saving the file, one should
-verify that it is still possible to log in as `root` and as the new user.
+verify that it is still possible to log in as `root` and as the new user.\
+It is advisable to use a wired connection for this step.
 
 ### Putting it together
 
