@@ -1296,19 +1296,17 @@ local InputState = class
         local didFinallyRelease = self:handlePressOrRelease(events, eventCount, specialRqTab)
         local hadProgress = (self.stage > oldStage)
 
-        if (not hadProgress) then
-            if (self.stage == Stage.Prefix) then
-                local dragStartEventIdx = 0
+        if (self.stage == Stage.Prefix) then
+            local dragStartEventIdx = 0
 
-                if (self.ourEventType == OurEventType.SingleClick) then
-                    dragStartEventIdx = self:handleSingleClick(events, eventCount)
-                end
-                -- NOTE: not 'else if' because a single click can become a drag.
-                if (self.ourEventType == OurEventType.Drag) then
-                    self:handleDrag(events, dragStartEventIdx, eventCount)
-                end
+            if (self.ourEventType == OurEventType.SingleClick) then
+                dragStartEventIdx = self:handleSingleClick(events, eventCount)
             end
-        elseif (self.stage == Stage.Finished) then
+            -- NOTE: not 'else if' because a single click can become a drag.
+            if (self.ourEventType == OurEventType.Drag) then
+                self:handleDrag(events, dragStartEventIdx, eventCount)
+            end
+        elseif (hadProgress and self.stage == Stage.Finished) then
             local eventToSend = MakeEventToSend(self.ourEventType, self.ourData[0])
             if (self.ourData[1] ~= nil) then
                 self.ourData[1].button = self.ourData[0].button
@@ -1357,7 +1355,13 @@ local InputState = class
         end
 
         for i = 0, eventCount - 1 do
-            local delta = self:updateNewPos(events[i])
+            local ev = events[i]
+            -- For SLOT events with value > 0, we should be in the multi-finger touch path.
+            assert(ev.code ~= MTC.SLOT or (ev.value == 0 and self.slot == 0))
+
+            local doSkip = (ev.code == MTC.TRACKING_ID or ev.code == MTC.SLOT)
+            local delta = doSkip and 0 or self:updateNewPos(events[i])
+
             if (delta == nil) then
                 self:reset()
                 return eventCount
@@ -1485,6 +1489,10 @@ local InputState = class
             self.lastFirstPressedTime = currentTimeMs()
         end
 
+        if (self.stage == Stage.None and haveInitiallyPressed) then
+            self:handleInitialPress(events, eventCount)
+        end
+
         if (self.pressedCount > 1) then
             -- Multi-finger gesture.
             -- NOTE: currently, allows at most two fingers.
@@ -1494,10 +1502,10 @@ local InputState = class
             else
                 self:reset()
             end
-        elseif (self.stage == Stage.None and haveInitiallyPressed) then
-            self:handleInitialPress(events, eventCount)
-        elseif (self.stage == Stage.Prefix and haveFinallyReleased) then
-            self:handleFinalRelease(eventCount, specialRqTab)
+        end
+
+        if (self.stage == Stage.Prefix and haveFinallyReleased) then
+            self:handleFinalRelease(events, eventCount, specialRqTab)
         end
 
         return haveFinallyReleased
@@ -1505,24 +1513,46 @@ local InputState = class
 
     handleInitialPress = function(self, events, eventCount)
         -- First finger down: begin single click, but only we get all coordinates with the
-        -- first input frame. Note that there is no MTC.SLOT event, but slot 0 is implied.
-        if (eventCount >= 3 and
-                events[1].code == MTC.POSX and
-                events[2].code == MTC.POSY) then
-            self.stage = Stage.Prefix
-            self.ourEventType = OurEventType.SingleClick
+        -- first input frame. Usually there is no SLOT event (slot 0 is implied) but when
+        -- the frame contains events from the touch of more than one finger, there is one
+        -- (in which case the value 0 is *expected*, and asserted).
+        --
+        -- Note that the event frame may contain the sequence of events for the touchdown of
+        -- another finger. This is not handled here, but we must make sure that it is
+        -- accounted for subsequently!
+        assert(eventCount > 0)
+        local offset = (events[0].code == MTC.SLOT) and 1 or 0
+        assert(offset == 0 or events[0].value == 0)
 
-            self.slot = 0
-            self.ourData = { [self.slot] = TouchState(events[1].value, events[2].value) }
+        if (eventCount >= 3 + offset) then
+            local evX = events[offset + 1]
+            local evY = events[offset + 2]
+
+            if (evX.code == MTC.POSX and evY.code == MTC.POSY) then
+                self.stage = Stage.Prefix
+                self.ourEventType = OurEventType.SingleClick
+
+                self.slot = 0
+                self.ourData = { [self.slot] = TouchState(evX.value, evY.value) }
+            end
         end
     end,
 
-    handleFinalRelease = function(self, eventCount, specialRqTab)
+    handleFinalRelease = function(self, events, eventCount, specialRqTab)
         -- Last finger up: May finish a gesture in progress, but only if there are no
-        -- additional events in the input frame.
-        if (eventCount ~= 1) then
-            self:reset()
-        elseif (self.ourEventType == OurEventType.SingleClick) then
+        -- additional events that are inconsistent with purely a (potentially multi-)finger
+        -- release in the input frame.
+
+        for i = 0, eventCount-1 do
+            local ev = events[i]
+            local isReleaseMarker = (ev.code == MTC.TRACKING_ID and ev.value == -1)
+            if (not (isReleaseMarker or ev.code == MTC.SLOT)) then
+                self:reset()
+                return
+            end
+        end
+
+        if (self.ourEventType == OurEventType.SingleClick) then
             self.ourData[0].button =
                 self:timedOut(Duration.MaxRightClick) and Button.Middle or
                 self:timedOut(Duration.MaxLeftClick) and Button.Right or
