@@ -163,6 +163,7 @@ invoking `make app`.
 For the time being, please refer to the [`Dockerfile`](./Dockerfile). Since it describes an
 environment under the [musl]-based [Alpine Linux] distribution (using an official [Alpine
 Docker image]), slight adjustments are made relative to a build under Raspberry Pi OS.
+The `grabscreen.app.lua` resulting from the Docker build **cannot** be used.
 
 ### Placing files
 
