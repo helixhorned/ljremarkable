@@ -43,7 +43,7 @@ app: $(app_name)
 
 check_extractdecls:
 	@(test -n "$(extractdecls)" && test -x "$(extractdecls)") || \
-		(echo "ERROR: '$(EXTRACTDECLS)' not found in PATH." && false)
+		(echo "ERROR: '$(EXTRACTDECLS)' not found in PATH. Run 'make install-dev' from ljclang/ first." && false)
 
 clean: ljclang_clean moonglow_clean
 	$(RM) $(remarkable_decls_lua) $(remarkable_decls_lua_tmp) \
