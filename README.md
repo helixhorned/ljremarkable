@@ -230,7 +230,7 @@ here be called *view* for brevity.
   duration,**<sup>[4]</sup>** a right click is issued instead of a left click. Holding even
   longer (currently, for at least two seconds) produces a middle click.
 
-* Drag with a single finger starting on the Pi screen portion:
+* Drag starting on the Pi screen portion:
 
   - When the finger rests on the initial tap position less than a short threshold
     time before moving,**<sup>[4]</sup>** only vertical swipes are allowed, within some
@@ -245,6 +245,10 @@ here be called *view* for brevity.
     using mouse wheel events is that the distance traveled on the tablet screen only
     approximately and coincidentally corresponds to the respective distance on the Pi
     desktop.
+    
+    An additional *second* finger contributes three times the length of its trail to be
+    ultimately converted to the number of mouse wheel events. Thus, a two-finger swipe
+    effectively leads to injecting four times the normal amount of mouse wheel events.
 
   - When the threshold time is exceeded, *general drag mode* is activated: the swipe does
     not need to be vertical, but has to be fully inside the view. On the Pi desktop, the
@@ -258,6 +262,8 @@ here be called *view* for brevity.
     it seems to suffice to carry out the drag slowly. Note that non-horizontal drags are not
     interpreted, so another way to avoid accidentally changing the page (and overdrawing the
     Pi screen view) is to move the finger in an arc.
+    
+    The general drag can only be carried out using a single finger.
 
 * Drag with a single finger from *below* the Pi screen portion to *above* it: request the
   client to re-send the complete screen contents. Useful after an accidental page change, or
