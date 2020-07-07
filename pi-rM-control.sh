@@ -129,12 +129,12 @@ portOffset=$((secsSinceEpoch % 100))
 
 # Start server (on the reMarkable).
 ssh -o ConnectionAttempts=1 -o ConnectTimeout=1 "$USER"@"$rMHost" \
-    "$HOME/bin/luajit" grabscreen.app.lua --fork s 5000
+    "$HOME/bin/luajit" grabscreen.app.lua --fork "s+$portOffset" 5000
 exitCode1=$?
 
 if [ $exitCode1 == 0 ]; then
     # Start client which must previously have been installed.
-    grabscreen.app.lua --fork c "$rMHost"
+    grabscreen.app.lua --fork "c+$portOffset" "$rMHost"
     exitCode2=$?
 fi
 
