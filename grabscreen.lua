@@ -656,11 +656,13 @@ local function ConvertScreenToClient(sx, sy)
 end
 
 local function InvokeXDoTool(commands)
-    local whoami = posix.fork()
+    local whoami, pid = posix.fork()
 
     if (whoami == "child") then
         assert(type(commands) == "table")
         posix.exec("/usr/bin/xdotool", commands)
+    else
+        posix.waitpid(pid, 0)
     end
 end
 
