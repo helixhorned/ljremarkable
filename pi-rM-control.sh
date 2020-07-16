@@ -34,6 +34,74 @@ function pigs() {
     fi
 }
 
+function get_color_arg_list() {
+    ramp_color=$1
+
+    if [ x"$ramp_color" = x'r' ]; then
+        color_arg_list="v, 0, 0, 1.0"
+    elif [ x"$ramp_color" = x'g' ]; then
+        color_arg_list="0, v, 0"
+    else
+        color_arg_list=""
+    fi
+
+    echo "$color_arg_list"
+}
+
+function led_ramp_fixed_and_cycle() {
+    ramp_colors=`get_color_arg_list "$1"`
+    fixed_colors=`get_color_arg_list "$2"`
+    cycle_colors=`get_color_arg_list "$3"`
+    cycle_steps="$4"
+    cycle_periods="$5"
+    cycle_offset="$6"
+
+    if [[ ! "$cycle_steps" =~ ^[1-9][0-9]*$ ]]; then
+        echo "ERROR: argument #4 must be a decimal integer"
+        exit 2
+    fi
+    if [[ ! "$cycle_periods" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+        echo "ERROR: argument #5 must be a number"
+        exit 2
+    fi
+    if [ -z "$cycle_offset" ]; then
+        cycle_offset=0
+    elif [[ ! "$cycle_offset" =~ ^[1-9][0-9]*$ ]]; then
+        echo "ERROR: argument #6 must be a decimal integer"
+        exit 2
+    fi
+
+    echo "
+import math
+import time
+import blinkt
+
+if len('$ramp_colors') > 0:
+    RAMP_STEP_COUNT = 3
+    for pix in range(blinkt.NUM_PIXELS):
+        for step in range(RAMP_STEP_COUNT):
+            v = (255 * step) // (RAMP_STEP_COUNT - 1)
+            blinkt.set_pixel(pix, $ramp_colors)
+            blinkt.show()
+
+if len('$fixed_colors') > 0:
+    v = 255
+    blinkt.set_all($fixed_colors)
+    blinkt.show()
+    time.sleep(0.6)
+
+if len('$cycle_colors') > 0:
+    CYCLE_STEP_COUNT = $cycle_steps # 26
+    CYCLE_PERIOD_COUNT = $cycle_periods # 2.5
+
+    for i in range(int(CYCLE_PERIOD_COUNT * CYCLE_STEP_COUNT)):
+        ang = 2*math.pi * ($cycle_offset + i)/CYCLE_STEP_COUNT
+        v = 255 * (1 + math.cos(ang))/2
+        blinkt.set_all($cycle_colors)
+        blinkt.show()
+" | python3
+}
+
 function rampLED() {
     led="$1"
     start="$2"
@@ -68,14 +136,8 @@ function killRemoteApp() {
 case "$cmd" in
     after-login)
         # Indication that we logged in to a graphical session.
-
-        # Clear red LED.
-        pigs w $R 0
-
-        # Blink green LED a couple of times.
-        for i in {1..5}; do
-            pigs w $G 1 mils 500 w $G 0 mils 500
-        done
+        # Ramp up and pulsate twice with green color.
+        led_ramp_fixed_and_cycle g 0 g 26 2.5
         ;;
 
     ping)
@@ -83,16 +145,13 @@ case "$cmd" in
         code=$?
 
         if [ $code -eq 0 ]; then
-            off=$R
-            on=$G
+            led=g
         else
-            off=$G
-            on=$R
+            led=r
         fi
 
-        pigs w $off 0
-        cmd="w $on 1 mils 300 w $on 0 mils 300"
-        pigs $cmd $cmd
+        # Cycle twice with indication color.
+        led_ramp_fixed_and_cycle 0 0 $led 14 2.0 7
         ;;
 
     connect)
@@ -104,10 +163,8 @@ case "$cmd" in
         # TODO: more selective / careful!
         killall --quiet luajit
 
-        # green -> red
-        pigs w $G 1 mils 500 w $G 0 w $R 1 mils 500 w $R 0 pwm $R 255
-        # fade red
-        rampLED $R 255 0
+        # green -> red, then fade out red
+        led_ramp_fixed_and_cycle 0 g r 80 0.5
         ;;
 
     *)
@@ -141,16 +198,12 @@ fi
 # Signal via LEDs.
 
 if [[ $exitCode1 -eq 0 && $exitCode2 -eq 0 ]]; then
-    led=$G
-    rampLED $led 0 255
+    led_ramp_fixed_and_cycle g 0 g 16 3.5
     ret=0
 else
-    led=$R
     killRemoteApp
+    led_ramp_fixed_and_cycle 0 0 r 16 3.0 8
     ret=1
 fi
-
-cmd="w $led 1 mils 300 w $led 0 mils 300"
-pigs $cmd $cmd $cmd $cmd
 
 exit $ret
