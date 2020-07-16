@@ -1,15 +1,5 @@
 #!/bin/bash
 
-PIGS_PROGRAM=/usr/bin/pigs
-pigsProgram="$PIGS_PROGRAM"
-if [ ! -x "$pigsProgram" ]; then
-    pigsProgram=
-fi
-
-# LED GPIO pins.
-R=13
-G=12
-
 # Expectation: the desided default IP address of the rM has been added to /etc/hosts.
 DEFAULT_REMARKABLE_HOST=remarkable
 
@@ -19,20 +9,12 @@ rMHost="$2"
 if [ -z "$cmd" ]; then
     echo "Usage: $0 {after-login|ping|connect|kill} [<rM-host>]"
     echo " * <rM-host> defaults to '$DEFAULT_REMARKABLE_HOST'"
-    echo " * If '$PIGS_PROGRAM' is present, expects GPIO pins 12 and 13 to"
-    echo "   be connected to an LED for success and failure, respectively"
     exit 1
 fi
 
 if [ -z "$rMHost" ]; then
     rMHost=$DEFAULT_REMARKABLE_HOST
 fi
-
-function pigs() {
-    if [ -n "$pigsProgram" ]; then
-        "$pigsProgram" "$@"
-    fi
-}
 
 function get_color_arg_list() {
     ramp_color=$1
@@ -100,31 +82,6 @@ if len('$cycle_colors') > 0:
         blinkt.set_all($cycle_colors)
         blinkt.show()
 " | python3
-}
-
-function rampLED() {
-    led="$1"
-    start="$2"
-    stop="$3"
-
-    if [[ -z $led || -z $start || -z $stop ]]; then
-        return
-    fi
-
-    if [[ $start -lt $stop ]]; then
-        step=1
-    elif [[ $start -gt $stop ]]; then
-        step=-1
-    else
-        return
-    fi
-
-    current=$start
-
-    while [[ $current -ne $stop ]]; do
-        current=$((current + step))
-        pigs pwm $led $current
-    done
 }
 
 function killRemoteApp() {
