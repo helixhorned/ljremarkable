@@ -3,14 +3,24 @@
 # Expectation: the desided default IP address of the rM has been added to /etc/hosts.
 DEFAULT_REMARKABLE_HOST=remarkable
 
-cmd="$1"
-rMHost="$2"
-
-if [ -z "$cmd" ]; then
-    echo "Usage: $0 {after-login|ping|connect|kill} [<rM-host>]"
+if [ -z "$1" ]; then
+    echo "Usage: $0 [--use-blinkt] {after-login|ping|connect|kill} [<rM-host>]"
+    echo " * --use-blinkt: use the Pimoromi Blinkt! LED array via 'python3'"
     echo " * <rM-host> defaults to '$DEFAULT_REMARKABLE_HOST'"
     exit 1
 fi
+
+useBlinkt=false
+if [[ "$1" =~ ^\- ]]; then
+    if [ x"$1" != x'--use-blinkt' ]; then
+        echo "ERROR: Unrecognized option '$1'."
+        exit 3
+    fi
+    useBlinkt=true
+    shift
+fi
+cmd="$1"
+rMHost="$2"
 
 if [ -z "$rMHost" ]; then
     rMHost=$DEFAULT_REMARKABLE_HOST
@@ -31,6 +41,10 @@ function get_color_arg_list() {
 }
 
 function led_ramp_fixed_and_cycle() {
+    if [ $useBlinkt != true ]; then
+        return
+    fi
+
     ramp_colors=`get_color_arg_list "$1"`
     fixed_colors=`get_color_arg_list "$2"`
     cycle_colors=`get_color_arg_list "$3"`
@@ -125,7 +139,7 @@ case "$cmd" in
         ;;
 
     *)
-        echo "ERROR: Unrecognized command."
+        echo "ERROR: Unrecognized command '$cmd'."
         exit 3
 esac
 
