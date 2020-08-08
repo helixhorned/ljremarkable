@@ -183,8 +183,8 @@ The application needs to be started first on the reMarkable to await a request f
 connection initiated by the counterpart on the Pi.
 
     Usage:
-      grabscreen.app.lua [--fork] c[+<portOffset>] <host name or IPv4 address>              # on the Raspberry Pi
-      grabscreen.app.lua [--fork] s[+<portOffset>] [<timeout waiting for connection (ms)>]  # on the reMarkable
+      grabscreen.app.lua [--fork] c[+<portOffset>] <host name or IPv4 address>               # on the Raspberry Pi
+      grabscreen.app.lua [--always-on][--fork] s[+<portOffset>] [<connection timeout (ms)>]  # on the reMarkable
     
     (...)
     

@@ -47,6 +47,11 @@ local unpack = unpack
 local arg = arg
 local stderr = io.stderr
 
+local alwaysOn = (arg[1] == "--always-on")
+if (alwaysOn) then
+    table.remove(arg, 1)
+end
+
 local doFork = (arg[1] == "--fork")
 if (doFork) then
     table.remove(arg, 1)
@@ -86,8 +91,8 @@ if (not ((isClient and hostNameOrAddr ~= nil) or (isServer and isAcceptTimeoutOk
     end
     errprintf([[
 Usage:
-  %s [--fork] c[+<portOffset>] <host name or IPv4 address>              # on the Raspberry Pi
-  %s [--fork] s[+<portOffset>] [<timeout waiting for connection (ms)>]  # on the reMarkable
+  %s [--fork] c[+<portOffset>] <host name or IPv4 address>               # on the Raspberry Pi
+  %s [--always-on][--fork] s[+<portOffset>] [<connection timeout (ms)>]  # on the reMarkable
 
 If provided, the port offset must consist of one or two decimal digits.
 
@@ -1120,7 +1125,9 @@ end
 local function IsScreenDesired()
     assert(isServer)
 
-    if (isRealServer) then
+    if (alwaysOn) then
+        return true
+    elseif  (isRealServer) then
         local array = map:readRect(46, 46, 28, 28)
         assert(ffi.sizeof(array) == ffi.sizeof(EyeData))
         -- "Quick mode": we only wish that the Raspberry Pi screen is displayed if the main
