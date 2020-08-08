@@ -4,7 +4,7 @@
 DEFAULT_REMARKABLE_HOST=remarkable
 
 if [ -z "$1" ]; then
-    echo "Usage: $0 [--use-blinkt] {after-login|ping|connect|kill} [<rM-host>]"
+    echo "Usage: $0 [--use-blinkt] {after-login|ping|connect|connect[-always-on]|kill} [<rM-host>]"
     echo " * --use-blinkt: use the Pimoromi Blinkt! LED array via 'python3'"
     echo " * <rM-host> defaults to '$DEFAULT_REMARKABLE_HOST'"
     exit 1
@@ -125,7 +125,7 @@ case "$cmd" in
         led_ramp_fixed_and_cycle 0 0 $led 14 2.0 7
         ;;
 
-    connect)
+    connect|connect-always-on)
         # Handled outside the case/esac block.
         ;;
 
@@ -143,11 +143,16 @@ case "$cmd" in
         exit 3
 esac
 
-if [ x"$cmd" != x"connect" ]; then
+if [[ x"$cmd" != x"connect" && x"$cmd" != x"connect-always-on" ]]; then
     exit 0
 fi
 
 ## connect
+
+serverPrefixOpt=
+if [ $cmd == connect-always-on ]; then
+    serverPrefixOpt=--always-on
+fi
 
 # Ensure single grabscreen process on the reMarkable.
 killRemoteApp
@@ -157,7 +162,7 @@ portOffset=$((secsSinceEpoch % 100))
 
 # Start server (on the reMarkable).
 ssh -o ConnectionAttempts=1 -o ConnectTimeout=1 "$USER"@"$rMHost" \
-    "$HOME/bin/luajit" grabscreen.app.lua --fork "s+$portOffset" 5000
+    "$HOME/bin/luajit" grabscreen.app.lua $serverPrefixOpt --fork "s+$portOffset" 5000
 exitCode1=$?
 
 if [ $exitCode1 == 0 ]; then

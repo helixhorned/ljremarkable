@@ -194,7 +194,7 @@ The helper script [`pi-rM-control.sh`](pi-rM-control.sh), intended to be invoked
 hotkeys, makes the above procedure a one-step process and features related convenience
 functionality:
 
-    Usage: pi-rM-control.sh {after-login|ping|connect|kill} [<rM-host>]
+    Usage: pi-rM-control.sh {after-login|ping|connect[-always-on]|kill} [<rM-host>]
      * --use-blinkt: use the Pimoromi Blinkt! LED array via 'python3'
      * <rM-host> defaults to 'remarkable'
 
