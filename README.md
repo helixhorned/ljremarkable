@@ -195,19 +195,11 @@ hotkeys, makes the above procedure a one-step process and features related conve
 functionality:
 
     Usage: pi-rM-control.sh {after-login|ping|connect|kill} [<rM-host>]
+     * --use-blinkt: use the Pimoromi Blinkt! LED array via 'python3'
      * <rM-host> defaults to 'remarkable'
-     * If '/usr/bin/pigs' is present, expects GPIO pins 12 and 13 to
-       be connected to an LED for success and failure, respectively
 
-> **Attention**:
->  * If the mentioned GPIO pins are already used otherwise, the script can and should be
->    adapted
->  * Commands `connect` and `kill` currently kill any LuaJIT process indescriminately using
->    `killall luajit`
->  * When connecting an LED, do not forget an appropriate resistor
->
-> <small>Feel free to notify me if the limitations implied by the the first two points cause
-> any inconvenience.</small>
+> **Attention**: Commands `connect` and `kill` currently kill any LuaJIT process
+> indescriminately using `killall luajit`.
 
 Using
 -----
