@@ -18,6 +18,7 @@ local os = require("os")
 
 local assert = assert
 local require = require
+local unpack = unpack
 
 local arg = arg
 
@@ -39,6 +40,57 @@ local function fup(x, y, w, h, val)
     rM:requestRefresh(RM.xywh(x,y,w,h), 123)
 end
 
+-- NOTE: zero-based for more convenient '%'-ing.
+local ColorComponentIdx = { r=0, g=1, b=2 }
+local ColorComponentName = { [0]='r', 'g', 'b' }
+
+local function completeRgbTab(protoTab)
+    for compIdx = 0, 2 do
+        protoTab[compIdx] = protoTab[compIdx] or 0
+    end
+    return protoTab
+end
+
+local function unpackRgbTab(rgbTab)
+    return unpack(rgbTab, 0)
+end
+
+local TotalSideLen = 1024
+local LeftOffset = 192
+local TopOffset = 128
+
+local function clear(r, g, b)
+    fup(LeftOffset, TopOffset, TotalSideLen, TotalSideLen, rgb(r, g, b))
+end
+
+local function gradient(fixedCompName, fixedVal)
+    local fixedComp = ColorComponentIdx[fixedCompName]
+    assert(fixedComp ~= nil)
+    -- Just for the early bounds check on 'fixedVal':
+    rgb(unpackRgbTab(completeRgbTab{[fixedComp]=fixedVal}))
+
+    local c1 = (fixedComp - 1) % 3
+    local c2 = (fixedComp + 1) % 3
+    local firstComp = math.min(c1, c2)
+    local secondComp = math.max(c1, c2)
+    local maxFirst = MaxColorComponentVal[ColorComponentName[firstComp]]
+    local maxSecond = MaxColorComponentVal[ColorComponentName[secondComp]]
+
+    local firstSideLen = TotalSideLen / (maxFirst + 1)
+    local secondSideLen = TotalSideLen / (maxSecond + 1)
+
+    for i = 0, maxFirst do
+        local x = LeftOffset + firstSideLen*i
+        for j = 0, maxSecond do
+            local y = TopOffset + secondSideLen*j
+            local rgbTab = { [firstComp]=i, [secondComp]=j, [fixedComp]=fixedVal }
+            map:fill(x, y, firstSideLen, secondSideLen, rgb(unpackRgbTab(rgbTab)))
+        end
+    end
+
+    rM:requestRefresh(RM.xywh(LeftOffset, TopOffset, TotalSideLen, TotalSideLen), 124)
+end
+
 _G.ffi = ffi
 _G.FB = FB
 _G.fb = fb
@@ -48,6 +100,8 @@ _G.rM = rM
 
 _G.rgb = rgb
 _G.fup = fup
+_G.clear = clear
+_G.gradient = gradient
 
 _G.input = require'input'
 _G.MTC = _G.input.MultiTouchCode
