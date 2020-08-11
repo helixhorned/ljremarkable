@@ -1,4 +1,4 @@
-FROM arm32v6/alpine:3.11.5
+FROM arm32v6/alpine:3.12.0
 
 LABEL maintainer="Philipp Kutin <philipp.kutin@gmail.com>"
 
@@ -15,12 +15,13 @@ WORKDIR /home/user
 ########## Check out, build and install LuaJIT 2.1 ##########
 
 RUN git clone https://github.com/LuaJIT/LuaJIT.git \
-    --single-branch --branch=v2.1 --shallow-since=2020-03-19 \
+    --single-branch --branch=v2.1 --shallow-since=2020-08-01 \
     ./luajit-2.1
 # Check out a specific commit.
-# "FFI/ARM64: Fix pass-by-value struct calling conventions."
-RUN (cd luajit-2.1 && git checkout 9143e86498436892cb4316550be4d45b68a61224)
+# "Merge branch 'master' into v2.1" (Sun Aug 9 23:12:48 2020 +0200)
+RUN (cd luajit-2.1 && git checkout 94d4abcca966df2cc423e821bcacd04898f73117)
 RUN git clone luajit-2.1 ./luajit-2.1-rM
+RUN (cd luajit-2.1-rM && git checkout 94d4abcca966df2cc423e821bcacd04898f73117)
 
 ## Build for the Pi.
 WORKDIR /home/user/luajit-2.1
@@ -77,7 +78,7 @@ ENV LLVM_CONFIG=true
 # Install 'extractdecls'.
 WORKDIR /home/user/ljremarkable/ljclang
 RUN mkdir /home/user/bin
-RUN sed -i 's|llvm_version :=.*|llvm_version := 9.0.0|' ./Makefile
+RUN sed -i 's|llvm_version :=.*|llvm_version := 10.0.0|' ./Makefile
 RUN sed -i 's|bindir :=.*|bindir := /usr/bin|' ./Makefile
 RUN sed -i 's|incdir :=.*|incdir := /usr/include|' ./Makefile
 RUN sed -i 's|libdir :=.*|libdir := /does-not-exist-and-is-not-relevant-here|' ./Makefile
