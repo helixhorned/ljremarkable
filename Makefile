@@ -14,9 +14,12 @@ last_release_app_blob := 999defb07
 markdown := $(shell which $(MARKDOWN))
 
 extractrange := ./ljclang/extractrange.lua
-# LJClang application that is expected to be installed:
-EXTRACTDECLS := extractdecls
-extractdecls := $(shell which $(EXTRACTDECLS))
+# LJClang application invoked from the tree:
+EXDECL_LDLIB_PATH := $(shell make --silent -C ljclang print-extractdecls-library-path)
+EXDECL_ENV := LD_LIBRARY_PATH='$(EXDECL_LDLIB_PATH)' LUA_PATH='./ljclang/?.lua;;'
+EXTRACTDECLS := ./ljclang/extractdecls.lua
+MKDECLS_ENV := $(EXDECL_ENV) LJCLANG_EXTRACTDECLS=$(EXTRACTDECLS)
+extractdecls := $(EXDECL_ENV) $(EXTRACTDECLS)
 
 ########## RULES ##########
 
@@ -41,9 +44,10 @@ all: decls
 
 app: $(app_name)
 
-check_extractdecls:
-	@(test -n "$(extractdecls)" && test -x "$(extractdecls)") || \
-		(echo "ERROR: '$(EXTRACTDECLS)' not found in PATH. Run 'make install-dev' from ljclang/ first." && false)
+.SILENT: ensure_extractdecls
+ensure_extractdecls:
+	echo "Ensuring dependencies for extractdecls.lua"
+	make --silent -C ljclang extractdecls_deps
 
 clean: ljclang_clean moonglow_clean
 	$(RM) $(remarkable_decls_lua) $(remarkable_decls_lua_tmp) \
@@ -140,7 +144,7 @@ linux_fb_h ?= /usr/include/linux/fb.h
 linux_input_h ?= /usr/include/linux/input.h
 sed_replace_ints_cmds := s/__u16 /uint16_t /g; s/__u32 /uint32_t /g
 
-$(linux_decls_lua): check_extractdecls $(linux_fb_h) Makefile
+$(linux_decls_lua): ensure_extractdecls $(linux_fb_h) Makefile
 	@echo 'local ffi=require"ffi"' > $(linux_decls_lua_tmp)
 	@echo 'ffi.cdef[[' >> $(linux_decls_lua_tmp)
 	@$(extractrange) $(linux_fb_h) '^struct fb_fix_screeninfo {' '^};' | sed "$(sed_replace_ints_cmds)" >> $(linux_decls_lua_tmp)
@@ -198,8 +202,9 @@ $(remarkable_decls_lua): $(remarkable_lib_h) Makefile
 	|| (printf "* \033[1;31mError\033[0m generating $@\n" && \
 	    mv $@ $@.reject && false)
 
+$(freetype_decls_lua): ensure_extractdecls
 $(freetype_decls_lua): ./dev/freetype_decls.lua.in Makefile
-	@LJCLANG_EXTRACTDECLS=$(extractdecls) ./ljclang/mkdecls.sh $< > $(freetype_decls_lua_tmp)
+	@$(MKDECLS_ENV) ./ljclang/mkdecls.sh $< > $(freetype_decls_lua_tmp)
 	@mv $(freetype_decls_lua_tmp) $@
 	@($(luajit) -e "require 'freetype_decls'" && \
 	    printf "* \033[1mGenerated $@\033[0m\n") \
