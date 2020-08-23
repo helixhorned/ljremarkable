@@ -26,6 +26,7 @@ RUN (cd luajit-2.1-rM && git checkout 94d4abcca966df2cc423e821bcacd04898f73117)
 ## Build for the Pi.
 WORKDIR /home/user/luajit-2.1
 RUN make -j4
+RUN sha256sum src/luajit | grep -q 7fc54b37130041745d4a8abfb72936922c8844fc63076411c0a74082e7652e39
 USER root
 RUN make install
 RUN ln -s /usr/local/bin/luajit-2.1.0-beta3 /usr/local/bin/luajit
@@ -36,6 +37,7 @@ WORKDIR /home/user/luajit-2.1-rM
 # NOTE: the reMarkable toolchain also has '-march=armv7-a' but that seems redundant.
 RUN sed -i 's/^CCOPT_arm=$/CCOPT_arm= -mfpu=neon -mfloat-abi=hard -mcpu=cortex-a9/' ./src/Makefile
 RUN make -j4
+RUN sha256sum src/luajit | grep -q 059ea162627a98c5dd729be46ab00171776f6be76a190c1c57172ad94620975c
 
 WORKDIR /home/user
 
