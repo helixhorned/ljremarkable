@@ -661,16 +661,34 @@ local function ConvertScreenToClient(sx, sy)
 end
 
 local function InvokeXDoTool(commands)
+    assert(type(commands) == "table")
+
     local whoami, pid = posix.fork()
 
     if (whoami == "child") then
-        assert(type(commands) == "table")
         posix.exec("/usr/bin/xdotool", commands)
     else
         posix.waitpid(pid, 0)
     end
 end
 
+local function Flatten(tab, _newTab)
+    assert(type(tab) == "table")
+    assert(_newTab == nil or type(_newTab) == "table")
+
+    local newTab = _newTab or {}
+
+    for _, elt in ipairs(tab) do
+        if (type(elt) == "table") then
+            -- Recurse:
+            Flatten(elt, newTab)
+        else
+            newTab[#newTab + 1] = elt
+        end
+    end
+
+    return newTab
+end
 
 local MaxInputEvents = 1024
 local sizeof_input_event = ffi.sizeof("struct input_event")
@@ -1048,19 +1066,68 @@ local Client = class
                             if (repeatCount >= 1) then
                                 InvokeXDoTool{
                                     "mousemove", tostring(cx), tostring(cy),
-                                    "click", "--repeat", tostring(repeatCount), "--delay", "1", tostring(button),
+                                    "click", "--repeat", tostring(repeatCount), "--delay", "3", tostring(button),
                                     "mousemove", "restore"
                                 }
                             end
                         elseif (ourEvent.button == Button.GenericDrag) then
                             if (isInScreenBounds(cnx, cny)) then
                                 -- Emulate a drag with the left mouse button clicked.
-                                InvokeXDoTool{
+
+                                -- NOTE: since we immediately do waitpid() on the 'xdotool'
+                                --  child, we want this to be not too long.
+                                local DelayBetweenKeysMs = "5"
+
+                                -- The dummy key argument (passed to the 'key' command of
+                                -- 'xdotool') is a hack in two ways:
+                                --
+                                --  1. We actually want to *just* delay execution, but
+                                --   'xdotool' does not seem to offer this functionality.
+
+                                --  2. We therefore ask ourselves if it would be worth a try
+                                --   to pass ASCII NUL. 'xdotool' lets us do that, but in a
+                                --   way that is not very public-interface-y: we utilize the
+                                --   fact that there is this path (see its xdo.c):
+                                --
+                                --    /* Accept a number as a explicit keycode */
+                                --
+                                --   *after* an unsuccessful attempt has been made to
+                                --   convert the key string via XStringToKeysym().
+                                --   Note though: just '0' would get us 48, the ASCII value
+                                --   for, well, the character '0'.
+                                local DummyKey = "00"
+
+                                local DelayArgs = {
+                                    "key", "--delay", DelayBetweenKeysMs, DummyKey, DummyKey
+                                };
+
+                                -- Linearly interpolate with an implicit weight of 1 for the
+                                -- second argument:
+                                local function weigh(weight, a, b)
+                                    local val = (weight*a + b) / (weight + 1)
+                                    return tostring(math.floor(val))
+                                end
+
+                                InvokeXDoTool(Flatten{
                                     "mousemove", tostring(cx), tostring(cy),
                                     "mousedown", tostring(Button.Left),
+                                    DelayArgs,
+                                    -- For dragging in web-based geographic maps, the
+                                    -- mouse-down above is not effective, so emulate moving
+                                    -- the mouse "just a little bit" first.
+                                    --
+                                    -- TODO: confirm or refute: Presumably, the distance
+                                    --  should not be too small so as not to round to zero,
+                                    --  which would be treated as no-op by 'xdotool'?
+                                    -- FIXME: why do we sometimes have extreme delays of
+                                    --  several seconds until the dragging actually takes
+                                    --  place?
+                                    "mousemove", weigh(31, cx, cnx), weigh(31, cy, cny),
+                                    DelayArgs,
                                     "mousemove", tostring(cnx), tostring(cny),
-                                    "mouseup", tostring(Button.Left)
-                                }
+                                    DelayArgs,
+                                    "mouseup", tostring(Button.Left),
+                                })
                             end
                         else
                             checkData("unexpected server input event: unexpected drag type")
