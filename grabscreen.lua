@@ -1109,7 +1109,7 @@ local Client = class
                                 end
 
                                 InvokeXDoTool(Flatten{
-                                    "mousemove", tostring(cx), tostring(cy),
+                                    "mousemove", "--sync", tostring(cx), tostring(cy),
                                     "mousedown", tostring(Button.Left),
                                     DelayArgs,
                                     -- For dragging in web-based geographic maps, the
@@ -1122,9 +1122,9 @@ local Client = class
                                     -- FIXME: why do we sometimes have extreme delays of
                                     --  several seconds until the dragging actually takes
                                     --  place?
-                                    "mousemove", weigh(31, cx, cnx), weigh(31, cy, cny),
+                                    "mousemove", "--sync", weigh(31, cx, cnx), weigh(31, cy, cny),
                                     DelayArgs,
-                                    "mousemove", tostring(cnx), tostring(cny),
+                                    "mousemove", "--sync", tostring(cnx), tostring(cny),
                                     DelayArgs,
                                     "mouseup", tostring(Button.Left),
                                 })
