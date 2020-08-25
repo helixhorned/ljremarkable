@@ -1176,11 +1176,11 @@ local UpdateRectManager = class
 
 --== All times in milliseconds.
 local Duration = {
-    MaxLeftClick = 500,
+    MaxLeftClick = 300,
     MaxRightClick = 2000,
     -- Time that an initial tap must be held to commence generic (as opposed to
     -- vertical-only) dragging:
-    GenericDragTapWait = 500,
+    GenericDragTapWait = 300,
 }
 
 local SecondFingerDragMultiplier = 3

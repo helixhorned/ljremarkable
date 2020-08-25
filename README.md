@@ -268,7 +268,7 @@ here be called *view* for brevity.
 
 **<sup>[3]</sup>** This is exactly reverse to the notion of the server being side that is
 biased towards *sending* data.\
-**<sup>[4]</sup>** (currently half a second)
+**<sup>[4]</sup>** (currently 300 milliseconds)
 
 ### Miscellaneous features
 
