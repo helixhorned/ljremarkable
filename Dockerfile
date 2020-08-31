@@ -71,24 +71,23 @@ USER user
 # Do not install llvm-dev, do not rely on llvm-config. (See 'sed -i' invocations below.)
 # On Alpine Linux, clang-c/Index.h is in /usr/include and libclang.so is in /usr/lib.
 #  Using 'llvm-config' of package 'llvm-dev' would wrongly point us to /usr/lib/llvm9.
+# This has not been re-checked for Alpine 3.12 (which ships with LLVM 10) but in any case,
+# it is nice to avoid the big package if it's not really necessary.
 #
 # TODO in ljclang:
 #  - remove altogether in favor of an alternative detection scheme that addresses all
 #    now supported platforms (Ubuntu x86_64, Raspbian 32-bit, Alpine Linux here)?
 ENV LLVM_CONFIG=true
 
-# Install 'extractdecls'.
 WORKDIR /home/user/ljremarkable/ljclang
-RUN mkdir /home/user/bin
 RUN sed -i 's|llvm_version :=.*|llvm_version := 10.0.0|' ./Makefile
 RUN sed -i 's|bindir :=.*|bindir := /usr/bin|' ./Makefile
 RUN sed -i 's|incdir :=.*|incdir := /usr/include|' ./Makefile
 RUN sed -i 's|libdir :=.*|libdir := /does-not-exist-and-is-not-relevant-here|' ./Makefile
-RUN make install-dev
 
 # Build the application.
 WORKDIR /home/user/ljremarkable
-RUN PATH="$HOME/bin:$PATH" make app
+RUN make app
 
 # Run the LJClang tests.
 USER root
