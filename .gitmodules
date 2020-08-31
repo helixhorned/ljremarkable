@@ -8,3 +8,6 @@
 [submodule "moonglow"]
 	path = moonglow
 	url = https://github.com/helixhorned/moonglow
+[submodule "src/interpose"]
+	path = src/interpose
+	url = https://github.com/helixhorned/interpose.git
