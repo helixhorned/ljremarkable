@@ -13,7 +13,8 @@ Table of Contents
 **[Using](#using)**\
 **[Details and troubleshooting](#details-and-troubleshooting)**\
 **[Acknowledgements](#acknowledgements)**\
-**[License](#license)**
+**[License](#license)**\
+**[Disclaimer](#disclaimer)**
 
 
 Introduction
@@ -348,3 +349,8 @@ The main application `grabscreen.lua` is GPL3-licensed. See
 The "library part" -- the non-generated source code in this repository that is used by the
 application -- is MIT-licensed, unless otherwise noted. See
 [`LICENSE.MIT.txt`](LICENSE.MIT.txt) for details.
+
+Disclaimer
+----------
+
+The *ljremarkable* project is not affiliated with, or endorsed by, reMarkable AS.
