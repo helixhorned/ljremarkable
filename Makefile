@@ -49,7 +49,7 @@ ensure_extractdecls:
 	echo "Ensuring dependencies for extractdecls.lua"
 	make --silent -C ljclang extractdecls_deps
 
-clean: ljclang_clean moonglow_clean
+clean: ljclang_clean moonglow_clean src_clean
 	$(RM) $(remarkable_decls_lua) $(remarkable_decls_lua_tmp) \
 		$(linux_decls_lua) $(linux_decls_lua_tmp) \
 		grabscreen.app.lua _setup_rM-app.lua
@@ -96,6 +96,9 @@ moonglow_clean:
 
 moonglow_deps:
 	$(MAKE) -C moonglow all
+
+src_clean:
+	$(MAKE) -C src clean
 
 # Docker
 
