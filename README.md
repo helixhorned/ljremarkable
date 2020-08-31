@@ -134,7 +134,7 @@ It is possible to use the binary from the Raspberry Pi OS `luajit` APT package o
 
 #### Comparison of `/proc/cpuinfo`
 
-| | reMarkable | Raspberry Pi 4 |
+| | reMarkable 1 | Raspberry Pi 4 |
 | --- | --- | --- |
 | `model name`       |  `ARMv7 Processor rev 10 (v7l)`                       | `ARMv7 Processor rev 3 (v7l)` |
 | `Features`         |  `half thumb fastmult vfp edsp neon vfpv3 tls vfpd32` | additionally: `vfpv4 idiva idivt lpae evtstrm crc32` |
