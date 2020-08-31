@@ -3,13 +3,64 @@
 #include "pdfium/fpdfview.h"
 #include "interpose/include/interpose.h"
 
+#include <errno.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
+
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #define SCREEN_WIDTH 1404
 #define SCREEN_HEIGHT 1872
+
+#define UID_GID 1000  // User and group ID of first custom user
+
+#define PrintAndExit(Code, Fmt, ...) \
+    do { \
+        fprintf(stderr, "ljrM_interpose_info.so: " Fmt "\n", __VA_ARGS__); \
+        _Exit(Code); \
+    } while (0)
+
+static __attribute__((constructor))
+void Init() {
+    static const mode_t Mode =
+        S_IRWXU | S_IRWXG |  // owner + group: rwx
+        S_ISVTX;             // sticky (restricted deletion)
+
+    static const char *Dir = "/tmp/ljrM-pdf";
+
+    // Allow creation of group-writable directory:
+    const mode_t oldUmask = umask(S_IWOTH);
+
+    if (mkdir(Dir, Mode) == -1) {
+        if (errno != EEXIST)
+            PrintAndExit(200, "failed to create directory '%s': %s", Dir, strerror(errno));
+
+        struct stat st;
+
+        if (stat(Dir, &st) == -1)
+            PrintAndExit(201, "failed to stat '%s': %s", Dir, strerror(errno));
+
+        if ((st.st_mode & S_IFMT) != S_IFDIR)
+            PrintAndExit(202, "'%s' is not a directory", Dir);
+        else if (st.st_uid != 0)
+            PrintAndExit(203, "'%s' is not owned by root", Dir);
+        else if (st.st_gid != UID_GID)
+            PrintAndExit(204, "'%s' is not group-owned by group with ID %d", Dir, UID_GID);
+        else if ((st.st_mode & 07777) != Mode)
+            PrintAndExit(205, "'%s' has mode flags 0%o, expected 0%o", Dir, (st.st_mode & 07777), Mode);
+    }
+
+    umask(oldUmask);
+
+    if (chown(Dir, 0, UID_GID) == -1)
+        PrintAndExit(206, "failed changing owner of '%s': %s", Dir, strerror(errno));
+}
 
 static
 double GetScale(double width, double height) {
