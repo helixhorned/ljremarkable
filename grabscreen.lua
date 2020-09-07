@@ -58,10 +58,13 @@ if (doFork) then
 end
 
 local function ParseClientServerArgument(firstArg)
-    if (firstArg == nil or numStr == nil) then
-        return (firstArg == 'c'), (firstArg == 's'), 0
+    if (firstArg == nil) then
+        return false, false, 0
     end
     local cORs, numStr = firstArg:match("^([cs])%+([0-9][0-9]?)$")
+    if (numStr == nil) then
+        return (firstArg == 'c'), (firstArg == 's'), 0
+    end
     return (cORs == 'c'), (cORs == 's'), tonumber(numStr)
 end
 
