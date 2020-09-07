@@ -150,7 +150,8 @@ do
     local expectedPixelSize = (isClient and SourcePixelSize or DestPixelSize)
 
     if (not isDebugging and map:getPixelSize() ~= expectedPixelSize) then
-        errprintfAndExit("ERROR: Unsupported pixel size.")
+        errprintfAndExit("ERROR: Unsupported pixel size (%d bytes, expected %d).",
+                         map:getPixelSize(), expectedPixelSize)
     end
 
     local vi = fb:getVarInfo()
