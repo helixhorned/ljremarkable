@@ -29,6 +29,8 @@
         _Exit(Code); \
     } while (0)
 
+#define Printf printf
+
 static __attribute__((constructor))
 void Init() {
     static const mode_t Mode =
@@ -197,7 +199,7 @@ INTERPOSE_C(FPDF_DOCUMENT, FPDF_LoadDocument,
     FPDF_DOCUMENT doc = Real__FPDF_LoadDocument(file_path, password);
     const char *name = GetName(file_path);
 
-    printf("INFO: LoadDocument: %s -> doc=%p\n"
+    Printf("INFO: LoadDocument: %s -> doc=%p\n"
            "                    expected=%s\n",
            file_path ? file_path : "(null)", (void *)doc,
            name ? "yes" : "no");
@@ -208,7 +210,7 @@ INTERPOSE_C(FPDF_DOCUMENT, FPDF_LoadDocument,
 }
 
 INTERPOSE_C_VOID(FPDF_CloseDocument, (FPDF_DOCUMENT document), (document)) {
-    printf("INFO: CloseDocument: doc=%p\n", (void *)document);
+    Printf("INFO: CloseDocument: doc=%p\n", (void *)document);
 
     Real__FPDF_CloseDocument(document);
 
@@ -218,12 +220,12 @@ INTERPOSE_C_VOID(FPDF_CloseDocument, (FPDF_DOCUMENT document), (document)) {
 INTERPOSE_C(FPDF_PAGE, FPDF_LoadPage, (FPDF_DOCUMENT document, int page_index),
             (document, page_index)) {
     FPDF_PAGE page = Real__FPDF_LoadPage(document, page_index);
-    printf("INFO: LoadPage: doc=%p, i=%d -> page=%p\n", (void *)document, page_index, (void *)page);
+    Printf("INFO: LoadPage: doc=%p, i=%d -> page=%p\n", (void *)document, page_index, (void *)page);
 
     const double width = FPDF_GetPageWidth(page);
     const double height = FPDF_GetPageHeight(page);
 
-    printf("      dimensions => %f x %f\n"
+    Printf("      dimensions => %f x %f\n"
            "      scale => %f\n",
            width, height, GetScale(width, height));
 
@@ -234,7 +236,7 @@ INTERPOSE_C(FPDF_PAGE, FPDF_LoadPage, (FPDF_DOCUMENT document, int page_index),
 }
 
 INTERPOSE_C_VOID(FPDF_ClosePage, (FPDF_PAGE page), (page)) {
-    printf("INFO: ClosePage: page=%p\n", (void *)page);
+    Printf("INFO: ClosePage: page=%p\n", (void *)page);
 
     ClearDocForPage(page);
 
@@ -245,7 +247,7 @@ INTERPOSE_C(FPDF_BITMAP, FPDFBitmap_CreateEx,
             (int width, int height, int format, void* first_scan, int stride),
             (width, height, format, first_scan, stride)) {
     FPDF_BITMAP bitmap = Real__FPDFBitmap_CreateEx(width, height, format, first_scan, stride);
-    printf("INFO: CreateEx: w=%d h=%d format=%d ptr=%p stride=%d -> bitmap=%p\n",
+    Printf("INFO: CreateEx: w=%d h=%d format=%d ptr=%p stride=%d -> bitmap=%p\n",
            width, height, format, first_scan, stride, (void *)bitmap);
     return bitmap;
 }
@@ -275,7 +277,7 @@ INTERPOSE_C_VOID(FPDF_RenderPageBitmapWithMatrix,
     const FPDF_DOCUMENT doc = isNoZoom ? GetDocForPage(page) : NULL;
     const char *key = GetNameForDoc(doc);
 
-    printf("INFO: Render: m = [%f %f 0;  bitmap=%p, flags=0x%x\n"
+    Printf("INFO: Render: m = [%f %f 0;  bitmap=%p, flags=0x%x\n"
            "                   %f %f 0;%s\n"
            "                   %f %f 1]\n"
            "              clip = (%f, %f)--(%f, %f)\n"
@@ -287,5 +289,5 @@ INTERPOSE_C_VOID(FPDF_RenderPageBitmapWithMatrix,
 
     const Millisecs startMs = curTimeMs();
     Real__FPDF_RenderPageBitmapWithMatrix(bitmap, page, matrix, clipping, flags);
-    printf("INFO: Rendered in %.02f ms\n", curTimeMs()-startMs);
+    Printf("INFO: Rendered in %.02f ms\n", curTimeMs()-startMs);
 }
