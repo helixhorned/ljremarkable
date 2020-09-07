@@ -8,10 +8,10 @@ cflags := -std=c99 $(opt_warn_flags) $(lib_flags)
 
 .PHONY: all clean
 
-all: ljrM_pdfium_interpose_info.so
+all: ljrM_pdfium_interpose.so
 
 clean:
-	$(RM) ljrM_pdfium_interpose_info.so
+	$(RM) ljrM_pdfium_interpose.so
 
-ljrM_pdfium_interpose_info.so: pdfium_interpose_info.c pdfium/fpdfview.h interpose/include/interpose.h
+ljrM_pdfium_interpose.so: pdfium_interpose.c pdfium/fpdfview.h interpose/include/interpose.h
 	$(CC) $(cflags) -o $@ $<

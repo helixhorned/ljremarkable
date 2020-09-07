@@ -25,7 +25,7 @@
 
 #define PrintAndExit(Code, Fmt, ...) \
     do { \
-        fprintf(stderr, "ljrM_interpose_info.so: " Fmt "\n", __VA_ARGS__); \
+        fprintf(stderr, "ljrM_interpose.so: " Fmt "\n", __VA_ARGS__); \
         _Exit(Code); \
     } while (0)
 
