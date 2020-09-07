@@ -11,15 +11,18 @@ last_release_app_blob := 999defb07
 
 ########## PROGRAMS ##########
 
+THIS_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+
 markdown := $(shell which $(MARKDOWN))
 
 extractrange := ./ljclang/extractrange.lua
 # LJClang application invoked from the tree:
 EXDECL_LDLIB_PATH := $(shell make --silent -C ljclang print-extractdecls-library-path)
-EXDECL_ENV := LD_LIBRARY_PATH='$(EXDECL_LDLIB_PATH)' LUA_PATH='./ljclang/?.lua;;'
-EXTRACTDECLS := ./ljclang/extractdecls.lua
+EXDECL_ENV := LD_LIBRARY_PATH='$(EXDECL_LDLIB_PATH)' LUA_PATH='$(THIS_DIR)/ljclang/?.lua;;'
+EXTRACTDECLS := $(THIS_DIR)/ljclang/extractdecls.lua
 MKDECLS_ENV := $(EXDECL_ENV) LJCLANG_EXTRACTDECLS=$(EXTRACTDECLS)
 extractdecls := $(EXDECL_ENV) $(EXTRACTDECLS)
+MOONGLOW_ENV := MOONGLOW_EXTRACTDECLS="$(extractdecls)"
 
 ########## RULES ##########
 
@@ -54,9 +57,10 @@ clean: ljclang_clean moonglow_clean src_clean
 		$(linux_decls_lua) $(linux_decls_lua_tmp) \
 		grabscreen.app.lua _setup_rM-app.lua
 
-committed-generated: $(committed_generated_files)
+committed-generated: $(committed_generated_files) ensure_extractdecls
 	$(MAKE) -C ljclang committed-generated
-	$(MAKE) -C moonglow committed-generated
+	@echo "<MOONGLOW_ENV> $(MAKE) -C moonglow committed-generated"
+	@$(MOONGLOW_ENV) $(MAKE) -C moonglow committed-generated
 
 install: app
 	install $(app_name) $(BINDIR)/$(app_name)
@@ -94,8 +98,9 @@ ljclang_deps:
 moonglow_clean:
 	$(MAKE) -C moonglow clean
 
-moonglow_deps:
-	$(MAKE) -C moonglow all
+moonglow_deps: ensure_extractdecls
+	@echo "<MOONGLOW_ENV> $(MAKE) -C moonglow all"
+	@$(MOONGLOW_ENV) $(MAKE) -C moonglow all
 
 src_clean:
 	$(MAKE) -C src clean
@@ -115,7 +120,6 @@ docker-run:
 
 GUEST_HOME := /home/user
 GUEST_OUT := $(GUEST_HOME)/docker-out
-THIS_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 HOST_OUT := $(THIS_DIR)/docker-out
 
 DOCKER_RUN_TAR_CMD := \
