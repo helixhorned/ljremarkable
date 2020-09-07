@@ -3,6 +3,9 @@
 #include "pdfium/fpdfview.h"
 #include "interpose/include/interpose.h"
 
+// NOTE: the .so file built from this source file is supposed to be preloaded to 'xochitl'
+//  which runs as root on the reMarkable tablet. Be as simple and defensive as possible.
+
 #include <errno.h>
 #include <math.h>
 #include <stdbool.h>
@@ -80,33 +83,161 @@ double Equals(double val, double refVal, double maxRelativeDeviation) {
             fabs((val / refVal) - 1.0) <= maxRelativeDeviation);
 }
 
+////////// Tracking (Document -> file name, page -> document) //////////
+
+#define PATH_PREFIX_LEN 42
+/* Expecting UUID:
+xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.pdf
+*/
+#define BASE_NAME_LEN 40
+#define FILE_NAME_LEN (PATH_PREFIX_LEN + 1 + BASE_NAME_LEN)
+
+static const char ExpectedPathPrefix[PATH_PREFIX_LEN + 1] = "/home/root/.local/share/remarkable/xochitl\0";
+typedef char XoName[BASE_NAME_LEN + 1];
+
+static bool IsExpectedFileName(const char *fileName) {
+    return fileName && strlen(fileName) == FILE_NAME_LEN &&
+        memcmp(fileName, ExpectedPathPrefix, PATH_PREFIX_LEN) == 0 &&
+        fileName[PATH_PREFIX_LEN] == '/' &&
+        strchr(fileName + PATH_PREFIX_LEN + 1, '/') == NULL &&
+        // TODO: check that the base name is in UUID form.
+        strcmp(fileName + FILE_NAME_LEN - 4, ".pdf") == 0;
+}
+
+static const char *GetName(const char *fileName) {
+    return IsExpectedFileName(fileName) ?
+        fileName + PATH_PREFIX_LEN + 1 :
+        NULL;
+}
+
+typedef struct {
+    FPDF_PAGE page;
+    FPDF_DOCUMENT doc;
+} PageAndDoc;
+
+typedef struct {
+    FPDF_DOCUMENT doc;
+    XoName baseName;
+} DocAndName;
+
+#define MAX_TRACKED 16
+
+#define SEARCH_MAP(Map, KeyMemberName, searchKey) \
+    for (int i = 0; i < MAX_TRACKED; i++) \
+        if (Map[i].KeyMemberName == searchKey)
+
+static PageAndDoc DocumentMap[MAX_TRACKED];
+static DocAndName NameMap[MAX_TRACKED];
+
+static void SetDocumentMapEntry(FPDF_PAGE searchPage, FPDF_PAGE page, FPDF_DOCUMENT doc) {
+    SEARCH_MAP(DocumentMap, page, searchPage) {
+        DocumentMap[i].page = page;
+        DocumentMap[i].doc = doc;
+        return;
+    }
+}
+
+static void SetNameMapEntry(FPDF_DOCUMENT searchDoc, FPDF_DOCUMENT doc, const char *name) {
+    SEARCH_MAP(NameMap, doc, searchDoc) {
+        NameMap[i].doc = doc;
+        char *destPtr = NameMap[i].baseName;
+
+        if (!name)
+            memset(destPtr, 0, BASE_NAME_LEN + 1);
+        else if (strlen(name) == BASE_NAME_LEN)
+            memcpy(destPtr, name, BASE_NAME_LEN + 1);
+
+        return;
+    }
+}
+
+// ----------
+
+static void ClearDocForPage(FPDF_PAGE page) {
+    if (page)
+        SetDocumentMapEntry(page, NULL, NULL);
+}
+
+static void ClearNameForDoc(FPDF_DOCUMENT doc) {
+    if (doc)
+        SetNameMapEntry(doc, NULL, NULL);
+}
+
+static void SetDocForPage(FPDF_PAGE page, FPDF_DOCUMENT doc) {
+    if (page && doc)
+        SetDocumentMapEntry(NULL, page, doc);
+}
+
+static void SetNameForDoc(FPDF_DOCUMENT doc, const char *name) {
+    if (doc && name)
+        SetNameMapEntry(NULL, doc, name);
+}
+
+static FPDF_DOCUMENT GetDocForPage(FPDF_PAGE page) {
+    if (page)
+        SEARCH_MAP(DocumentMap, page, page)
+            return DocumentMap[i].doc;
+
+    return NULL;
+}
+
+static const char *GetNameForDoc(FPDF_DOCUMENT doc) {
+    if (doc)
+        SEARCH_MAP(NameMap, doc, doc)
+            return NameMap[i].baseName;
+
+    return NULL;
+}
+
+//////////
+
 INTERPOSE_C(FPDF_DOCUMENT, FPDF_LoadDocument,
             (FPDF_STRING file_path, FPDF_BYTESTRING password),
             (file_path, password)) {
     FPDF_DOCUMENT doc = Real__FPDF_LoadDocument(file_path, password);
-    printf("INFO: LoadDocument: %s -> doc=%p\n", file_path ? file_path : "(null)", (void *)doc);
+    const char *name = GetName(file_path);
+
+    printf("INFO: LoadDocument: %s -> doc=%p\n"
+           "                    expected=%s\n",
+           file_path ? file_path : "(null)", (void *)doc,
+           name ? "yes" : "no");
+
+    SetNameForDoc(doc, name);
+
     return doc;
 }
 
 INTERPOSE_C_VOID(FPDF_CloseDocument, (FPDF_DOCUMENT document), (document)) {
     printf("INFO: CloseDocument: doc=%p\n", (void *)document);
+
     Real__FPDF_CloseDocument(document);
+
+    ClearNameForDoc(document);
 }
 
 INTERPOSE_C(FPDF_PAGE, FPDF_LoadPage, (FPDF_DOCUMENT document, int page_index),
             (document, page_index)) {
     FPDF_PAGE page = Real__FPDF_LoadPage(document, page_index);
     printf("INFO: LoadPage: doc=%p, i=%d -> page=%p\n", (void *)document, page_index, (void *)page);
+
     const double width = FPDF_GetPageWidth(page);
     const double height = FPDF_GetPageHeight(page);
+
     printf("      dimensions => %f x %f\n"
            "      scale => %f\n",
            width, height, GetScale(width, height));
+
+    if (GetNameForDoc(document))
+        SetDocForPage(page, document);
+
     return page;
 }
 
 INTERPOSE_C_VOID(FPDF_ClosePage, (FPDF_PAGE page), (page)) {
     printf("INFO: ClosePage: page=%p\n", (void *)page);
+
+    ClearDocForPage(page);
+
     Real__FPDF_ClosePage(page);
 }
 
@@ -141,13 +272,18 @@ INTERPOSE_C_VOID(FPDF_RenderPageBitmapWithMatrix,
                            m->b == 0.0 && m->c == 0.0 &&
                            m->e == 0.0 && m->f == 0.0);
 
+    const FPDF_DOCUMENT doc = isNoZoom ? GetDocForPage(page) : NULL;
+    const char *key = GetNameForDoc(doc);
+
     printf("INFO: Render: m = [%f %f 0;  bitmap=%p, flags=0x%x\n"
            "                   %f %f 0;%s\n"
            "                   %f %f 1]\n"
-           "              clip = (%f, %f)--(%f, %f)\n",
+           "              clip = (%f, %f)--(%f, %f)\n"
+           "              key = %s\n",
            m->a, m->b, (void *)bitmap, flags, m->c, m->d,
            isNoZoom ? "  [NO ZOOM]" : "", m->e, m->f,
-           c->left, c->top, c->right, c->bottom);
+           c->left, c->top, c->right, c->bottom,
+           key ? key : "(null)");
 
     const Millisecs startMs = curTimeMs();
     Real__FPDF_RenderPageBitmapWithMatrix(bitmap, page, matrix, clipping, flags);
