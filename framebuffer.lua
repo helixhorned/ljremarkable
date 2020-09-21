@@ -158,6 +158,7 @@ local Mapping = class
             -- public:
             xres_virtual = vinfo.xres_virtual,
             xres = vinfo.xres,
+            yres_original = vinfo.yres,
             yres = RoundUp(vinfo.yres, mulPixelCountY),
         }
     end,

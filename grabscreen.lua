@@ -558,7 +558,7 @@ end
 local Port = 16218 + portOffset
 
 -- Client -> server
-local UpdateMagic = "UpDatE"
+local UpdateMagic = "UpDat2"
 
 assert(totalDestTileCount <= 65536, "too high screen resolution")
 -- NOTE: what matters is just that they are the same on both ends,
@@ -984,11 +984,16 @@ local Client = class
         connFd:writeFull(header)
 
         local coords = coord_array_t(changedTileCount)
+        local clipBottomY = map.yres - map.yres_original
+        assert(clipBottomY >= 0 and clipBottomY < BigSideLen)
+        local highBits = bit.lshift(clipBottomY, 12)
 
         local i = 0
         for _, coord in ipairs(destTileCoords) do
             if (not coord.blocked) then
-                coords[i] = coord_t(coord.x, coord.y)
+                assert(bit.band(highBits, coord.y) == 0)
+                local usedHighBits = (coord.y == destTileCountY - 1) and highBits or 0
+                coords[i] = coord_t(coord.x, usedHighBits + coord.y)
                 i = i + 1
             end
         end
@@ -1858,14 +1863,16 @@ Server = class
         local updateRectMgr = UpdateRectManager()
 
         for i = 0, tileCount - 1 do
-            local tx, ty = tileCoords[i].x, tileCoords[i].y
+            local tx, ty = tileCoords[i].x, bit.band(tileCoords[i].y, 0x0fff)
             checkData(tx < destTileCountX and ty < destTileCountY,
                       "tile coordinates out of bounds")
+            local clipBottomY = bit.rshift(bit.band(tileCoords[i].y, 0xf000), 12)
+
             ty = ty + yTileOffset
 
             if (ty < destTileCountY) then
                 local rect = xywh_t(BigSideLen * tx, BigSideLen * ty,
-                                    BigSideLen, BigSideLen)
+                                    BigSideLen, BigSideLen - clipBottomY)
                 updateRectMgr:add(rect)
 
                 -- Write updated tile to the framebuffer.
