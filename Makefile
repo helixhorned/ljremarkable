@@ -55,6 +55,8 @@ ensure_extractdecls:
 clean: ljclang_clean moonglow_clean src_clean
 	$(RM) $(remarkable_decls_lua) $(remarkable_decls_lua_tmp) \
 		$(linux_decls_lua) $(linux_decls_lua_tmp) \
+		$(freetype_decls_lua) $(freetype_decls_lua_tmp) \
+		layouts/.codepoints layouts/.charpics \
 		grabscreen.app.lua _setup_rM-app.lua
 
 committed-generated: $(committed_generated_files) ensure_extractdecls
