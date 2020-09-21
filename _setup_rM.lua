@@ -5,6 +5,7 @@
 -- NOTE: will assign to global environment at the end.
 local _G = _G
 
+local bit=require'bit'
 local ffi=require'ffi'
 local FB=require'framebuffer'
 local fb=FB.FrameBuffer(0, true)
@@ -42,6 +43,13 @@ local function fup(x, y, w, h, val)
     rM:requestRefresh(RM.xywh(x,y,w,h), 123)
 end
 
+local function coverageToPixel(cov)
+    assert(charpics.CoverageValueShift == 3)
+    assert(cov >= 0 and cov <= 31)
+    local gray = 31 - cov
+    return rgb(gray, 2*gray, gray)
+end
+
 local cps
 local function drawchar(x, y, codePoint)
     local MaxSideLen = charpics.MaxSideLength
@@ -52,7 +60,7 @@ local function drawchar(x, y, codePoint)
     assert(cps ~= nil, "Failed loading charpics")
 
     local xoffset = cps:renderUnsafe(
-        codePoint, map:getPixelPointer(x, y), map.xres_virtual)
+        codePoint, map:getPixelPointer(x, y), map.xres_virtual, coverageToPixel)
     rM:requestRefresh(RM.xywh(x, y, MaxSideLen, MaxSideLen), 123)
     return xoffset
 end

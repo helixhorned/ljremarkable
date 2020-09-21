@@ -51,6 +51,7 @@ local MAXPIXVAL = bit.rshift(255, PIXSHIFT)
 assert(MAXPIXVAL <= MAXRUNLEN)
 
 api.MaxSideLength = MAXSIDELEN
+api.CoverageValueShift = PIXSHIFT
 
 -- TODO: require pre-shifted tile as input?
 local function ShiftPixel(value)
@@ -207,11 +208,11 @@ local function Encode(data, width, height)
     return comprData, comprSize
 end
 
-local function ReplaySpec(spec, ptr, remainingLen)
+local function ReplaySpec(spec, ptr, remainingLen, pixFunc)
     assert(remainingLen >= 1)
 
     if (bit.band(spec, Bits.IsRLE) == 0) then
-        ptr[0] = spec
+        ptr[0] = pixFunc(spec)
         return 1
     end
 
@@ -222,7 +223,7 @@ local function ReplaySpec(spec, ptr, remainingLen)
     -- TODO on demand: blending.
     if (bit.band(spec, Bits.IsMaxCov) ~= 0) then
         for i = 0, length - 1 do
-            ptr[i] = MAXPIXVAL
+            ptr[i] = pixFunc(MAXPIXVAL)
         end
     end
 
@@ -231,11 +232,14 @@ end
 
 -- NOTE: does not fill 'dstPtr'. The caller prepares it as it likes.
 -- TODO: pass back errors due to improper input data instead of asserting.
-local function Decode(srcPtr, srcLen, width, height, dstPtr, dstStride)
+local function Decode(srcPtr, srcLen, width, height, dstPtr, dstStride, pixFunc)
     assert(type(srcPtr) == "cdata" and type(dstPtr) == "cdata")
     assert(srcLen > 0)
     assert(width > 0 and height > 0)
     assert(dstStride >= width)
+    assert(pixFunc == nil or type(pixFunc) == "function")
+
+    pixFunc = pixFunc or function(p) return p end
 
     local srcEnd = srcPtr + srcLen
 
@@ -251,7 +255,7 @@ local function Decode(srcPtr, srcLen, width, height, dstPtr, dstStride)
         local dstPtrOffset = offset
 
         for s = 0, specCount - 1 do
-            local step = ReplaySpec(srcPtr[s], dstPtr + dstPtrOffset, remainingLen)
+            local step = ReplaySpec(srcPtr[s], dstPtr + dstPtrOffset, remainingLen, pixFunc)
             assert(step <= remainingLen)
             dstPtrOffset = dstPtrOffset + step
             remainingLen = remainingLen - step
@@ -337,10 +341,10 @@ local CharPicsFile = class
         }
     end,
 
-    renderUnsafe = function(self, codePoint, ptr, stride)
+    renderUnsafe = function(self, codePoint, ptr, stride, pixFunc)
         local desc, data = self:descAndData(codePoint)
         assert(desc ~= nil, "no tile for given code point")
-        Decode(data, desc.comprSize, desc.w, desc.h, ptr, stride)
+        Decode(data, desc.comprSize, desc.w, desc.h, ptr, stride, pixFunc)
         return desc.w
     end,
 
