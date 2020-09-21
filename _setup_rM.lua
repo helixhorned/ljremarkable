@@ -13,6 +13,8 @@ local map=fb:getMapping()
 local RM=require'remarkable'
 local rM=RM.Remarkable()
 
+local charpics = require'charpics'
+
 local math = require("math")
 local os = require("os")
 
@@ -38,6 +40,29 @@ end
 local function fup(x, y, w, h, val)
     map:fill(x, y, w, h, val)
     rM:requestRefresh(RM.xywh(x,y,w,h), 123)
+end
+
+local cps
+local function drawchar(x, y, codePoint)
+    local MaxSideLen = charpics.MaxSideLength
+    assert(x >= 0 and x <= map.xres - MaxSideLen)
+    assert(y >= 0 and y <= map.yres - MaxSideLen)
+
+    cps = cps or charpics.load('.charpics')
+    assert(cps ~= nil, "Failed loading charpics")
+
+    local xoffset = cps:renderUnsafe(
+        codePoint, map:getPixelPointer(x, y), map.xres_virtual)
+    rM:requestRefresh(RM.xywh(x, y, MaxSideLen, MaxSideLen), 123)
+    return xoffset
+end
+
+local function drawstr(x, y, str)
+    for i = 1, #str do
+        local codePoint = str:sub(i, i):byte()
+        local xoffset = drawchar(x, y, codePoint)
+        x = x + xoffset + 16
+    end
 end
 
 -- NOTE: zero-based for more convenient '%'-ing.
@@ -97,9 +122,12 @@ _G.fb = fb
 _G.map = map
 _G.RM = RM
 _G.rM = rM
+_G.charpics = charpics
 
 _G.rgb = rgb
 _G.fup = fup
+_G.drawchar = drawchar
+_G.drawstr = drawstr
 _G.clear = clear
 _G.gradient = gradient
 

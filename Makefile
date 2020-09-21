@@ -246,7 +246,7 @@ upload: grabscreen.app.lua rM_ul_eye_menu_hidden_46-28.dat
 	@if [ x`uname -m` != x"armv7l" ]; then echo "ERROR: Cannot upload app to the rM: processor architecture does not match"; false; fi
 	scp $^ "$(LJREMARKABLE_TABLET_USER)@$(LJREMARKABLE_TABLET_HOST):"
 
-upload-debugging-setup: _setup_rM-app.lua
+upload-debugging-setup: _setup_rM-app.lua layouts/.charpics
 	@if [ x`uname -m` != x"armv7l" ]; then echo "ERROR: Cannot upload app to the rM: processor architecture does not match"; false; fi
 	scp $^ "$(LJREMARKABLE_TABLET_USER)@$(LJREMARKABLE_TABLET_HOST):"
 

@@ -20,7 +20,7 @@ local io = require("io")
 local math = require("math")
 local table = require("table")
 
-local art_table = require("art_table")
+local art_table = require("moonglow.art_table")
 local class = require("class").class
 local posix = require("posix")
 
@@ -49,6 +49,8 @@ local PIXSHIFT = 3
 local MAXPIXVAL = bit.rshift(255, PIXSHIFT)
 -- Non-RLE pixel values must not stomp on the two RLE high bits.
 assert(MAXPIXVAL <= MAXRUNLEN)
+
+api.MaxSideLength = MAXSIDELEN
 
 -- TODO: require pre-shifted tile as input?
 local function ShiftPixel(value)
@@ -229,10 +231,11 @@ end
 
 -- NOTE: does not fill 'dstPtr'. The caller prepares it as it likes.
 -- TODO: pass back errors due to improper input data instead of asserting.
-local function Decode(srcPtr, srcLen, width, height, dstPtr)
+local function Decode(srcPtr, srcLen, width, height, dstPtr, dstStride)
     assert(type(srcPtr) == "cdata" and type(dstPtr) == "cdata")
     assert(srcLen > 0)
     assert(width > 0 and height > 0)
+    assert(dstStride >= width)
 
     local srcEnd = srcPtr + srcLen
 
@@ -259,7 +262,7 @@ local function Decode(srcPtr, srcLen, width, height, dstPtr)
         assert(remainingLen >= 0)
 
         srcPtr = srcPtr + specCount
-        dstPtr = dstPtr + width
+        dstPtr = dstPtr + dstStride
     end
 
     assert(srcPtr == srcEnd)
@@ -334,6 +337,14 @@ local CharPicsFile = class
         }
     end,
 
+    renderUnsafe = function(self, codePoint, ptr, stride)
+        local desc, data = self:descAndData(codePoint)
+        assert(desc ~= nil, "no tile for given code point")
+        Decode(data, desc.comprSize, desc.w, desc.h, ptr, stride)
+        return desc.w
+    end,
+
+-- private:
     descAndData = function(self, codePoint)
         assert(type(codePoint) == "number", "argument #1 must be a number")
 
@@ -482,7 +493,7 @@ function api.write(fileName, artTab)
         if (ValidateOnWrite) then
             local size = w * h
             local tempBuf = uint8_array_t(size)
-            Decode(comprEntry, comprSize, w, h, tempBuf)
+            Decode(comprEntry, comprSize, w, h, tempBuf, w)
 
             for k = 0, size - 1 do
                 local pix, ref = tempBuf[k], tileTab.data[k]

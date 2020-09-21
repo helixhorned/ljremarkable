@@ -126,9 +126,8 @@ local Mapping = class
             pxArrayType = pixelArrayType,
             unpackPxFunc = GetUnpackPixelFunc(vinfo),
 
-            xres_virtual = vinfo.xres_virtual,
-
             -- public:
+            xres_virtual = vinfo.xres_virtual,
             xres = vinfo.xres,
             yres = vinfo.yres,
         }
