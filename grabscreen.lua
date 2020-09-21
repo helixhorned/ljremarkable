@@ -221,7 +221,6 @@ local targetXres = math.min(RoundToTarget(map.xres), RoundToTarget(ScreenWidth_r
 local targetYres = math.min(RoundToTarget(map.yres + BigSideLen-1), RoundToTarget(ScreenHeight_rM))
 local targetSize = targetXres * targetYres
 
-local globalSrcYOffset = 0
 -- Make sure we do not overwrite the "eye" on the reMarkable.
 local DestYPixelOffset = EyeSize_rM
 assert(DestYPixelOffset % BigSideLen == 0)  -- see usage for why
@@ -387,7 +386,7 @@ local Sampler = class
             for x = 0, targetXres - 1, SideLen do
                 -- Randomly perturb sample positions.
                 local xoff = self.rng:getu32() % SideLen
-                local yoff = globalSrcYOffset + self.rng:getu32() % SideLen
+                local yoff = self.rng:getu32() % SideLen
 
                 idxs[#idxs + 1] = map:getLinearIndex(x + xoff, y + yoff)
             end
@@ -416,7 +415,7 @@ local function CopyBigTile(srcPtr, destPtr, coord, copyFormat)
 
     local tx, ty = UnpackDestTileCoord(coord)
     local sx = BigSideLen * tx
-    local sy = BigSideLen * ty + globalSrcYOffset
+    local sy = BigSideLen * ty
 
     for i = 0, BigSideLen - 1 do
         local srcOffset = map:getLinearIndex(sx, sy + i)
@@ -651,12 +650,10 @@ assert(MaxSleepTime < 1e6)  -- see usage for why
 local timeval_t = ffi.typeof("struct timeval")
 
 -- INPUT_EVENT_COORD_CONVERSION step 3
--- NOTE: Must be called on the client...
+-- NOTE: called on the client for legacy reasons.
 local function ConvertScreenToClient(sx, sy)
     local cx = sx
     local cy = sy - DestYPixelOffset
-        + globalSrcYOffset  -- ...because of this!
-
     return cx, cy
 end
 
@@ -1031,11 +1028,10 @@ local Client = class
                 local cnx, cny = ConvertScreenToClient(ourEvent.nx, ourEvent.ny)
 
                 local function isInScreenBounds(x, y)
-                    return x >= 0 and x < targetXres and
-                        y >= globalSrcYOffset and y < targetYres
+                    return x >= 0 and x < targetXres and y >= 0 and y < targetYres
                 end
 
-                if (cy >= targetYres and cny < globalSrcYOffset) then
+                if (cy >= targetYres and cny < 0) then
                     -- Drag across the Pi screen from below it to above it: resend picture.
                     if (ourEvent.ourType == OurEventType.Drag) then
                         if (self.sampler ~= nil) then
