@@ -2,6 +2,7 @@ local ffi = require("ffi")
 local C = ffi.C
 
 local bit = require("bit")
+local math = require("math")
 
 local class = require("class").class
 local error_util = require("error_util")
@@ -20,6 +21,8 @@ local FB_VISUAL = linux_decls.FB_VISUAL
 
 local assert = assert
 local error = error
+local tonumber = tonumber
+local type = type
 local unpack = unpack
 
 ----------
@@ -88,9 +91,23 @@ local function GetUnpackPixelFunc(vi)
     end
 end
 
+local uint32_t = ffi.typeof("uint32_t")
+
+local function RoundDown(val, mul)
+    assert(mul >= 1)
+    return tonumber(mul * (uint32_t(val) / mul))
+end
+
+local function RoundUp(val, mul)
+    assert(mul >= 1)
+    return tonumber(mul * (uint32_t(val + mul-1) / mul))
+end
+
 local Mapping = class
 {
-    function(fb)
+    -- <mulPixelCountY>: if non-nil, ensures that the size of the mapping is a multiple of
+    -- 'mulPixelCountY' pixels in the y direction.
+    function(fb, mulPixelCountY)
         local vinfo = fb:getVarInfo()
         check(fb.type == FB_TYPE.PACKED_PIXELS, "Only packed pixels supported", 3)
         check(fb.visual == FB_VISUAL.TRUECOLOR, "Only truecolor supported", 3)
@@ -99,21 +116,33 @@ local Mapping = class
               "Only offset-less format supported", 2)
         assert(vinfo.xres <= vinfo.xres_virtual and vinfo.yres <= vinfo.yres_virtual)
 
+        mulPixelCountY = (mulPixelCountY == nil) and 1 or mulPixelCountY
+        check(type(mulPixelCountY) == "number", "argument #2 must be nil or a number", 3)
+        check(mulPixelCountY >= 1, "argument #2 must be strictly positive", 3)
+
         -- NOTE: this will error if there is no uint<BPP>_t type.
         local pixelType, constPxType = GetPixelTypes(vinfo.bits_per_pixel)
         local pixelPtrType = ffi.typeof("$ *", fb.writable and pixelType or constPxType)
         local pixelArrayType = ffi.typeof("$ [?]", pixelType)
+        local pixelSize = vinfo.bits_per_pixel / 8
+        assert(fb.line_length == pixelSize * vinfo.xres_virtual)
 
         local fbSize = fb.line_length * vinfo.yres_virtual
         check(fbSize > 0, "INTERNAL ERROR: framebuffer has size zero", 1)
-        local voidPtr = posix.mmap(
-            nil, fbSize,
+
+        -- Ensure divisibility requirement of 'mulPixelCountY':
+        local fbPixelCount = vinfo.xres_virtual * RoundUp(vinfo.yres_virtual, mulPixelCountY)
+        local totalMapSize = pixelSize * fbPixelCount
+        assert(totalMapSize >= fbSize)
+        -- NOTE: When padding is used, we may end up truncating the visible portion.
+        local usedFbSize = (totalMapSize == fbSize) and fbSize or
+            RoundDown(fbSize, posix.getPageSize())
+
+        local voidPtr = posix.memMapWithPadding(
+            totalMapSize, usedFbSize,
             PROT.READ + (fb.writable and PROT.WRITE or 0),
             fb.writable and MAP.SHARED or MAP.PRIVATE,
-            fb.fd, 0)
-
-        local pixelSize = vinfo.bits_per_pixel / 8
-        assert(fb.line_length == pixelSize * vinfo.xres_virtual)
+            fb.fd)
 
         return {
             -- Anchor mmap()ed memory (which will unmap on garbage collection).
@@ -129,7 +158,7 @@ local Mapping = class
             -- public:
             xres_virtual = vinfo.xres_virtual,
             xres = vinfo.xres,
-            yres = vinfo.yres,
+            yres = RoundUp(vinfo.yres, mulPixelCountY),
         }
     end,
 
@@ -256,8 +285,8 @@ api.FrameBuffer = class
         return vinfo
     end,
 
-    getMapping = function(self)
-        return Mapping(self)
+    getMapping = function(self, mulPixelCount)
+        return Mapping(self, mulPixelCount)
     end,
 
     close = function(self)

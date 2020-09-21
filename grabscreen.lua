@@ -137,8 +137,15 @@ end
 
 ----------
 
+-- Tiling on the source:
+local SideLen = 8
+local SquareSize = SideLen * SideLen  -- in pixels
+-- Tiling on the target:
+local BigSideLen = 2 * SideLen
+local BigSquareSize = BigSideLen * BigSideLen
+
 local fb = FrameBuffer(0, isServer)
-local map = fb:getMapping()
+local map = fb:getMapping(BigSideLen)
 local unpackPixel = map:getUnpackPixelFunc()
 local fbPtr = map:getBasePointer()
 
@@ -188,14 +195,6 @@ local MenuWidth_rM = 120
 -- Guesstimate for the side length of the touch-active region around the rM "eye".
 local EyeSize_rM = 128
 
--- Tiling on the source:
-local SideLen = 8
-local SquareSize = SideLen * SideLen  -- in pixels
-
--- Tiling on the target:
-local BigSideLen = 2 * SideLen
-local BigSquareSize = BigSideLen * BigSideLen
-
 -- Encoding / decoding.
 local IsRLE_Bit = bit.lshift(1, 15)
 local IsDirect_Bit = bit.lshift(1, 14)
@@ -219,13 +218,10 @@ if (isRealServer) then
 end
 
 local targetXres = math.min(RoundToTarget(map.xres), RoundToTarget(ScreenWidth_rM))
-local targetYres = math.min(RoundToTarget(map.yres), RoundToTarget(ScreenHeight_rM))
+local targetYres = math.min(RoundToTarget(map.yres + BigSideLen-1), RoundToTarget(ScreenHeight_rM))
 local targetSize = targetXres * targetYres
 
--- We're OK with a portion of the screen clipped on the top, but want it whole on the bottom
--- where the menu bar is located.
-local globalSrcYOffset = -map.yres % BigSideLen
-assert(globalSrcYOffset >= 0 and globalSrcYOffset < BigSideLen)
+local globalSrcYOffset = 0
 -- Make sure we do not overwrite the "eye" on the reMarkable.
 local DestYPixelOffset = EyeSize_rM
 assert(DestYPixelOffset % BigSideLen == 0)  -- see usage for why
