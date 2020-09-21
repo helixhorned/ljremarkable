@@ -1864,7 +1864,7 @@ Server = class
             ty = ty + yTileOffset
 
             if (ty < destTileCountY) then
-                local rect = xywh_t(BigSideLen * tx, BigSideLen * (ty),
+                local rect = xywh_t(BigSideLen * tx, BigSideLen * ty,
                                     BigSideLen, BigSideLen)
                 updateRectMgr:add(rect)
 

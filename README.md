@@ -304,17 +304,12 @@ only once in a while.
 Details and troubleshooting
 ---------------------------
 
-**Q:** There is a horizontal stripe at the top missing!
+**Q:** (Obsolete, informational part of answer left.)
 
 **A:** The application operates on two kinds of *tiles* into which it decomposes the Pi
 framebuffer image: 8-pixel-by-8-pixel tiles is the granularity at which changes are
 detected, each such tile being sampled for a pseudo-random pixel within it. Over the
 network, 16x16 tiles are sent to the rM for reconstruction of the image.
-
-Currently, the height of the target image has to be evenly divisibly by the side length of
-these "big tiles". The remainder of dividing 1080 (presumably the maximum vertical
-resolution when not using `vc4-fkms-v3d`) by 16 is 8. The decision to crop at the top is
-somewhat arbitrary, and it is planned to remove the limitation in the future.
 
 **Q:** There is a vertical stripe at the right not covered!
 
