@@ -1,0 +1,19 @@
+
+USER user
+WORKDIR /home/user
+
+## Build LuaJIT for the reMarkable tablet.
+#@if-ljrM: RUN git clone luajit-2.1 ./luajit-2.1-rM
+#@if-ljrM: RUN (cd luajit-2.1 && commit=`git rev-parse --verify HEAD` && cd ../luajit-2.1-rM && git checkout $commit)
+
+#@if-ljrM: WORKDIR /home/user/luajit-2.1-rM
+# NOTE: the reMarkable toolchain also has '-march=armv7-a' but that seems redundant
+#  because it's implied by Cortex-A9.
+#@if-ljrM: RUN sed -i 's/^CCOPT_arm=$/CCOPT_arm= -mfpu=neon -mfloat-abi=hard -mcpu=cortex-a9/' ./src/Makefile
+#@if-ljrM: RUN make -j4
+#@if-ljrM: RUN sha256sum src/luajit | grep -q ac212cb45d3b0f985b9a02ff497ac82c8c12cfb8881498855bb44231561feb7d
+#@if-ljrM: WORKDIR /home/user
+
+########## Check out and build ljremarkable ##########
+
+RUN echo TODO
