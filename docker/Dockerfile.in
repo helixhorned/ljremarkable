@@ -16,4 +16,9 @@ WORKDIR /home/user
 
 ########## Check out and build ljremarkable ##########
 
-RUN echo TODO
+COPY ./additional.git/ ./ljremarkable.git/
+
+# Create a non-bare repository:
+RUN git clone ./ljremarkable.git ./ljremarkable
+
+# TODO: build
