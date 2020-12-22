@@ -27,7 +27,7 @@ MOONGLOW_ENV := MOONGLOW_EXTRACTDECLS="$(extractdecls)"
 ########## RULES ##########
 
 .PHONY: all app check_extractdecls clean decls doc upload veryclean ljclang_deps ljclang_clean ljclang_veryclean
-.PHONY: docker-build docker-run layouts codepoints moonglow_deps moonglow_clean committed-generated showtiles
+.PHONY: layouts codepoints moonglow_deps moonglow_clean committed-generated showtiles
 .PHONY: checkout-last-release install-last-release capture-local-screen capture-rM-screen
 
 linux_decls_lua := linux_decls.lua
@@ -106,44 +106,6 @@ moonglow_deps: ensure_extractdecls
 
 src_clean:
 	$(MAKE) -C src clean
-
-# Docker
-
-LJREMARKABLE_BRANCH ?= master
-
-docker-build:
-	DOCKER_BUILDKIT=1 docker build . --tag ljremarkable-dev --build-arg ljrM_branch="$(LJREMARKABLE_BRANCH)"
-
-docker-rebuild:
-	DOCKER_BUILDKIT=1 docker build . --tag ljremarkable-dev --no-cache --build-arg ljrM_branch="$(LJREMARKABLE_BRANCH)"
-
-docker-run:
-	docker run -it --rm ljremarkable-dev
-
-GUEST_HOME := /home/user
-GUEST_OUT := $(GUEST_HOME)/docker-out
-HOST_OUT := $(THIS_DIR)/docker-out
-
-DOCKER_RUN_TAR_CMD := \
-	docker run --rm --entrypoint=/bin/tar ljremarkable-dev czf - -C "$(GUEST_HOME)"
-
-docker-get-artifacts:
-	@mkdir -p "$(HOST_OUT)"
-	@$(DOCKER_RUN_TAR_CMD) \
-		"luajit-2.1/src/luajit" \
-		"luajit-2.1-rM/src/luajit" \
-		"ljremarkable/grabscreen.app.lua" \
-			| /bin/tar xzf - -C "$(HOST_OUT)" \
-				--transform="s|.*rM/src/luajit|luajit-rM|g;s|.*/||g"
-
-docker-get-dev-artifacts:
-	@mkdir -p "$(HOST_OUT)"
-	@$(DOCKER_RUN_TAR_CMD) \
-		"ljremarkable/ljclang/ljclang_linux_decls.lua" \
-		"ljremarkable/ljclang/posix_types.lua" \
-		"ljremarkable/ljclang/posix_decls.lua" \
-		"ljremarkable/linux_decls.lua" \
-			| /bin/tar xzf - -C "$(HOST_OUT)" --transform="s|.*/||g"
 
 # Linux framebuffer interface exposed to us
 
