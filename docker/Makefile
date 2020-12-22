@@ -7,7 +7,7 @@
 
 ## User
 
-# For target 'run', to be used interactively, e.g.
+# For target 'run' and 'get-artifacts', to be used interactively, e.g.
 #  $ make run ljc<TAB...>                            --(completion)-->
 #  $ make run ljremarkable-dev-arm32v7/debian        --(edit)-->
 #  $ make run IMAGE=ljremarkable-dev-arm32v7/debian  <--(invoke this)
@@ -18,6 +18,15 @@ IMAGE ?=
 THIS_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
 commit := $(shell git rev-parse --short=12 HEAD)
+image_arch_os_pair :=
+
+ifneq ($(IMAGE),)
+  ifeq ($(findstring ~ljremarkable-dev-,~$(IMAGE)),)
+    $(error IMAGE must start with 'ljremarkable-dev-')
+  endif
+  _image_arch_os_pair := $(subst ~ljremarkable-dev-,,~$(IMAGE))
+  image_arch_os_pair := $(subst /,-,$(_image_arch_os_pair))
+endif
 
 ########## RULES ##########
 
@@ -50,3 +59,21 @@ ljremarkable-dev-amd64/alpine \
 ljremarkable-dev-amd64/debian \
 ljremarkable-dev-amd64/ubuntu:
 	$(MAKE) --silent -C ../ljclang/docker $(subst ljremarkable,ljclang,$@) $(recursive_make_vars)
+
+_get-artifacts-cat := docker run --rm --entrypoint cat '$(IMAGE):$(commit)'
+_out_dir := out/$(image_arch_os_pair)
+
+define get_executable =
+  $(_get-artifacts-cat) /home/user/$(1) > '$(_out_dir)/$(2)' && chmod +x '$(_out_dir)/$(2)'
+endef
+
+.PHONY: get-artifacts
+get-artifacts:
+	@test -n "$(image_arch_os_pair)" || (echo 'Must pass IMAGE=ljremarkable-dev-<arch>/<os>.' && false)
+	@docker image inspect '$(IMAGE):$(commit)' > /dev/null
+	mkdir -p '$(_out_dir)'
+	$(call get_executable,luajit-2.1/src/luajit,luajit)
+ifeq ($(image_arch_os_pair),arm32v7-debian)
+	$(call get_executable,luajit-2.1-rM/src/luajit,luajit-rM)
+endif
+	$(call get_executable,ljremarkable/grabscreen.app.lua,grabscreen.app.lua)
