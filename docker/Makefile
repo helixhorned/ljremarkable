@@ -21,9 +21,10 @@ commit := $(shell git rev-parse --short=12 HEAD)
 
 ########## RULES ##########
 
+.PHONY: run
 run:
-	@test -n "$(IMAGE)"
-	docker run -it --rm "$(IMAGE):$(commit)"
+	@test -n '$(IMAGE)'
+	docker run -it --rm '$(IMAGE):$(commit)'
 
 ## Rules for the actual Docker images
 # NOTE: no convenience logic like in ljclang to prevent code duplication.
