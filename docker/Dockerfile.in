@@ -11,7 +11,7 @@ WORKDIR /home/user
 #  because it's implied by Cortex-A9.
 #@if-ljrM: RUN sed -i 's/^CCOPT_arm=$/CCOPT_arm= -mfpu=neon -mfloat-abi=hard -mcpu=cortex-a9/' ./src/Makefile
 #@if-ljrM: RUN make -j4
-#@if-ljrM: RUN sha256sum src/luajit | grep -q ac212cb45d3b0f985b9a02ff497ac82c8c12cfb8881498855bb44231561feb7d
+#@if-ljrM: RUN sha256sum src/luajit | grep -q 365f7a07803cba234c62e7b07b3a0495c701b93500a40c7b1fb7db6234781d4e
 #@if-ljrM: WORKDIR /home/user
 
 ########## Check out and build ljremarkable ##########
@@ -21,4 +21,19 @@ COPY ./additional.git/ ./ljremarkable.git/
 # Create a non-bare repository:
 RUN git clone ./ljremarkable.git ./ljremarkable
 
-# TODO: build
+WORKDIR ljremarkable
+
+RUN sed -i 's|https://github.com/helixhorned/ljclang|../ljclang|g' .gitmodules
+RUN git submodule init
+RUN git submodule update ljclang
+
+# Avoid checking out the whole libremarkable repository. We only need one header.
+RUN mkdir -p libremarkable/legacy-c-impl/libremarkable
+WORKDIR libremarkable/legacy-c-impl/libremarkable
+RUN wget https://raw.githubusercontent.com/canselcik/libremarkable/master/legacy-c-impl/libremarkable/lib.h
+RUN sha256sum lib.h | grep -q 2e718a10e9c47e4cde5387e834b1a0d76964378cf6247e8e045bf92f6d1a6db4
+
+# Build the application.
+WORKDIR ../../..
+RUN cp -a /home/user/ljclang/Makefile ljclang/
+RUN make app
