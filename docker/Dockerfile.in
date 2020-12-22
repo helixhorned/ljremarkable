@@ -1,4 +1,8 @@
 
+USER root
+# Make sure that /usr/include/linux/fb.h is present:
+RUN @install@ $pkg_linux_headers
+
 USER user
 WORKDIR /home/user
 
