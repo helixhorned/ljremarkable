@@ -30,7 +30,27 @@ ifneq ($(IMAGE),)
   image_arch_os_pair := $(subst /,-,$(_image_arch_os_pair))
 endif
 
+native_machine := $(shell uname -m)
+# The architecture part of Docker image names:
+native_arch = null
+
+ifeq ($(native_machine),armv7l)
+  native_arch := arm32v7
+endif
+ifeq ($(native_machine),aarch64)
+  native_arch := arm64v8
+endif
+ifeq ($(native_machine),x86_64)
+  native_arch := amd64
+endif
+
+_os-release_contents := $(file < /etc/os-release)
+host_distro := $(subst ID=,,$(filter ID=%,$(_os-release_contents)))
+host_distro_supported := $(filter alpine debian ubuntu,$(host_distro))
+
 ########## RULES ##########
+
+_upload_userhost := $(LJREMARKABLE_TABLET_USER)@$(LJREMARKABLE_TABLET_HOST)
 
 .PHONY: all
 all:
@@ -42,6 +62,17 @@ all:
 	@echo ''
 	@echo ' $$ make run IMAGE=ljremarkable-dev-<arch>/<distro>'
 	@echo '  Run the specified Docker image, which must have been built before.'
+	@echo ''
+	@echo ' The following two convenience targets build the appropriate Docker images'
+	@echo ' automatically and take certain configuration from ../config.make:'
+	@echo ''
+	@echo ' $$ make install'
+	@echo '  Install the application and control script to the configured BINDIR,'
+	@echo "  currently: '$(BINDIR)'."
+	@echo ''
+	@echo ' $$ make upload'
+	@echo '  Upload the LuaJIT binary and the application to the reMarkable tablet.'
+	@echo "  Currently configured SSH connection destination: '$(_upload_userhost)'."
 	@echo ''
 
 .PHONY: run
@@ -98,7 +129,24 @@ endif
 out/arm32v7-debian/grabscreen.app.lua:
 	IMAGE=ljremarkable-dev-arm32v7/debian $(MAKE) --silent get-artifacts
 
-_upload_userhost := $(LJREMARKABLE_TABLET_USER)@$(LJREMARKABLE_TABLET_HOST)
+_native_app_path := out/$(native_arch)-$(host_distro)/grabscreen.app.lua
+
+.PHONY: install
+install:
+ifeq ($(native_arch),null)
+	@echo "ERROR: unsupported CPU hardware type '$(native_machine)'." && false
+else
+ifeq ($(host_distro_supported),)
+	@echo "ERROR: unsupported host Linux distribution '$(host_distro)'."
+	@echo "       Consider contacting the author for support." && false
+else
+ifneq ($(native_arch)-$(host_distro),arm32v7-debian)
+	IMAGE=ljremarkable-dev-$(native_arch)/$(host_distro) $(MAKE) --silent get-artifacts
+	install $(_native_app_path) $(BINDIR)
+	install $(THIS_DIR)/../pi-rM-control.sh $(BINDIR)
+endif
+endif
+endif
 
 .PHONY: upload
 upload: out/arm32v7-debian/grabscreen.app.lua $(THIS_DIR)/../rM_ul_eye_menu_hidden_46-28.dat
