@@ -17,6 +17,8 @@ IMAGE ?=
 
 THIS_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
+include $(THIS_DIR)/../config.make
+
 commit := $(shell git rev-parse --short=12 HEAD)
 image_arch_os_pair :=
 
@@ -68,7 +70,7 @@ define get_executable =
 endef
 
 .PHONY: get-artifacts
-get-artifacts:
+get-artifacts: $(IMAGE)
 	@test -n "$(image_arch_os_pair)" || (echo 'Must pass IMAGE=ljremarkable-dev-<arch>/<os>.' && false)
 	@docker image inspect '$(IMAGE):$(commit)' > /dev/null
 	mkdir -p '$(_out_dir)'
@@ -77,3 +79,18 @@ ifeq ($(image_arch_os_pair),arm32v7-debian)
 	$(call get_executable,luajit-2.1-rM/src/luajit,luajit-rM)
 endif
 	$(call get_executable,ljremarkable/grabscreen.app.lua,grabscreen.app.lua)
+
+# NOTE: Mark a real output file as phony so as to avoid specifying dependencies.
+#  Will be always re-obtained, but better have redundant updates than missed ones.
+.PHONY: out/arm32v7-debian/grabscreen.app.lua
+out/arm32v7-debian/grabscreen.app.lua:
+	IMAGE=ljremarkable-dev-arm32v7/debian $(MAKE) --silent get-artifacts
+
+_upload_userhost := $(LJREMARKABLE_TABLET_USER)@$(LJREMARKABLE_TABLET_HOST)
+
+.PHONY: upload
+upload: out/arm32v7-debian/grabscreen.app.lua $(THIS_DIR)/../rM_ul_eye_menu_hidden_46-28.dat
+	test -f out/arm32v7-debian/luajit-rM
+	scp $^ "$(_upload_userhost):"
+	ssh "$(_upload_userhost)" mkdir -p bin
+	scp out/arm32v7-debian/luajit-rM "$(_upload_userhost):bin/luajit"
