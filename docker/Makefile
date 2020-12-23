@@ -32,6 +32,18 @@ endif
 
 ########## RULES ##########
 
+.PHONY: all
+all:
+	@echo 'Usage:'
+	@echo ' $$ make ljremarkable-dev-<arch>/<distro>'
+	@echo '  Build a Docker image. It has the given name and is tagged'
+	@echo '  with the short-commit-SHA of *this* Git repository (ljremarkable).'
+	@echo "  Passing NOCACHE=1 will add '--no-cache' to the 'docker build' invocation(s)."
+	@echo ''
+	@echo ' $$ make run IMAGE=ljremarkable-dev-<arch>/<distro>'
+	@echo '  Run the specified Docker image, which must have been built before.'
+	@echo ''
+
 .PHONY: run
 run:
 	@test -n '$(IMAGE)'
