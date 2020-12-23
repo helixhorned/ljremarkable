@@ -196,7 +196,7 @@ hotkeys, makes the above procedure a one-step process and features related conve
 functionality:
 
     Usage: pi-rM-control.sh {after-login|ping|connect[-always-on]|kill} [<rM-host>]
-     * --use-blinkt: use the Pimoromi Blinkt! LED array via 'python3'
+     * --use-blinkt: use the Pimoroni Blinkt! LED array via 'python3'
      * <rM-host> defaults to 'remarkable'
 
 > **Attention**: Commands `connect` and `kill` currently kill any LuaJIT process

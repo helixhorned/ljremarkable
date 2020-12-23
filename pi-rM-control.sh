@@ -5,7 +5,7 @@ DEFAULT_REMARKABLE_HOST=remarkable
 
 if [ -z "$1" ]; then
     echo "Usage: $0 [--use-blinkt] {after-login|ping|connect|connect[-always-on]|kill} [<rM-host>]"
-    echo " * --use-blinkt: use the Pimoromi Blinkt! LED array via 'python3'"
+    echo " * --use-blinkt: use the Pimoroni Blinkt! LED array via 'python3'"
     echo " * <rM-host> defaults to '$DEFAULT_REMARKABLE_HOST'"
     exit 1
 fi
