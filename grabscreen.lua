@@ -28,6 +28,9 @@ local input = require("input")
 local FrameBuffer = require("framebuffer").FrameBuffer
 local JKissRng = require("jkiss_rng").JKissRng
 local posix = require("posix")
+-- NOTE [XLIB_LUA_CONDITIONAL_REQUIRE]: we want to be functional for setups without X
+--  installed.
+local xlib = (os.getenv("DISPLAY") ~= nil) and require("xlib") or nil
 
 local EV = input.EV
 local POLL = posix.POLL
@@ -248,6 +251,9 @@ end
 print(("INFO: %s%3d x %3d = %5d tiles (side length %d)"):format(
       not isRealServer and " destination: " or "",
       destTileCountX, destTileCountY, totalDestTileCount, BigSideLen))
+
+-- For emulating input:
+local display = (xlib ~= nil and isClient) and xlib.Display() or nil
 
 -- Throttling: Destination tiles for which changes were present within the last '...Window'
 -- updates are tentatively held back until the sequence number is evenly divisible by the
@@ -1069,7 +1075,7 @@ local Client = class
                         elseif (ourEvent.button == Button.GenericDrag) then
                             if (isInScreenBounds(cnx, cny)) then
                                 -- Emulate a drag with the left mouse button clicked.
-
+--[==[
                                 -- NOTE: since we immediately do waitpid() on the 'xdotool'
                                 --  child, we want this to be not too long.
                                 local DelayBetweenKeysMs = "5"
@@ -1129,6 +1135,17 @@ local Client = class
                                     DelayArgs,
                                     "mouseup", tostring(Button.Left),
                                 })
+--]==]
+                                if (display ~= nil) then
+                                    -- Delay needs to be this large for web-based maps,
+                                    -- unfortunately (already 50 ms may make dragging not work
+                                    -- properly). Note that the total is five times the number.
+                                    --
+                                    -- TODO: see if *some* of the delays on the constituent
+                                    --  operations can be lowered, though.
+                                    local InterOpDelayMs = 100
+                                    display:moveMouseClicked(cx,cy, cnx,cny, InterOpDelayMs)
+                                end
                             end
                         else
                             checkData("unexpected server input event: unexpected drag type")

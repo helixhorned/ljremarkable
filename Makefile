@@ -201,7 +201,11 @@ _setup_rM-app.lua: _setup_rM.lua $(linux_decls_lua) $(remarkable_decls_lua) ljcl
 		test -e _setup_rM.app.lua && mv _setup_rM.app.lua $@
 
 # Application unity file
+# NOTE: XLIB_LUA_CONDITIONAL_REQUIRE.
 grabscreen.app.lua: grabscreen.lua $(linux_decls_lua) $(remarkable_decls_lua) ljclang_deps
+	@if test -z "$$DISPLAY"; then if test x"$$LJREMARKABLE_ALLOW_NO_X_APP_LUA" != x'1'; then \
+	echo "ERROR: $(app_name) would be built without X support, but no override specified."; false; fi; fi
+	@test -n "$$DISPLAY" || echo "WARNING: $(app_name) created without X support."
 	@$(MAKE_APP_ENV) $(luajit) -l ljclang.mkapp $< -Q >/dev/null 2>&1 && test -e $@ && \
 		chmod +x $@ && printf "* \033[1mCreated $(app_name)\033[0m\n" || \
 		(printf "* \033[1;31mError\033[0m creating $(app_name)\n" && false)
