@@ -1093,6 +1093,13 @@ local Client = class
                                 --   for, well, the character '0'.
                                 local DummyKey = "00"
 
+                                -- CAUTION: do not use '--sync' with the 'mousemove' command.
+                                -- From 'man xdotool':
+                                --  > After sending the mouse move request, wait until the
+                                --  > mouse is actually moved.
+                                -- What's meant is: the new position differs form the old
+                                -- one. But that results in an indefinite wait if the move
+                                -- happens to have zero length.
                                 local DelayArgs = {
                                     "key", "--delay", DelayBetweenKeysMs, DummyKey, DummyKey
                                 };
@@ -1105,7 +1112,8 @@ local Client = class
                                 end
 
                                 InvokeXDoTool(Flatten{
-                                    "mousemove", "--sync", tostring(cx), tostring(cy),
+                                    "mousemove", tostring(cx), tostring(cy),
+                                    DelayArgs,
                                     "mousedown", tostring(Button.Left),
                                     DelayArgs,
                                     -- For dragging in web-based geographic maps, the
@@ -1115,12 +1123,9 @@ local Client = class
                                     -- TODO: confirm or refute: Presumably, the distance
                                     --  should not be too small so as not to round to zero,
                                     --  which would be treated as no-op by 'xdotool'?
-                                    -- FIXME: why do we sometimes have extreme delays of
-                                    --  several seconds until the dragging actually takes
-                                    --  place?
-                                    "mousemove", "--sync", weigh(31, cx, cnx), weigh(31, cy, cny),
+                                    "mousemove", weigh(31, cx, cnx), weigh(31, cy, cny),
                                     DelayArgs,
-                                    "mousemove", "--sync", tostring(cnx), tostring(cny),
+                                    "mousemove", tostring(cnx), tostring(cny),
                                     DelayArgs,
                                     "mouseup", tostring(Button.Left),
                                 })
