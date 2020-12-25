@@ -202,8 +202,8 @@ _setup_rM-app.lua: _setup_rM.lua $(linux_decls_lua) $(remarkable_decls_lua) ljcl
 
 # Application unity file
 grabscreen.app.lua: grabscreen.lua $(linux_decls_lua) $(remarkable_decls_lua) ljclang_deps
-	@$(MAKE_APP_ENV) $(luajit) -l ljclang.mkapp $< -Q >/dev/null 2>&1 && test -e $(app_name) && \
-		chmod +x $(app_name) && printf "* \033[1mCreated $(app_name)\033[0m\n" || \
+	@$(MAKE_APP_ENV) $(luajit) -l ljclang.mkapp $< -Q >/dev/null 2>&1 && test -e $@ && \
+		chmod +x $@ && printf "* \033[1mCreated $(app_name)\033[0m\n" || \
 		(printf "* \033[1;31mError\033[0m creating $(app_name)\n" && false)
 
 upload: grabscreen.app.lua rM_ul_eye_menu_hidden_46-28.dat
