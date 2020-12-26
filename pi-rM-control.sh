@@ -11,7 +11,7 @@ if [ -z "$1" ]; then
 fi
 
 useBlinkt=false
-if [[ "$1" =~ ^\- ]]; then
+if [[ "$1" =~ ^- ]]; then
     if [ x"$1" != x'--use-blinkt' ]; then
         echo "ERROR: Unrecognized option '$1'."
         exit 3
@@ -45,9 +45,9 @@ function led_ramp_fixed_and_cycle() {
         return
     fi
 
-    ramp_colors=`get_color_arg_list "$1"`
-    fixed_colors=`get_color_arg_list "$2"`
-    cycle_colors=`get_color_arg_list "$3"`
+    ramp_colors=$(get_color_arg_list "$1")
+    fixed_colors=$(get_color_arg_list "$2")
+    cycle_colors=$(get_color_arg_list "$3")
     cycle_steps="$4"
     cycle_periods="$5"
     cycle_offset="$6"
@@ -150,7 +150,7 @@ fi
 ## connect
 
 serverPrefixOpt=
-if [ $cmd == connect-always-on ]; then
+if [ x"$cmd" == x'connect-always-on' ]; then
     serverPrefixOpt=--always-on
 fi
 
