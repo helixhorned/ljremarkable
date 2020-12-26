@@ -3,6 +3,16 @@
 
 local ffi = require("ffi")
 
+if (os.getenv("DISPLAY") == nil) then
+    -- NOTE: this is only for running '.app.lua' unity files in an environment that does not
+    --  come with the X libraries loaded below. Calling 'require("xlib")' conditionally
+    --  won't save us since an '.app.lua' always executes the code for each module
+    --  amalgamated into it.
+    --
+    -- TODO: address this in ljclang's mkapp.lua?
+    return {}
+end
+
 -- NOTE: Debian includes the '.so' symlinks only with the '-dev' packages,
 --  so explicitly specify the major version in order to not depend on them.
 local X = ffi.load("X11.so.6")
