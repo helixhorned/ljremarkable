@@ -37,7 +37,14 @@ WORKDIR libremarkable/legacy-c-impl/libremarkable
 RUN wget https://raw.githubusercontent.com/canselcik/libremarkable/master/legacy-c-impl/libremarkable/lib.h
 RUN sha256sum lib.h | grep -q 2e718a10e9c47e4cde5387e834b1a0d76964378cf6247e8e045bf92f6d1a6db4
 
+# Install conditional run-time library dependencies (libX11.so.6 and libXtst.so.6).
+# For the resulting '.app.lua', we want 'xlib.lua' to be included unconditionally,
+# therefore the 'require()' for it must succeed.
+USER root
+RUN @install@ $pkg_libxtst
+USER user
+
 # Build the application.
 WORKDIR ../../..
 RUN cp -a /home/user/ljclang/Makefile ljclang/
-RUN make app
+RUN DISPLAY=dummy make app

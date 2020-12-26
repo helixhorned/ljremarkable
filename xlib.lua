@@ -3,8 +3,10 @@
 
 local ffi = require("ffi")
 
-local X = ffi.load("X11")
-local Xtst = ffi.load("Xtst")
+-- NOTE: Debian includes the '.so' symlinks only with the '-dev' packages,
+--  so explicitly specify the major version in order to not depend on them.
+local X = ffi.load("X11.so.6")
+local Xtst = ffi.load("Xtst.so.6")
 
 local class = require("class").class
 local error_util = require("error_util")
