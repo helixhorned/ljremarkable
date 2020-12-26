@@ -80,10 +80,6 @@ has to be commented out.
 application to react on (otherwise discarded) keyboard events by initiating a re-scan for
 updated screen regions.<sup>**[2]**</sup>
 
-Finally, for the application to carry out mouse actions on the desktop for certain gestures
-made on the tablet, `xdotool` needs to be installed, available as Raspberry Pi OS `apt`
-package. Running it does not require any special privileges.
-
 <sup>**[2]**</sup> <small>Checking for updates happens in intervals with an exponential
 backoff, so enabling this may shorten the time from typing something to seeing the effects
 of the input on the rM. However, the preferred mode of interaction is via the

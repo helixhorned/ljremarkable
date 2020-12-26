@@ -658,18 +658,6 @@ local function ConvertScreenToClient(sx, sy)
     return cx, cy
 end
 
-local function InvokeXDoTool(commands)
-    assert(type(commands) == "table")
-
-    local whoami, pid = posix.fork()
-
-    if (whoami == "child") then
-        posix.exec("/usr/bin/xdotool", commands)
-    else
-        posix.waitpid(pid, 0)
-    end
-end
-
 local MaxInputEvents = 1024
 local sizeof_input_event = ffi.sizeof("struct input_event")
 local input_event_array_t = ffi.typeof("struct input_event [?]")
