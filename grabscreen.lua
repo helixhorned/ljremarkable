@@ -1049,11 +1049,14 @@ local Client = class
                             local repeatCount = math.floor(math.abs(cny - cy) / SingleWheelRollDistance)
 
                             if (repeatCount >= 1) then
-                                InvokeXDoTool{
-                                    "mousemove", tostring(cx), tostring(cy),
-                                    "click", "--repeat", tostring(repeatCount), "--delay", "3", tostring(button),
-                                    "mousemove", "restore"
-                                }
+                                if (display ~= nil) then
+                                    local oldX, oldY = display:getMousePos()
+                                    if (oldX ~= nil and oldY ~= nil) then
+                                        display:moveMouse(cx, cy)
+                                        display:clickMouseMultiple(button, repeatCount, 3)
+                                        display:moveMouse(oldX, oldY)
+                                    end
+                                end
                             end
                         elseif (ourEvent.button == Button.GenericDrag) then
                             if (isInScreenBounds(cnx, cny)) then

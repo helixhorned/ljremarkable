@@ -34,6 +34,11 @@ int XWarpPointer(Display *display, Window src_w, Window dest_w,
   unsigned int src_width, unsigned int src_height,
   int dest_x, int dest_y);
 int XFlush(Display *display);
+Bool XQueryPointer(Display *display, Window w,
+  Window *root_ret, Window *child_ret,
+  int *root_x_ret, int *root_y_ret,
+  int *win_x_ret, int *win_y_ret,
+  unsigned int *mask_ret);
 
 Bool XTestQueryExtension(Display *display, int *, int *, int *, int *);
 int XTestFakeButtonEvent(Display *display,
@@ -87,6 +92,23 @@ api.Display = class
         }
 
         return tab
+    end,
+
+    getMousePos = function(self)
+        local window = X.XDefaultRootWindow(self.display)
+        local uAr = ffi.new("unsigned int [1]")
+        local wAr = ffi.new("Window [1]")
+        local iAr = ffi.new("int [1]")
+        local pos = ffi.new("int [2]")
+
+        local ret = X.XQueryPointer(
+            self.display, window, wAr, wAr, pos+0, pos+1, iAr, iAr, uAr)
+
+        if (ret == 0) then
+            return nil
+        end
+
+        return pos[0], pos[1]
     end,
 
     moveMouse = function(self, x, y)
@@ -147,6 +169,19 @@ api.Display = class
         self:_operateMouseButton(button, 1)
         msleep(1)
         self:_operateMouseButton(button, 0)
+    end,
+
+    clickMouseMultiple = function(self, button, repeatCount, interClickDelayMs)
+        checktype(repeatCount, 2, "number", 2)
+        checktype(interClickDelayMs, 3, "number", 2)
+        -- Be very strict (because we can):
+        check(interClickDelayMs >= 0 and interClickDelayMs <= 10,
+              "invalid inter-click delay in milliseconds, must be in [0, 10]", 2)
+
+        for i = 1, repeatCount do
+            self:clickMouse(button)
+            msleep(interClickDelayMs)
+        end
     end,
 
 -- private:
