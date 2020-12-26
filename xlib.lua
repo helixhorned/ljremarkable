@@ -143,6 +143,12 @@ api.Display = class
         self:_operateMouseButton(Button.Left, 0)
     end,
 
+    clickMouse = function(self, button)
+        self:_operateMouseButton(button, 1)
+        msleep(1)
+        self:_operateMouseButton(button, 0)
+    end,
+
 -- private:
     _operateMouseButton = function(self, button, downInt)
         checktype(button, 1, "number", 3)

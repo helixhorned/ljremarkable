@@ -1031,11 +1031,12 @@ local Client = class
                         checkData(ourEvent.button >= Button.Left and ourEvent.button <= Button.Right,
                                   "unexpected server input event: unexpected button")
 
-                        InvokeXDoTool{
-                            "mousemove", tostring(cx), tostring(cy),
-                            "click", tostring(ourEvent.button),
-                            -- NOTE: to have feedback, deliberately no 'mousemove restore'.
-                        }
+                        if (display ~= nil) then
+                            display:moveMouse(cx, cy)
+                            display:clickMouse(ourEvent.button)
+                            -- NOTE: to have feedback, deliberately no restoration of the
+                            --  mouse pointer position.
+                        end
                     elseif (ourEvent.ourType == OurEventType.Drag) then
                         if (ourEvent.button == Button.VerticalDrag) then
                             -- Emulate "dragging the page" like on a tablet by sending mouse
