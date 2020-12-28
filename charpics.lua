@@ -35,9 +35,10 @@ local type = type
 local api = {}
 
 local MAGIC = "\222rMp\237cs"  -- 7 bytes, "ÞrMpícs"
-local VERSION = 2  -- 1 byte
+local VERSION = 3  -- 1 byte
 
-local MAXCHARCODE = 0x10ffff
+-- We use a uint32_t for code points. Their interpretation is up to the user.
+local MAXCHARCODE = 0xffffffff
 -- We use a byte for tile xlen/ylen. (The high bit is reserved for future use.)
 local MAXSIDELEN = 127
 -- Use a signed 16-bit integer for the baseline in pixels:
@@ -77,10 +78,7 @@ local Header_t = ffi.typeof[[struct {
     uint32_t entryCount;
 }]]
 
--- Negative value: alternative (e.g. small) rendering of the codepoint @ the absolute value.
--- NOTE: This means that there can be no alternative for #0.
-local code_point_t = ffi.typeof("int32_t")
-assert(code_point_t(-MAXCHARCODE) == -MAXCHARCODE)
+local code_point_t = ffi.typeof("uint32_t")
 assert(code_point_t(MAXCHARCODE) == MAXCHARCODE)
 
 local code_point_array_t = ffi.typeof("$ [?]", code_point_t)
@@ -327,7 +325,7 @@ local CharPicsFile = class
             assert((currentOffset + comprSize < maxBound) == (i ~= entryCount - 1))
 
             local codePt = codePoints[i]
-            assert(codePt >= -MAXCHARCODE and codePt <= MAXCHARCODE)
+            assert(codePt >= 0 and codePt <= MAXCHARCODE)
             comprDataPtrs[codePt] = ffi.cast(uint8_ptr_t, uMemMapPtr + currentOffset)
             entryDescRefs[codePt] = desc
 
@@ -451,7 +449,7 @@ function api.write(fileName, artTab)
 
     do
         local minTileNum, maxTileNum = art_table.validate(artTab)
-        assert(minTileNum >= -MAXCHARCODE and maxTileNum <= MAXCHARCODE,
+        assert(minTileNum >= 0 and maxTileNum <= MAXCHARCODE,
                "Empty code point table, or some code points outside the allowed range")
         assert(minTileNum <= maxTileNum)
     end
