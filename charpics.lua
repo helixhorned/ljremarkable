@@ -35,11 +35,14 @@ local type = type
 local api = {}
 
 local MAGIC = "\222rMp\237cs"  -- 7 bytes, "ÞrMpícs"
-local VERSION = 1  -- 1 byte
+local VERSION = 2  -- 1 byte
 
 local MAXCHARCODE = 0x10ffff
 -- We use a byte for tile xlen/ylen. (The high bit is reserved for future use.)
 local MAXSIDELEN = 127
+-- Use a signed 16-bit integer for the baseline in pixels:
+local MINBASELINE = -32768
+local MAXBASELINE = 32767
 -- We use 6 bits of a byte for the length of a run.
 -- The two high bits are: isRLE, {uncovered|fully-covered}
 local MAXRUNLEN = 63
@@ -89,6 +92,7 @@ local uint8_ptr_t = ffi.typeof("const $ *", uint8_t)
 local EntryDesc_t = ffi.typeof[[struct {
     uint8_t w;
     uint8_t h;
+    int16_t baseline;
     uint16_t comprSize;
 }]]
 
@@ -456,8 +460,10 @@ function api.write(fileName, artTab)
     local droppedCodePoints = {}
 
     for codePt, tileTab in pairs(artTab) do
-        local sx, sy = tileTab.w, tileTab.h
-        local tabRef = (sx <= MAXSIDELEN and sy <= MAXSIDELEN) and codePoints
+        local sx, sy, baseline = tileTab.w, tileTab.h, tileTab.baseline
+        local isSideLenOk = (sx >= 0 and sx <= MAXSIDELEN and sy >= 0 and sy <= MAXSIDELEN)
+        local isBaselineOk = (baseline >= MINBASELINE and baseline <= MAXBASELINE)
+        local tabRef = (isSideLenOk and isBaselineOk) and codePoints
             or droppedCodePoints
         tabRef[#tabRef + 1] = codePt
     end
@@ -490,6 +496,7 @@ function api.write(fileName, artTab)
         local tileTab = artTab[codePoints[i]]
         local w, h = tileTab.w, tileTab.h
         descRef.w, descRef.h = w, h
+        descRef.baseline = tileTab.baseline
 
         local comprEntry, comprSize = Encode(tileTab.data, w, h)
         comprEntries[i], descRef.comprSize = comprEntry, comprSize

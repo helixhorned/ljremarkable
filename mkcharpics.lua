@@ -237,7 +237,7 @@ local function convertForBUILD(tileTab)
     return tileTab
 end
 
-local artTab = {
+local artTab = (not isART) and {} or {
     -- Make sure there is a tile 0 so that LunART renders it at the top left border instead
     -- of the first present tile. This is for alignment convenience. Ideally, LunART should
     -- handle it though.
