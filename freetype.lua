@@ -22,8 +22,6 @@ local FT_Library_Array = ffi.typeof("$ [?]", FT_Library)
 local FT_Face = ffi.typeof("FT_Face")
 local FT_Face_Array = ffi.typeof("$ [?]", FT_Face)
 
-local FT_GlyphSlotRec = ffi.typeof("FT_GlyphSlotRec")
-
 local function DefaultZero(value)
     return value ~= nil and value or 0
 end
@@ -123,14 +121,16 @@ local Face = class
             -- Create a copy of the bitmap data to pass outwards.
             local array = uint8_array_t(size)
             ffi.copy(array, bitmap.buffer, size)
+
             return array
         end
 
-        -- TODO: information about offsets.
+        -- TODO: more information about offsets.
 
         return (size > 0) and {
             w = bitmap.pitch,
             h = bitmap.rows,
+            baseline = slot.bitmap_top,  -- CAUTION: may be out of bounds
             data = getData()
         } or nil
     end,

@@ -227,6 +227,12 @@ local function transpose(srcData, sx, sy)
 end
 
 local function convertForBUILD(tileTab)
+    local baseline = tileTab.baseline
+    if (baseline >= 0 and baseline < tileTab.h) then
+        -- Draw the baseline on top of the rendered glyph.
+        ffi.fill(tileTab.data + baseline*tileTab.w, tileTab.w, 128)
+    end
+
     tileTab.data = transpose(tileTab.data, tileTab.w, tileTab.h)
     return tileTab
 end
@@ -267,10 +273,20 @@ for _, c in ipairs(codePoints) do
 end
 
 if (isART) then
-    build.writeart(outFileName, artTab)
     -- When writing to ART, there is exploration / debugging intent,
     -- so signal error only if there was no character rendered at all.
-    os.exit(missingCount == #codePoints and 1 or 0)
+    if (missingCount == #codePoints) then
+        io.stderr:write("ERROR: Did not render any character.\n")
+        os.exit(1)
+    end
+
+    local ok = build.writeart(outFileName, artTab)
+    if (not ok) then
+        io.stderr:write("ERROR: Failed writing ART file.\n")
+        os.exit(2)
+    end
+
+    os.exit(0)
 else
     -- When writing to .charpics, signal success only if all characters end up in the file.
     local droppedCodePoints = charpics.write(outFileName, artTab)
@@ -279,11 +295,12 @@ else
         (#droppedCodePoints > 0 and 2 or 0)
 
     if (missingCount > 0) then
-        io.stderr:write(("WARNING: Failed rendering %d out of %d characters.\n")
+        io.stderr:write(("ERROR: Failed rendering %d out of %d characters.\n")
                 :format(missingCount, #codePoints))
     end
+
     if (#droppedCodePoints > 0) then
-        io.stderr:write(("WARNING: Failed packing %d out of %d character tiles.\n")
+        io.stderr:write(("ERROR: Failed packing %d out of %d character tiles.\n")
                 :format(#droppedCodePoints, #codePoints - missingCount))
     end
 
