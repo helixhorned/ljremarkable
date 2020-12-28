@@ -173,22 +173,27 @@ local function FindFontFile(fontName)
     return fontFileName
 end
 
-local function CreateFace(lib, fontFileName)
-    return lib:face(fontFileName):setCharSize(nil, 120)
+local function CreateFace(lib, fontFileName, charSize)
+    return lib:face(fontFileName):setCharSize(nil, charSize)
 end
+
+local DefaultCharSize = 120
+local SmallCharSize = 60
 
 local FontRenderer = class
 {
     function()
         local lib = freetype.Library()
         local faces = {
-            not isFontMap and CreateFace(lib, fontFileOrMapName) or nil
+            not isFontMap and CreateFace(lib, fontFileOrMapName, DefaultCharSize) or nil
         }
 
         if (isFontMap) then
             local defaults = ReadFontMapDefaults(fontFileOrMapName)
             for i = 1, #defaults do
-                faces[i] = CreateFace(lib, FindFontFile(defaults[i]))
+                local fontFile = FindFontFile(defaults[i])
+                faces[i] = CreateFace(lib, fontFile, DefaultCharSize)
+                faces[-i] = CreateFace(lib, fontFile, SmallCharSize)
             end
         end
 
@@ -198,11 +203,13 @@ local FontRenderer = class
         }
     end,
 
-    renderChar = function(self, ...)
-        for _, face in ipairs(self.faces_) do
+    renderChar = function(self, alsoSmall, ...)
+        for i, face in ipairs(self.faces_) do
             local tileTab = face:renderChar(...)
             if (tileTab ~= nil) then
-                return tileTab
+                local smallTileTab = alsoSmall and
+                    self.faces_[-i]:renderChar(...) or nil
+                return tileTab, smallTileTab
             end
         end
 
@@ -259,14 +266,21 @@ end
 assert((codePoints ~= nil) ~= (codePtRange ~= nil))
 codePoints = codePoints or iota(codePtRange[1], codePtRange[2])
 
+local CODEPOINT_PLANE_STRIDE = 0x200000
+local MAX_UCS_CODE_POINT = 0x10ffff
+assert(CODEPOINT_PLANE_STRIDE > MAX_UCS_CODE_POINT)
+
 local missingCount = 0
 
 for _, c in ipairs(codePoints) do
+    assert(c >= 0 and c <= MAX_UCS_CODE_POINT, "unexpected code point value")
+
     -- NOTE: allow char 1 to render as 'not defined' / "[?]" glyph to have one instance of
     --  it somewhere.
-    local tileTab = renderer:renderChar(c, {[1]=true})
+    local tileTab, smallTileTab = renderer:renderChar(not isART, c, {[1]=true})
     if (tileTab ~= nil) then
         artTab[c] = isART and convertForBUILD(tileTab) or tileTab
+        artTab[c + CODEPOINT_PLANE_STRIDE] = smallTileTab
     else
         missingCount = missingCount + 1
     end
