@@ -102,7 +102,9 @@ end
 
 local function isSpecialMnemonic(mnemonic)
     return
-        mnemonic:match("^[0-9]+$") or
+        -- NOTE: do not exclude digit characters!
+        -- FIXME: what was this about?
+        mnemonic:match("^[0-9][0-9]+$") or
         mnemonic:match("^0x[0-9A-Fa-f]+$")
 end
 
