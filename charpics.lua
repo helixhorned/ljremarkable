@@ -22,7 +22,11 @@ local table = require("table")
 
 local art_table = require("moonglow.art_table")
 local class = require("class").class
+local error_util = require("error_util")
 local posix = require("posix")
+
+local checktype = error_util.checktype
+local check = error_util.check
 
 local assert = assert
 local error = error
@@ -53,6 +57,10 @@ local PIXSHIFT = 3
 local MAXPIXVAL = bit.rshift(255, PIXSHIFT)
 -- Non-RLE pixel values must not stomp on the two RLE high bits.
 assert(MAXPIXVAL <= MAXRUNLEN)
+
+-- Code point value to use when a glyph is missing.
+-- May e.g. be rendered as a question mark in a box.
+local MissingCharCode = 1
 
 api.MaxSideLength = MAXSIDELEN
 api.CoverageValueShift = PIXSHIFT
@@ -363,6 +371,101 @@ local CharPicsFile = class
         assert(comprDataPtr ~= nil)
 
         return entryDescRef, comprDataPtr
+    end,
+}
+
+local function RGB565(r, g, b)
+    return b + 32*g + 32*64*r
+end
+
+-- NOTE: this really belongs to the site where class 'Renderer' is used, but for
+--  convenience, have it here for now.
+local function CoverageToRGB565(cov)
+    local gray = 31 - cov
+    return RGB565(gray, 2*gray, gray)
+end
+
+api.Renderer = class
+{
+    function(fileName, fbMapping)
+        checktype(fileName, 1, "string", 2)
+        check(type(fbMapping) == "table" and type(fbMapping.yres_original) == "number",
+              "argument #1 must be a Mapping object", 2)
+        --     ^ ... as returned by framebuffer.lua's FrameBuffer:getMapping().
+
+        local cpFile, msg = api.load(fileName)
+        if (cpFile == nil) then
+            error(msg)
+        end
+
+        check(cpFile:descAndData(MissingCharCode) ~= nil, "missing fallback tile", 2)
+        check(fbMapping:getPixelSize() == 2, "only pixel size 2 supported (assumed to be RGB565)", 2)
+
+        return {
+            pics = cpFile,
+            map = fbMapping,
+        }
+    end,
+
+    drawChar = function(self, x, yForBaseline, proCodePoint)
+        -- The passed coordinates have to be inside bounds.
+        self.map:getPixelPointer(x, yForBaseline)
+
+        checktype(proCodePoint, 3, "number", 2)
+
+        local proDesc, proData = self.pics:descAndData(proCodePoint)
+
+        local function getDescAndData()
+            if (proDesc ~= nil) then
+                return proDesc, proData
+            else
+                return self.pics:descAndData(MissingCharCode)
+            end
+        end
+
+        local desc, data = getDescAndData()
+        -- NOTE: we checked for the presence of the fallback tile in the constructor:
+        assert(desc ~= nil and data ~= nil)
+
+        local topY = yForBaseline - desc.baseline
+        local botY = topY + desc.h
+        local endX = x + desc.w
+
+        if (not (x >= 0 and endX < self.map.xres and topY >= 0 and botY < self.map.yres)) then
+            -- TODO: allow partial rendering
+            return x, yForBaseline, yForBaseline
+        end
+
+        local ptr = self.map:getPixelPointer(x, topY)
+        Decode(data, desc.comprSize, desc.w, desc.h, ptr, self.map.xres_virtual, CoverageToRGB565)
+
+        return endX, topY, botY
+    end,
+
+    drawString = function(self, x, yForBaseline, interCharAdvanceX, str)
+        -- The passed coordinates have to be inside bounds.
+        self.map:getPixelPointer(x, yForBaseline)
+
+        checktype(interCharAdvanceX, 3, "number", 2)
+        check(interCharAdvanceX >= 0 and interCharAdvanceX <= 100,
+              "argument #3 must be in [0, 100]")
+        checktype(str, 4, "string", 2)
+
+        local curX = x
+        local upperY, lowerY = math.huge, -math.huge
+
+        for i = 1, #str do
+            local ch = str:byte(i)
+            local xx = (i == 1) and curX or curX + interCharAdvanceX
+
+            local nextX, topY, botY = self:drawChar(xx, yForBaseline, ch)
+
+            upperY = math.min(upperY, topY)
+            lowerY = math.max(lowerY, botY)
+            curX = nextX
+        end
+
+        return curX, upperY, lowerY
     end,
 }
 

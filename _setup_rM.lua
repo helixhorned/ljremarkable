@@ -43,6 +43,7 @@ local function fup(x, y, w, h, val)
     rM:requestRefresh(RM.xywh(x,y,w,h), 123)
 end
 
+--[==[
 local function coverageToPixel(cov)
     assert(charpics.CoverageValueShift == 3)
     assert(cov >= 0 and cov <= 31)
@@ -70,6 +71,15 @@ local function drawstr(x, y, str)
         local codePoint = str:sub(i, i):byte()
         local xoffset = drawchar(x, y, codePoint)
         x = x + xoffset + 16
+    end
+end
+--]==]
+local cpr
+local function drawstr(x, yForBaseline, interCharAdvanceX, str)
+    cpr = cpr or charpics.Renderer(".charpics", map)
+    local endX, topY, botY = cpr:drawString(x, yForBaseline, interCharAdvanceX, str)
+    if (endX > x and botY > topY) then
+        rM:requestRefresh(RM.xywh(x, topY, endX - x, botY - topY))
     end
 end
 
@@ -134,7 +144,6 @@ _G.charpics = charpics
 
 _G.rgb = rgb
 _G.fup = fup
-_G.drawchar = drawchar
 _G.drawstr = drawstr
 _G.clear = clear
 _G.gradient = gradient
