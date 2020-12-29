@@ -5,14 +5,16 @@
 -- NOTE: will assign to global environment at the end.
 local _G = _G
 
+local useRealFB = (os.getenv("LJREMARKABLE_SETUP_rM_USE_DUMMY_FB") ~= "1")
+
 local bit=require'bit'
 local ffi=require'ffi'
 local FB=require'framebuffer'
-local fb=FB.FrameBuffer(0, true)
-local map=fb:getMapping()
+local fb = useRealFB and FB.FrameBuffer(0, true) or nil
+local map = useRealFB and fb:getMapping() or nil
 
 local RM=require'remarkable'
-local rM=RM.Remarkable()
+local rM = useRealFB and RM.Remarkable() or nil
 
 local charpics = require'charpics'
 

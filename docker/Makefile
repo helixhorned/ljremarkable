@@ -122,6 +122,7 @@ ifeq ($(image_arch_os_pair),arm32v7-debian)
 	$(call get_executable,luajit-2.1-rM/src/luajit,luajit-rM)
 endif
 	$(call get_executable,ljremarkable/grabscreen.app.lua,grabscreen.app.lua)
+	$(call get_executable,ljremarkable/_setup_rM-app.lua,_setup_rM-app.lua)
 
 # NOTE: Mark a real output file as phony so as to avoid specifying dependencies.
 #  Will be always re-obtained, but better have redundant updates than missed ones.

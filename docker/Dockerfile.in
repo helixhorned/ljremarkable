@@ -48,3 +48,7 @@ USER user
 WORKDIR ../../..
 RUN cp -a /home/user/ljclang/Makefile ljclang/
 RUN DISPLAY=dummy make app
+
+# Build the debugging setup module.
+RUN git submodule update moonglow
+RUN LJREMARKABLE_SETUP_rM_USE_DUMMY_FB=1 make _setup_rM-app.lua
