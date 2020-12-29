@@ -114,19 +114,29 @@ local function ReadCodePoints(codePtsFileName)
         checkOrExit(cond, "%s: "..fmt, codePtsFileName, ...)
     end
 
+    local haveCodePtOne = false
     local codePoints = {}
 
     for mnemonic, codePt in pairs(tab) do
         check(type(mnemonic) == "string", "table keys must be strings")
         local isNumber = (type(codePt) == "number")
+        -- TODO: 'true' is probably obsolete (and wrong downstream), remove?
         check(isNumber or codePt == true,
               "table values must be numbers or the boolean value true")
         if (isNumber) then
             codePoints[#codePoints + 1] = codePt
+            haveCodePtOne = haveCodePtOne or (codePt == 1)
         end
     end
 
+    if (not haveCodePtOne) then
+        -- Make sure that char 1, used as a placeholder for characters not placed into the
+        -- charpics file, is present.
+        codePoints[#codePoints + 1] = 1
+    end
+
     table.sort(codePoints)
+
     return codePoints
 end
 
