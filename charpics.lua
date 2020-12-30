@@ -442,7 +442,7 @@ api.Renderer = class
         return endX, topY, botY
     end,
 
-    drawString = function(self, x, yForBaseline, interCharAdvanceX, str)
+    drawString = function(self, x, yForBaseline, interCharAdvanceX, str, codePtOffset)
         -- The passed coordinates have to be inside bounds.
         self.map:getPixelPointer(x, yForBaseline)
 
@@ -450,6 +450,8 @@ api.Renderer = class
         check(interCharAdvanceX >= 0 and interCharAdvanceX <= 100,
               "argument #3 must be in [0, 100]")
         checktype(str, 4, "string", 2)
+        codePtOffset = (codePtOffset ~= nil) and codePtOffset or 0
+        checktype(codePtOffset, 5, "number", 2)
 
         local curX = x
         local upperY, lowerY = math.huge, -math.huge
@@ -458,7 +460,7 @@ api.Renderer = class
             local ch = str:byte(i)
             local xx = (i == 1) and curX or curX + interCharAdvanceX
 
-            local nextX, topY, botY = self:drawChar(xx, yForBaseline, ch)
+            local nextX, topY, botY = self:drawChar(xx, yForBaseline, ch + codePtOffset)
 
             upperY = math.min(upperY, topY)
             lowerY = math.max(lowerY, botY)

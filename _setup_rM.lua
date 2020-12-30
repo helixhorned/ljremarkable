@@ -77,9 +77,9 @@ local function drawstr(x, y, str)
 end
 --]==]
 local cpr
-local function drawstr(x, yForBaseline, interCharAdvanceX, str)
+local function drawstr(x, yForBaseline, interCharAdvanceX, str, codePtOffset)
     cpr = cpr or charpics.Renderer(".charpics", map)
-    local endX, topY, botY = cpr:drawString(x, yForBaseline, interCharAdvanceX, str)
+    local endX, topY, botY = cpr:drawString(x, yForBaseline, interCharAdvanceX, str, codePtOffset)
     if (endX > x and botY > topY) then
         rM:requestRefresh(RM.xywh(x, topY, endX - x, botY - topY))
     end
