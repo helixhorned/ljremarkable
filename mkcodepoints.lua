@@ -50,6 +50,11 @@ local function readMnemonicMap()
                     SymDefFileName, lineNum, mnemonic))
         end
 
+        if (mnemonic == "NoSymbol") then
+            error(("%s:%d: Unexpected mnemonic '%s'"):format(
+                    SymDefFileName, lineNum, mnemonic))
+        end
+
         if (mnemonic ~= nil) then
             local codePtStr = rest:match(SuffixPattern)
 
@@ -77,6 +82,8 @@ local function readMnemonicMap()
         error("Did not read any code points from "..SymDefFileName)
     end
 
+    codePts["NoSymbol"] = codePts["VoidSymbol"]
+
     return codePts
 end
 
@@ -84,6 +91,9 @@ end
 local allCodePts = readMnemonicMap()
 
 ----------
+
+-- KEEPINSYNC moonglow/build.lua's MAX.TILES
+local MAXTILES = 30720
 
 local TotalDestKeyCount = 40
 local KeyIdxFactor = 10
@@ -94,10 +104,10 @@ local codePts = {}  -- sub-map of 'allCodePts'
 
 local function isMnemonicUCS(mnemonic)
     -- Notes:
-    --  * Match exactly four hex digits for now.
+    --  * Match exactly four hex digits for now, potentially prefixed by a single a zero.
     --  * For more disjointness it should be only uppercase letters, but lowercase do appear
     --    as well. (Though less frequently.)
-    return mnemonic:match("^U[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]$")
+    return mnemonic:match("^U0?[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]$")
 end
 
 local function isSpecialMnemonic(mnemonic)
@@ -137,8 +147,13 @@ for _, layoutFileName in ipairs(arg) do
                                 :format(layoutFileName, mnemonic))
                     end
 
-                    mnemonics[#mnemonics + 1] = mnemonic
-                    codePts[mnemonic] = codePt
+                    if (type(codePt) == "number" and not (codePt >= 0 and codePt < MAXTILES)) then
+                        io.stderr:write(("%s: warning: dropping mnemonic '%s' with codepoint %d\n")
+                                :format(layoutFileName, mnemonic, codePt))
+                    else
+                        mnemonics[#mnemonics + 1] = mnemonic
+                        codePts[mnemonic] = codePt
+                    end
                 end
             end
         end
