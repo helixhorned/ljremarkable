@@ -1668,12 +1668,18 @@ Server = class
     displayMessage = function(self, x, message)
         assert(type(x) == "number")
         assert(x >= MenuWidth_rM and x < ScreenWidth_rM)
+
         local BaselineOffset = 32
         local InterCharAdvance = 6
+
+        local function getSpaceSurrogateChar(c)
+            return (c == 0x20) and 0x5b or nil  -- space -> '['
+        end
+
         local endX, topY, botY = self.charRenderer:drawString(
             x, DestYPixelOffset - BaselineOffset, InterCharAdvance, message,
             -- Request small characters:
-            CODEPOINT_PLANE_STRIDE)
+            CODEPOINT_PLANE_STRIDE, getSpaceSurrogateChar)
         if (endX > x and botY > topY) then
             self.rM:requestRefresh(xywh_t(x, topY, endX - x, botY - topY))
         end
@@ -1708,8 +1714,7 @@ Server = class
     shutDownAndExit = function(self, exitCode)
         -- NOTE: do not disable, need DISABLE_VIA_SERVER_INPUT for that.
 
-        -- TODO: in charpics.Renderer:drawString(), handle space specially.
-        local x = self:displayMessage(300, "Shutting\xf7down...\xf7")
+        local x = self:displayMessage(300, "Shutting down... ")
         self.connFd:shutdown(posix.SHUT.RDWR)
 
         repeat

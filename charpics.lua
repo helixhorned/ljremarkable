@@ -358,7 +358,6 @@ local CharPicsFile = class
         return desc.w
     end,
 
--- private:
     descAndData = function(self, codePoint)
         assert(type(codePoint) == "number", "argument #1 must be a number")
 
@@ -442,7 +441,13 @@ api.Renderer = class
         return endX, topY, botY
     end,
 
-    drawString = function(self, x, yForBaseline, interCharAdvanceX, str, codePtOffset)
+    -- <spaceCharFunc>: (byteValue) -> {nil|surrogate code point}
+    --  If non-nil is returned, the passed <byteValue> (obtained by string.byte) is taken to
+    --  represent a space character and the return value offset by 'codePtOffset' is taken
+    --  to be a code point whose tile's width is used as the number of pixels to advance
+    --  horizontally in addition to 'interCharAdvanceX'.
+    drawString = function(self, x, yForBaseline, interCharAdvanceX, str, codePtOffset,
+                          spaceCharFunc)
         -- The passed coordinates have to be inside bounds.
         self.map:getPixelPointer(x, yForBaseline)
 
@@ -452,6 +457,9 @@ api.Renderer = class
         checktype(str, 4, "string", 2)
         codePtOffset = (codePtOffset ~= nil) and codePtOffset or 0
         checktype(codePtOffset, 5, "number", 2)
+        if (spaceCharFunc ~= nil) then
+            checktype(spaceCharFunc, 6, "function", 2)
+        end
 
         local curX = x
         local upperY, lowerY = math.huge, -math.huge
@@ -460,11 +468,21 @@ api.Renderer = class
             local ch = str:byte(i)
             local xx = (i == 1) and curX or curX + interCharAdvanceX
 
-            local nextX, topY, botY = self:drawChar(xx, yForBaseline, ch + codePtOffset)
+            local spaceWidthChar = (spaceCharFunc ~= nil) and spaceCharFunc(ch) or nil
 
-            upperY = math.min(upperY, topY)
-            lowerY = math.max(lowerY, botY)
-            curX = nextX
+            if (spaceWidthChar ~= nil) then
+                assert(type(spaceWidthChar) == "number", "<spaceCharFunc> must return a number (a code point)")
+                local spaceSurrogateDesc = self.pics.entryDescRefs[spaceWidthChar + codePtOffset]
+                assert(spaceSurrogateDesc ~= nil,
+                       "Code point \"<spaceCharFunc>'s return value + codePtOffset\" must have a tile")
+                curX = xx + spaceSurrogateDesc.w
+            else
+                local nextX, topY, botY = self:drawChar(xx, yForBaseline, ch + codePtOffset)
+
+                upperY = math.min(upperY, topY)
+                lowerY = math.max(lowerY, botY)
+                curX = nextX
+            end
         end
 
         return curX, upperY, lowerY
