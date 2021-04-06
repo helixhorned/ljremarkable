@@ -332,6 +332,7 @@ codePoints = codePoints and
     PrependedWithPrintableASCII(codePoints) or
     iota(codePtRange[1], codePtRange[2])
 
+-- KEEPINSYNC grabscreen.lua
 local CODEPOINT_PLANE_STRIDE = 0x200000
 local MAX_UCS_CODE_POINT = 0x10ffff
 assert(CODEPOINT_PLANE_STRIDE > MAX_UCS_CODE_POINT)

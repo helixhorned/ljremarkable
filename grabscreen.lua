@@ -22,6 +22,7 @@ local io = require("io")
 local math = require("math")
 local os = require("os")
 
+local charpics = require("charpics")
 local class = require("class").class
 local inet = require("inet")
 local input = require("input")
@@ -229,10 +230,6 @@ local StatusRectWidth = 64
 -- X position of the rectangle signaling certain status conditions.
 local StatusRectPosX = {
     OnError = EyeSize_rM,
-
-    -- Requesting a shutdown of the connection from the rM.
-    OnShutdown_rM_Init = ScreenWidth_rM / 2 - StatusRectWidth - 8,
-    OnShutdown_rM_Finish = ScreenWidth_rM / 2 + 8,
 
     RightMarker = ScreenWidth_rM - 2 * EyeSize_rM,
 }
@@ -1630,6 +1627,9 @@ local function RGB565(r, g, b)
     return b + 32*g + 32*64*r
 end
 
+-- KEEPINSYNC mkcharpics.lua
+local CODEPOINT_PLANE_STRIDE = 0x200000
+
 Server = class
 {
     function()
@@ -1648,6 +1648,7 @@ Server = class
             inputBuf = input_event_array_t(MaxInputEvents),
             inputState = nil,  -- InputState
             specialRequestTab = { nil },  -- can be one of the 'ServerRequest' constants
+            charRenderer = charpics.Renderer(".charpics", map),
 
             decodedBuf = NarrowArray(targetSize),
         }
@@ -1662,6 +1663,21 @@ Server = class
         local w, h = ScreenWidth_rM - MenuWidth_rM, DestYPixelOffset
         map:fill(x, y, w, h, 0xffff)
         self.rM:requestRefresh(xywh_t(x, y, w, h))
+    end,
+
+    displayMessage = function(self, x, message)
+        assert(type(x) == "number")
+        assert(x >= MenuWidth_rM and x < ScreenWidth_rM)
+        local BaselineOffset = 32
+        local InterCharAdvance = 6
+        local endX, topY, botY = self.charRenderer:drawString(
+            x, DestYPixelOffset - BaselineOffset, InterCharAdvance, message,
+            -- Request small characters:
+            CODEPOINT_PLANE_STRIDE)
+        if (endX > x and botY > topY) then
+            self.rM:requestRefresh(xywh_t(x, topY, endX - x, botY - topY))
+        end
+        return endX + InterCharAdvance
     end,
 
     drawStatusRect = function(self, x)
@@ -1692,14 +1708,15 @@ Server = class
     shutDownAndExit = function(self, exitCode)
         -- NOTE: do not disable, need DISABLE_VIA_SERVER_INPUT for that.
 
+        -- TODO: in charpics.Renderer:drawString(), handle space specially.
+        local x = self:displayMessage(300, "Shutting\xf7down...\xf7")
         self.connFd:shutdown(posix.SHUT.RDWR)
-        self:drawStatusRect(StatusRectPosX.OnShutdown_rM_Init)
 
         repeat
             local str = self.connFd:read(256)
         until (#str == 0)
 
-        self:drawStatusRect(StatusRectPosX.OnShutdown_rM_Finish)
+        self:displayMessage(x, "success.")
         os.exit(exitCode)
     end,
 
