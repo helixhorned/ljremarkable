@@ -334,7 +334,7 @@ Portions of this software are copyright (C) 1996-2020 The FreeType Project
 License
 -------
 
-Copyright (C) 2019-2020 Philipp Kutin.
+Copyright (C) 2019-2021 Philipp Kutin.
 
 The main application `grabscreen.lua` is GPL3-licensed. See
 [`LICENSE.GPL3.txt`](LICENSE.GPL3.txt) for details. \
