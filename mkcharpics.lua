@@ -280,8 +280,57 @@ local function iota(b, e)
     return t
 end
 
+local function PrependedWithPrintableASCII(tab)
+    local FirstCodePt = 1
+    local RangeLow = { b=33, e=126 }
+    local RangeHigh = { b=161, e=254 }
+
+    -- Expect table obtained from ReadCodePoints():
+    assert(tab[1] == FirstCodePt)
+
+    -- First: code point 1, printable 7-bit ASCII, printable ASCII with high bit set.
+    local newTab = iota(RangeLow.b, RangeLow.e)
+    table.insert(newTab, 1, FirstCodePt)
+    for codePt = RangeHigh.b, RangeHigh.e do
+        newTab[#newTab + 1] = codePt
+    end
+
+    local lastCodePt = 0
+    local startIdx = nil
+
+    for i, codePt in ipairs(tab) do
+        if (codePt > RangeHigh.e) then
+            assert(i > 1)
+            startIdx = i
+            break
+        end
+
+        checkOrExit(codePt == 1
+                        or (codePt >= RangeLow.b and codePt <= RangeLow.e)
+                        or (codePt >= RangeHigh.b and codePt <= RangeHigh.e),
+                    "Non-printable ASCII characters present in code points file.")
+
+        assert(codePt > lastCodePt)
+        lastCodePt = codePt
+    end
+
+    -- Append the remaining code points, if applicable.
+    if (startIdx ~= nil) then
+        for i = startIdx, #tab do
+            newTab[#newTab + 1] = tab[i]
+        end
+    end
+
+    return newTab
+end
+
 assert((codePoints ~= nil) ~= (codePtRange ~= nil))
-codePoints = codePoints or iota(codePtRange[1], codePtRange[2])
+-- When invoked with a .codepoints file (and thus not with an explicit code point range),
+-- make sure to render all printable ASCII characters. Note: the bundled Quicksand font
+-- contains glyphs for all of them.
+codePoints = codePoints and
+    PrependedWithPrintableASCII(codePoints) or
+    iota(codePtRange[1], codePtRange[2])
 
 local CODEPOINT_PLANE_STRIDE = 0x200000
 local MAX_UCS_CODE_POINT = 0x10ffff
