@@ -28,6 +28,7 @@ local input = require("input")
 local FrameBuffer = require("framebuffer").FrameBuffer
 local JKissRng = require("jkiss_rng").JKissRng
 local posix = require("posix")
+local vkbd = require("vkbd")
 -- NOTE [XLIB_LUA_CONDITIONAL_REQUIRE]: we want to be functional for setups without X
 --  installed.
 local xlib = (os.getenv("DISPLAY") ~= nil) and require("xlib") or nil
@@ -186,6 +187,7 @@ end
 
 ---------- Sampling and comparison ----------
 
+-- KEEPINSYNC vkbd.lua
 -- Default screen dimensions on the reMarkable.
 local ScreenWidth_rM = 1404
 local ScreenHeight_rM = 1872
@@ -1621,6 +1623,10 @@ local InputState = class
     end,
 }
 
+local function RGB565(r, g, b)
+    return b + 32*g + 32*64*r
+end
+
 Server = class
 {
     function()
@@ -1658,8 +1664,26 @@ Server = class
     drawStatusRect = function(self, x)
         assert(type(x) == "number")
         local y, w = 32, StatusRectWidth
-        map:fill(x, y, w, w, 15 + 32*31 + 32*64*15)
+        map:fill(x, y, w, w, RGB565(15, 31, 15))
         self.rM:requestRefresh(xywh_t(x, y, w, w))
+    end,
+
+    drawKeyboardGrid = function(self)
+        local PixValue = RGB565(2, 4, 2)
+
+        local function drawHline(x, y, width)
+            map:fill(x, y, width, 1, PixValue)
+        end
+
+        local function drawVline(x, y, height)
+            map:fill(x, y, 1, height, PixValue)
+        end
+
+        local function refresh(x, y, w, h)
+            self.rM:requestRefresh(xywh_t(x, y, w, h))
+        end
+
+        vkbd.drawGrid(drawHline, drawVline, refresh)
     end,
 
     shutDownAndExit = function(self, exitCode)
@@ -1836,6 +1860,8 @@ Server = class
             if (isRealServer) then
                 self:clearUpperArea()
                 -- TODO: draw the rM "cross in circle"?
+
+                self:drawKeyboardGrid()
             end
 
             local bytesWritten = self.connFd:write(Cmd.Enable)
