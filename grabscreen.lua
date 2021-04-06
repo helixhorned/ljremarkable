@@ -561,7 +561,7 @@ end
 local Port = 16218 + portOffset
 
 -- Client -> server
-local UpdateMagic = "UpDat2"
+local UpdateMagic = "UpDat3_"
 
 assert(totalDestTileCount <= 65536, "too high screen resolution")
 -- NOTE: what matters is just that they are the same on both ends,
@@ -579,7 +579,8 @@ local Cmd = {
 }
 
 local UpdateHeader_t = ffi.typeof[[struct {
-    char magic[6];
+    char magic[7];
+    bool isFullScreen;
     uint16_t changedTileCount;
     uint32_t encodingLength;
 }]]
@@ -953,7 +954,9 @@ local Client = class
         local connFd = self.connFd
         assert(connFd ~= nil)
 
-        local header = UpdateHeader_t(UpdateMagic, changedTileCount, encodingLength)
+        local header = UpdateHeader_t(
+            UpdateMagic, changedTileCount == totalDestTileCount,
+            changedTileCount, encodingLength)
         connFd:writeFull(header)
 
         local coords = coord_array_t(changedTileCount)
@@ -1746,7 +1749,7 @@ Server = class
         end
 
         if (updateData ~= nil) then
-            self:applyUpdates(updateData[1], updateData[2], self.decodedBuf)
+            self:applyUpdates(updateData[1], updateData[2], self.decodedBuf, updateData[3])
         end
 
         do
@@ -1806,10 +1809,10 @@ Server = class
         local tileCount = DecodeUpdates(encodedData, encodingLength, self.decodedBuf)
         checkData(tileCount == changedTileCount, "corrupt encoding: tile count mismatch")
 
-        return { tileCount, coords }
+        return { tileCount, coords, header.isFullScreen }
     end,
 
-    applyUpdates = function(self, tileCount, tileCoords, tileBuf)
+    applyUpdates = function(self, tileCount, tileCoords, tileBuf, isFullScreen)
         checkData(tileCount * BigSquareSize <= ffi.sizeof(tileBuf) / DestPixelSize,
                   "too many updated tiles")
 
@@ -1849,6 +1852,14 @@ Server = class
 
         local bytesWritten = self.connFd:write(Cmd.Ok)
         assert(bytesWritten == Cmd.Length, "FIXME: partial write")
+
+        if (isFullScreen) then
+            -- Client (claims to have) sent tiles for its whole screen.
+            --  TODO: handle the situation "client screen height > 1080".
+            --   Currently, we would overwrite a portion of the keyboard.
+            -- On that occasion:
+            self:drawKeyboardGrid()
+        end
     end,
 
     enable = function(self)
@@ -1860,8 +1871,6 @@ Server = class
             if (isRealServer) then
                 self:clearUpperArea()
                 -- TODO: draw the rM "cross in circle"?
-
-                self:drawKeyboardGrid()
             end
 
             local bytesWritten = self.connFd:write(Cmd.Enable)
