@@ -108,8 +108,12 @@ ljremarkable-dev-amd64/ubuntu:
 _get-artifacts-cat := docker run --rm --entrypoint cat '$(IMAGE):$(commit)'
 _out_dir := out/$(image_arch_os_pair)
 
+define get_file =
+  $(_get-artifacts-cat) /home/user/$(1) > '$(_out_dir)/$(2)'
+endef
+
 define get_executable =
-  $(_get-artifacts-cat) /home/user/$(1) > '$(_out_dir)/$(2)' && chmod +x '$(_out_dir)/$(2)'
+  $(call get_file,$(1),$(2)) && chmod +x '$(_out_dir)/$(2)'
 endef
 
 .PHONY: get-artifacts
@@ -122,6 +126,7 @@ ifeq ($(image_arch_os_pair),arm32v7-debian)
 	$(call get_executable,luajit-2.1-rM/src/luajit,luajit-rM)
 endif
 	$(call get_executable,ljremarkable/grabscreen.app.lua,grabscreen.app.lua)
+	$(call get_file,ljremarkable/layouts/.charpics,.charpics)
 	$(call get_executable,ljremarkable/_setup_rM-app.lua,_setup_rM-app.lua)
 
 # NOTE: Mark a real output file as phony so as to avoid specifying dependencies.
@@ -150,7 +155,7 @@ endif
 endif
 
 .PHONY: upload
-upload: out/arm32v7-debian/grabscreen.app.lua $(THIS_DIR)/../rM_ul_eye_menu_hidden_46-28.dat
+upload: out/arm32v7-debian/grabscreen.app.lua out/arm32v7-debian/.charpics $(THIS_DIR)/../rM_ul_eye_menu_hidden_46-28.dat
 	test -f out/arm32v7-debian/luajit-rM
 	scp $^ "$(_upload_userhost):"
 	ssh "$(_upload_userhost)" mkdir -p bin

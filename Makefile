@@ -219,7 +219,7 @@ grabscreen.app.lua: grabscreen.lua $(linux_decls_lua) $(remarkable_decls_lua) lj
 		chmod +x $@ && printf "* \033[1mCreated $(app_name)\033[0m\n" || \
 		(printf "* \033[1;31mError\033[0m creating $(app_name)\n" && false)
 
-upload: grabscreen.app.lua rM_ul_eye_menu_hidden_46-28.dat
+upload: grabscreen.app.lua rM_ul_eye_menu_hidden_46-28.dat layouts/.charpics
 	@if [ x`uname -m` != x"armv7l" ]; then echo "ERROR: Cannot upload app to the rM: processor architecture does not match"; false; fi
 	scp $^ "$(LJREMARKABLE_TABLET_USER)@$(LJREMARKABLE_TABLET_HOST):"
 
@@ -250,7 +250,7 @@ else
 endif
 
 # Not debugging, but here because the invocation is the same as for TILES000.ART
-layouts/.charpics: ./charpics.lua ./mkcharpics.lua $(fontMapFile) ./layouts/.codepoints
+layouts/.charpics: ./charpics.lua ./mkcharpics.lua $(fontMapFile) ./layouts/.codepoints $(freetype_decls_lua)
 	$(VIS_ENV) ./mkcharpics.lua -f $(fontMapFile) -c ./layouts/.codepoints -o $@
 
 TILES000.ART: ./charpics.lua ./mkcharpics.lua $(fontMapFile) ./layouts/.codepoints $(freetype_decls_lua)
