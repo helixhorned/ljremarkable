@@ -2,7 +2,9 @@
 -- -*-lua-*-
 return {
 defaults = {
-    "quicksand/Quicksand-Regular.ttf",
+    -- Bundled via a Git submodule:
+    "quicksand/fonts/statics/Quicksand-Regular.ttf",
+    -- May be present on the system:
     "freefont/FreeMono.ttf",
     "freefont/FreeSans.ttf",
     "freefont/FreeSerif.ttf",

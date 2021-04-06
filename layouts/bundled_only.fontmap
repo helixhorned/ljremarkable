@@ -1,0 +1,8 @@
+#!/bin/false ljremarkable font selection
+-- -*-lua-*-
+return {
+defaults = {
+    -- Bundled via a Git submodule:
+    "quicksand/fonts/statics/Quicksand-Regular.ttf",
+},
+}

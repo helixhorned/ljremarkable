@@ -2,6 +2,9 @@
 # Directory to install the application.
 BINDIR ?= $(HOME)/bin
 
+# Allow font files that are not bundled?
+LJREMARKABLE_ALLOW_EXT_FONTS ?= 0
+
 ## Keyboard layouts
 #  Source: /usr/share/X11/xkb/symbols/??
 #  Destination: ./layouts/??.<sub-layout>
@@ -9,8 +12,9 @@ BINDIR ?= $(HOME)/bin
 
 # Fixed ones, committed to the repo.
 fixed_layouts := us.basic us.intl
-# User-defined.
-LJREMARKABLE_LAYOUTS ?=
+# User-defined, only used when LJREMARKABLE_ALLOW_EXT_FONTS is not 0
+LJREMARKABLE_USER_LAYOUTS ?=
+
 ##########
 
 luajit := luajit

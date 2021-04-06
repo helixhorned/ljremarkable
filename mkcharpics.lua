@@ -30,7 +30,7 @@ local function usage(hline)
         io.stderr:write("ERROR: "..hline..'\n')
     end
     print[[
-Usage: mkcharpics.lua <mandatoty options...> <options...> [[<startCodePt>]:<endCodePt>]
+Usage: mkcharpics.lua <mandatory options...> <options...> [[<startCodePt>]:<endCodePt>]
 ]]
     if (hline == nil) then
         print[[
@@ -70,11 +70,11 @@ local fontFileOrMapName = opts.f
 local outFileName = opts.o
 
 local isART = outFileName:match("%.ART$")
-if (not (isART or outFileName:match("%.charpics"))) then
+if (not (isART or outFileName:match("%.charpics$"))) then
     usage("Output file name must end in '.ART' or '.charpics'")
 end
 
-local isFontMap = fontFileOrMapName:match("%.fontmap")
+local isFontMap = fontFileOrMapName:match("%.fontmap$")
 
 local function GetCodePtRange()
     local startCodePtStr, endCodePtStr = codePtRangeStr:match("([^:]*):([^:]+)$")
@@ -167,20 +167,27 @@ end
 
 -- TODO on demand: Extend as necessary, potentially with user-provided directories.
 local FontSearchPath = {
+    "./fonts",
     "/usr/share/fonts/truetype"
 }
 
 local function FindFontFile(fontName)
-    local fontFileName = FontSearchPath[1]..'/'..fontName
+    for i, fontFilePrefix in ipairs(FontSearchPath) do
+        local fontFileName = fontFilePrefix..'/'..fontName
 
-    local f = io.open(fontFileName)
-    if (f == nil) then
-        errprintfAndExit("Font %s not found in font search path %s",
-                         fontName, FontSearchPath[1])
+        local f = io.open(fontFileName)
+        if (f ~= nil) then
+            f:close()
+            return fontFileName
+        end
+
+        if (i == #FontSearchPath) then
+            errprintfAndExit("Font %s not found in font search path %s",
+                             fontName, table.concat(FontSearchPath, ':'))
+        end
     end
 
-    f:close()
-    return fontFileName
+    assert(false)
 end
 
 local function CreateFace(lib, fontFileName, charSize)
@@ -293,6 +300,14 @@ for _, c in ipairs(codePoints) do
         artTab[c + CODEPOINT_PLANE_STRIDE] = smallTileTab
     else
         missingCount = missingCount + 1
+
+        local MaxDisplayedCount = 5
+
+        if (missingCount <= MaxDisplayedCount) then
+            io.stderr:write(("INFO: failed rendering character with code point %d (0x%x).\n"):format(c, c))
+        elseif (missingCount == MaxDisplayedCount + 1) then
+            io.stderr:write("INFO: stopping reporting failed character rendering.\n")
+        end
     end
 end
 

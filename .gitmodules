@@ -11,3 +11,6 @@
 [submodule "src/interpose"]
 	path = src/interpose
 	url = https://github.com/helixhorned/interpose.git
+[submodule "fonts/quicksand"]
+	path = fonts/quicksand
+	url = https://github.com/andrew-paglinawan/QuicksandFamily.git

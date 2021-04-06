@@ -2,8 +2,14 @@
 # User configuration
 include config.make
 
+ifeq ($(LJREMARKABLE_ALLOW_EXT_FONTS),0)
+  allowExtFonts :=
+else
+  allowExtFonts := t
+endif
+
 layouts := $(fixed_layouts)
-layouts += $(LJREMARKABLE_LAYOUTS)
+layouts += $(if $(allowExtFonts),$(LJREMARKABLE_USER_LAYOUTS))
 
 last_release := v0.9.0
 # Obtained using: git checkout <version-tag>; git ls-files -s <file>
@@ -79,6 +85,9 @@ install-last-release: checkout-last-release
 
 veryclean: clean ljclang_veryclean
 	$(RM) $(remarkable_decls_lua).reject $(linux_decls_lua).reject layouts/??.* layouts/.codepoints
+
+# NOTE: prevent interpretation as layouts:
+.PHONY: layouts/*.fontmap
 
 layouts/%: mklayout.lua xkb_symbols_reader.lua
 	@./mklayout.lua -q $@
@@ -234,12 +243,18 @@ capture-rM-offscreen:
 PALETTE.DAT: ./dev/mkpalette.lua
 	$< $@
 
-# Not debugging, but here because the invocation is the same as for TILES000.ART
-layouts/.charpics: ./charpics.lua ./mkcharpics.lua ./layouts/.fontmap ./layouts/.codepoints
-	$(VIS_ENV) ./mkcharpics.lua -f ./layouts/.fontmap -c ./layouts/.codepoints -o $@
+ifeq ($(allowExtFonts),)
+  fontMapFile := ./layouts/bundled_only.fontmap
+else
+  fontMapFile := ./layouts/bundled_and_on_system.fontmap
+endif
 
-TILES000.ART: ./charpics.lua ./mkcharpics.lua ./layouts/.fontmap ./layouts/.codepoints $(freetype_decls_lua)
-	$(VIS_ENV) ./mkcharpics.lua -f ./layouts/.fontmap -c ./layouts/.codepoints -o $@
+# Not debugging, but here because the invocation is the same as for TILES000.ART
+layouts/.charpics: ./charpics.lua ./mkcharpics.lua $(fontMapFile) ./layouts/.codepoints
+	$(VIS_ENV) ./mkcharpics.lua -f $(fontMapFile) -c ./layouts/.codepoints -o $@
+
+TILES000.ART: ./charpics.lua ./mkcharpics.lua $(fontMapFile) ./layouts/.codepoints $(freetype_decls_lua)
+	$(VIS_ENV) ./mkcharpics.lua -f $(fontMapFile) -c ./layouts/.codepoints -o $@
 
 showtiles: TILES000.ART PALETTE.DAT moonglow_deps ./moonglow/lunart.lua
 	@$(VIS_ENV) $(SHOW_TILES_ENV) ./moonglow/lunart.lua $<

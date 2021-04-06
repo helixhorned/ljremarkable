@@ -321,15 +321,21 @@ right or bottom borders.
 Acknowledgements
 ----------------
 
-The [`libremarkable`](https://github.com/canselcik/libremarkable) library by Can Selcik was
-crucial in obtaining an understanding for the functioning of the reMarkable.
+- The [`libremarkable`](https://github.com/canselcik/libremarkable) library by Can Selcik was
+  crucial in obtaining an understanding for the functioning of the reMarkable.
 
-Several C declarations for use with the LuaJIT FFI are obtained directly from a header of
-the "legacy C implementation" of that project.
+  Several C declarations for use with the LuaJIT FFI are obtained directly from a header of
+  the "legacy C implementation" of that project.
 
-Portions of this software are copyright (C) 1996-2020 The FreeType Project
-([www.freetype.org](https://www.freetype.org)). All rights reserved.
+- Portions of this software are copyright (C) 1996-2020 The FreeType Project
+  ([www.freetype.org](https://www.freetype.org)). All rights reserved.
 
+  The FreeType 2 library is used to pre-render a selection of glyphs from TrueType fonts
+  specified at build time to an internal representation.
+
+- The Quicksand font bundled with this repository is copyright 2011 [The Quicksand
+  Project](https://github.com/andrew-paglinawan/QuicksandFamily) authors, distributed under
+  the [SIL Open Font License Version 1.1](fonts/quicksand/OFL.txt).
 
 License
 -------
