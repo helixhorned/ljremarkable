@@ -1693,7 +1693,7 @@ Server = class
         self.rM:requestRefresh(xywh_t(x, y, w, w))
     end,
 
-    drawKeyboardGrid = function(self)
+    drawKeyboard = function(self)
         local PixValue = RGB565(2, 4, 2)
 
         local function drawHline(x, y, width)
@@ -1704,11 +1704,16 @@ Server = class
             map:fill(x, y, 1, height, PixValue)
         end
 
+        local function drawChar(x, y, codePt)
+            self.charRenderer:drawChar(x, y, codePt + CODEPOINT_PLANE_STRIDE, true)
+        end
+
         local function refresh(x, y, w, h)
             self.rM:requestRefresh(xywh_t(x, y, w, h))
         end
 
         vkbd.drawGrid(drawHline, drawVline, refresh)
+        vkbd.drawAllKeys(drawChar, refresh)
     end,
 
     shutDownAndExit = function(self, exitCode)
@@ -1880,7 +1885,7 @@ Server = class
             --  TODO: handle the situation "client screen height > 1080".
             --   Currently, we would overwrite a portion of the keyboard.
             -- On that occasion:
-            self:drawKeyboardGrid()
+            self:drawKeyboard()
         end
     end,
 

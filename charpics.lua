@@ -406,11 +406,13 @@ api.Renderer = class
         }
     end,
 
-    drawChar = function(self, x, yForBaseline, proCodePoint)
+    drawChar = function(self, x, yForBaseline, proCodePoint, centerInX)
         -- The passed coordinates have to be inside bounds.
         self.map:getPixelPointer(x, yForBaseline)
 
         checktype(proCodePoint, 3, "number", 2)
+        centerInX = (centerInX ~= nil) and centerInX or false
+        checktype(centerInX, 4, "boolean", 3)
 
         local proDesc, proData = self.pics:descAndData(proCodePoint)
 
@@ -426,6 +428,10 @@ api.Renderer = class
         -- NOTE: we checked for the presence of the fallback tile in the constructor:
         assert(desc ~= nil and data ~= nil)
 
+        if (centerInX) then
+            x = x - math.floor(desc.w / 2)
+        end
+
         local topY = yForBaseline - desc.baseline
         local botY = topY + desc.h
         local endX = x + desc.w
@@ -438,7 +444,7 @@ api.Renderer = class
         local ptr = self.map:getPixelPointer(x, topY)
         Decode(data, desc.comprSize, desc.w, desc.h, ptr, self.map.xres_virtual, CoverageToRGB565)
 
-        return endX, topY, botY
+        return x, endX, topY, botY
     end,
 
     -- <spaceCharFunc>: (byteValue) -> {nil|surrogate code point}
@@ -477,7 +483,7 @@ api.Renderer = class
                        "Code point \"<spaceCharFunc>'s return value + codePtOffset\" must have a tile")
                 curX = xx + spaceSurrogateDesc.w
             else
-                local nextX, topY, botY = self:drawChar(xx, yForBaseline, ch + codePtOffset)
+                local _, nextX, topY, botY = self:drawChar(xx, yForBaseline, ch + codePtOffset)
 
                 upperY = math.min(upperY, topY)
                 lowerY = math.max(lowerY, botY)

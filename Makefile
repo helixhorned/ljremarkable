@@ -216,6 +216,7 @@ _setup_rM-app.lua: _setup_rM.lua $(linux_decls_lua) $(remarkable_decls_lua) ljcl
 
 # Application unity file
 # NOTE: XLIB_LUA_CONDITIONAL_REQUIRE.
+grabscreen.app.lua: layouts/.lua
 grabscreen.app.lua: grabscreen.lua $(linux_decls_lua) $(remarkable_decls_lua) ljclang_deps
 	@if test -z "$$DISPLAY"; then if test x"$$LJREMARKABLE_ALLOW_NO_X_APP_LUA" != x'1'; then \
 	echo "ERROR: $(app_name) would be built without X support, but no override specified."; false; fi; fi
