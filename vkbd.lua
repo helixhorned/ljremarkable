@@ -30,8 +30,8 @@ local FullHeight = RowCount*KeyHeight
 local FullWidth = ColumnCount*KeyWidth
 
 assert(KeyHeight % 4 == 0)
-assert(OriginY + RowCount*KeyHeight == ScreenHeight_rM - 4)
-assert(OriginX + ColumnCount*KeyWidth == ScreenWidth_rM - 84)
+assert(OriginY + FullHeight == ScreenHeight_rM - 4)
+assert(OriginX + FullWidth == ScreenWidth_rM - 84)
 
 ----------
 
@@ -40,7 +40,7 @@ local api = {
 }
 
 local function doRefresh(refresh)
-    refresh(OriginX, OriginY, ColumnCount*KeyWidth + 1, RowCount*KeyHeight)
+    refresh(OriginX, OriginY, FullWidth + 1, FullHeight)
 end
 
 function api.drawGrid(drawHline, drawVline, refresh)
@@ -50,7 +50,7 @@ function api.drawGrid(drawHline, drawVline, refresh)
 
     -- Horizontal lines
     for j = 0, RowCount-1 do
-        drawHline(OriginX, OriginY + j*KeyHeight, ColumnCount*KeyWidth)
+        drawHline(OriginX, OriginY + j*KeyHeight, FullWidth)
     end
 
     -- Vertical lines (inside: first four rows only)
