@@ -97,6 +97,11 @@ layouts/.codepoints: mkcodepoints.lua $(layoutFiles)
 	./mkcodepoints.lua $(layoutFiles) > $@ || ($(RM) $@ && false)
 codepoints: layouts/.codepoints
 
+layouts/.lua: ./make_layouts_as_single_lua.sh layouts/.codepoints $(layoutFiles)
+	(./make_layouts_as_single_lua.sh layouts/.codepoints $(layoutFiles) > $@ && \
+	 luajit -e "assert(require('kb_layout_util').get_table(loadfile('layouts/.lua')))") \
+	|| ($(RM) $@ && false)
+
 ljclang_clean:
 	$(MAKE) -C ljclang clean
 
