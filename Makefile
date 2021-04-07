@@ -94,7 +94,7 @@ layouts/%: mklayout.lua xkb_symbols_reader.lua
 layouts: $(layoutFiles)
 
 layouts/.codepoints: mkcodepoints.lua $(layoutFiles)
-	./mkcodepoints.lua $(layoutFiles) > $@ || (rm -f $@ && false)
+	./mkcodepoints.lua $(layoutFiles) > $@ || ($(RM) $@ && false)
 codepoints: layouts/.codepoints
 
 ljclang_clean:
@@ -251,10 +251,10 @@ endif
 
 # Not debugging, but here because the invocation is the same as for TILES000.ART
 layouts/.charpics: ./charpics.lua ./mkcharpics.lua $(fontMapFile) ./layouts/.codepoints $(freetype_decls_lua)
-	$(VIS_ENV) ./mkcharpics.lua -f $(fontMapFile) -c ./layouts/.codepoints -o $@
+	$(VIS_ENV) ./mkcharpics.lua -f $(fontMapFile) -c ./layouts/.codepoints -o $@ || ($(RM) $@ && false)
 
 TILES000.ART: ./charpics.lua ./mkcharpics.lua $(fontMapFile) ./layouts/.codepoints $(freetype_decls_lua)
-	$(VIS_ENV) ./mkcharpics.lua -f $(fontMapFile) -c ./layouts/.codepoints -o $@
+	$(VIS_ENV) ./mkcharpics.lua -f $(fontMapFile) -c ./layouts/.codepoints -o $@ || ($(RM) $@ && false)
 
 showtiles: TILES000.ART PALETTE.DAT moonglow_deps ./moonglow/lunart.lua
 	@$(VIS_ENV) $(SHOW_TILES_ENV) ./moonglow/lunart.lua $<
