@@ -1,4 +1,6 @@
 
+local ffi = require("ffi")
+
 local math = require("math")
 
 local KB = require("layouts.")
@@ -24,6 +26,8 @@ local KeyHeight = 132
 local KeyWidth = KeyHeight
 local RowCount = 5
 local ColumnCount = 10
+local FullHeight = RowCount*KeyHeight
+local FullWidth = ColumnCount*KeyWidth
 
 assert(KeyHeight % 4 == 0)
 assert(OriginY + RowCount*KeyHeight == ScreenHeight_rM - 4)
@@ -31,7 +35,9 @@ assert(OriginX + ColumnCount*KeyWidth == ScreenWidth_rM - 84)
 
 ----------
 
-local api = {}
+local api = {
+    OriginY = OriginY
+}
 
 local function doRefresh(refresh)
     refresh(OriginX, OriginY, ColumnCount*KeyWidth + 1, RowCount*KeyHeight)
@@ -107,13 +113,65 @@ local function drawKey(row, col, drawChar)
 end
 
 function api.drawAllKeys(drawChar, refresh)
-    for r = 1, RowCount - 1 do
-        for c = 1, ColumnCount do
-            drawKey(r, c, drawChar)
+    for row = 1, RowCount - 1 do
+        for col = 1, ColumnCount do
+            drawKey(row, col, drawChar)
         end
     end
 
     doRefresh(refresh)
+end
+
+local InactiveMargin = 18  -- approx. 2 mm
+local key_spec_t = ffi.typeof[[const struct{
+    uint8_t r, c;
+}]]
+
+-- Returns:
+--  key_spec_t: x/y represent the active region of an on-screen keyboard key
+--  nil: otherwise
+function api.checkCoords(x, y)
+    assert(type(x) == "number")
+    assert(type(y) == "number")
+
+    if (not (x >= OriginX and x < OriginX + FullWidth)) then
+        return nil
+    elseif (not (y >= OriginY and y < OriginY + FullHeight)) then
+        return nil
+    end
+
+    local dx, dy = x - OriginX, y - OriginY
+    local r = math.floor(dy / KeyHeight)
+    local c = math.floor(dx / KeyWidth)
+
+    local row, col = r + 1, c + 1
+    assert(row >= 1 and row <= RowCount and col >= 1 and col <= ColumnCount)
+
+    if (row == RowCount) then
+        return nil  -- TODO: handle
+    elseif (row == RowCount - 1 and col == 1) then
+        -- Shift key.
+        return nil  -- TODO: handle
+    end
+
+    local remx, remy = dx % KeyWidth, dy % KeyHeight
+    -- Only the inside area of a key rectangle is active.
+    if (not (remx >= InactiveMargin and remx < KeyWidth - InactiveMargin)) then
+        return nil
+    elseif (not (remy >= InactiveMargin and remy < KeyHeight - InactiveMargin)) then
+        return nil
+    end
+
+    return key_spec_t(r, c)
+end
+
+function api.blinkKey(keySpec, flashingRefresh)
+    assert(ffi.istype(key_spec_t, keySpec))
+
+    local x = OriginX + KeyWidth*keySpec.c + 1
+    local y = OriginY + KeyHeight*keySpec.r + 1
+
+    flashingRefresh(x, y, KeyWidth - 1, KeyHeight - 1)
 end
 
 -- Done!

@@ -1276,6 +1276,20 @@ local function MergeEventToSend(eventToSend, dummyEvent)
     return eventToSend
 end
 
+local function TryVirtualKeyboard(event, blinkKeyFunc)
+    if (not (event.ourType == OurEventType.SingleClick and
+             event.button == Button.Left and event.y >= vkbd.OriginY)) then
+        -- Not a gesture that counts as an on-screen keyboard tap.
+        return
+    end
+
+    local keySpec = vkbd.checkCoords(event.x, event.y)
+
+    if (keySpec ~= nil) then
+        blinkKeyFunc(keySpec)
+    end
+end
+
 local MTC = input.MultiTouchCode
 
 local InputState = class
@@ -1300,7 +1314,7 @@ local InputState = class
     end,
 
     handleEventFrame = function(self, events, eventCount, outputTab,
-                                specialRqTab)
+                                specialRqTab, blinkKeyFunc)
         local oldStage = self.stage
         local didFinallyRelease = self:handlePressOrRelease(events, eventCount, specialRqTab)
         local hadProgress = (self.stage > oldStage)
@@ -1324,6 +1338,7 @@ local InputState = class
             end
 
             if (eventToSend ~= nil) then
+                TryVirtualKeyboard(eventToSend, blinkKeyFunc)
                 outputTab[1] = eventToSend
             end
             self:reset()
@@ -1716,6 +1731,16 @@ Server = class
         vkbd.drawAllKeys(drawChar, refresh)
     end,
 
+    blinkKey = function(self, keySpec)
+        local function refresh(x, y, w, h)
+            -- NOTE: the FULL refresh mode is slow enough that e.g. a quick succession of
+            --  taps on the same key might lead to being notified about only some of them.
+            self.rM:requestRefresh(xywh_t(x, y, w, h), nil, RM.UPDATE_MODE.FULL)
+        end
+
+        vkbd.blinkKey(keySpec, refresh)
+    end,
+
     shutDownAndExit = function(self, exitCode)
         -- NOTE: do not disable, need DISABLE_VIA_SERVER_INPUT for that.
 
@@ -1794,13 +1819,17 @@ Server = class
         local eventToSend = {}
         local lastIdx = 0
 
+        local function doBlinkKey(keySpec)
+            self:blinkKey(keySpec)
+        end
+
         for i = 0, eventCount - 1 do
             local ev = events[i]
 
             if (ev.type == EV.SYN) then
                 assert(i > lastIdx, "unexpected empty event frame")
                 self.inputState:handleEventFrame(events + lastIdx, i - lastIdx, eventToSend,
-                                                 self.specialRequestTab)
+                                                 self.specialRequestTab, doBlinkKey)
                 lastIdx = i + 1
             end
         end
