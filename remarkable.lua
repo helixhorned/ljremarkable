@@ -14,6 +14,7 @@ local FB = require("framebuffer")
 local ioctl = FB.ioctl
 
 local assert = assert
+local tonumber = tonumber
 local type = type
 
 require("remarkable_decls")
@@ -26,7 +27,15 @@ local xywh_t = ffi.typeof("struct { uint32_t x, y, w, h; }")
 -- NOTE: order is: top, left, width, height
 local rect_t = ffi.typeof("mxcfb_rect")
 local update_data_t = ffi.typeof("mxcfb_update_data")
+local update_mode_t = ffi.typeof("update_mode")
 local update_marker_data_t = ffi.typeof("mxcfb_update_marker_data")
+
+local UPDATE_MODE_t = ffi.typeof([[const struct{
+    update_mode PARTIAL;
+    update_mode FULL;
+}]])
+
+local UPDATE_MODE = ffi.new(UPDATE_MODE_t, C.UPDATE_MODE_PARTIAL, C.UPDATE_MODE_FULL)
 
 -- The marker values appear to be system-global in the epdc_fb driver
 -- (though note that we do pass a file descriptor),
@@ -34,15 +43,17 @@ local update_marker_data_t = ffi.typeof("mxcfb_update_marker_data")
 local MarkerOffset = 2^31
 
 local function RequestRefresh(fd, vinfo,
-                              rect, marker)
+                              rect, marker, updateMode)
     assert(type(fd) == "number")
     assert(ffi.istype(fb_var_screeninfo, vinfo))
 
     check(ffi.istype(xywh_t, rect), "argument #1 must be a remarkable.xywh", 3)
     check(marker == nil or type(marker) == "number",
           "argument #2 must be nil or a number", 3)
+    check(updateMode == nil or ffi.istype(update_mode_t, updateMode),
+          "argument #3 must be nil or an UPDATE_MODE constant", 3)
 
-    local mode = C.UPDATE_MODE_PARTIAL
+    local mode = (updateMode ~= nil) and tonumber(updateMode) or C.UPDATE_MODE_PARTIAL
     local waveform = C.WAVEFORM_MODE_GC16
     local displayTemp = C.TEMP_USE_REMARKABLE_DRAW
 
@@ -90,6 +101,7 @@ end
 ----------
 
 local api = {
+    UPDATE_MODE = UPDATE_MODE,
     xywh = xywh_t
 }
 
