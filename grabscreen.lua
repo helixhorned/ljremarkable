@@ -1723,12 +1723,13 @@ Server = class
             self.charRenderer:drawChar(x, y, codePt + CODEPOINT_PLANE_STRIDE, true)
         end
 
-        local function refresh(x, y, w, h)
-            self.rM:requestRefresh(xywh_t(x, y, w, h))
-        end
+        local x, y = 0, vkbd.OriginY
+        local w, h = ScreenWidth_rM, ScreenHeight_rM - vkbd.OriginY
 
-        vkbd.drawGrid(drawHline, drawVline, refresh)
-        vkbd.drawAllKeys(drawChar, refresh)
+        map:fill(x, y, w, h, 0xffff)
+        vkbd.drawGrid(drawHline, drawVline)
+        vkbd.drawAllKeys(drawChar)
+        self.rM:requestRefresh(xywh_t(x, y, w, h))
     end,
 
     blinkKey = function(self, keySpec)

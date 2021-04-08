@@ -39,14 +39,9 @@ local api = {
     OriginY = OriginY
 }
 
-local function doRefresh(refresh)
-    refresh(OriginX, OriginY, FullWidth + 1, FullHeight)
-end
-
-function api.drawGrid(drawHline, drawVline, refresh)
+function api.drawGrid(drawHline, drawVline)
     assert(type(drawHline) == "function")
     assert(type(drawVline) == "function")
-    assert(type(refresh) == "function")
 
     -- Horizontal lines
     for j = 0, RowCount-1 do
@@ -65,8 +60,6 @@ function api.drawGrid(drawHline, drawVline, refresh)
     for _, iFrac in ipairs{ 1.5, 2.5, ColumnCount-2.5, ColumnCount-1.5 } do
         drawVline(OriginX + iFrac*KeyWidth, oy, KeyHeight)
     end
-
-    doRefresh(refresh)
 end
 
 local mainKbLayoutName = KB.layoutNames[1]
@@ -112,14 +105,12 @@ local function drawKey(row, col, drawChar)
     end
 end
 
-function api.drawAllKeys(drawChar, refresh)
+function api.drawAllKeys(drawChar)
     for row = 1, RowCount - 1 do
         for col = 1, ColumnCount do
             drawKey(row, col, drawChar)
         end
     end
-
-    doRefresh(refresh)
 end
 
 local InactiveMargin = 18  -- approx. 2 mm
