@@ -351,13 +351,6 @@ local CharPicsFile = class
         }
     end,
 
-    renderUnsafe = function(self, codePoint, ptr, stride, pixFunc)
-        local desc, data = self:descAndData(codePoint)
-        assert(desc ~= nil, "no tile for given code point")
-        Decode(data, desc.comprSize, desc.w, desc.h, ptr, stride, pixFunc)
-        return desc.w
-    end,
-
     descAndData = function(self, codePoint)
         assert(type(codePoint) == "number", "argument #1 must be a number")
 
