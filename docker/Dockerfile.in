@@ -20,6 +20,18 @@ WORKDIR /home/user
 
 ########## Check out and build ljremarkable ##########
 
+USER root
+# Install conditional run-time library dependencies (libX11.so.6 and libXtst.so.6).
+# For the resulting '.app.lua', we want 'xlib.lua' to be included unconditionally,
+# therefore the 'require()' for it must succeed.
+RUN @install@ $pkg_libxtst
+# For arm32v7/debian, make sure dependencies to generate .charpics are available:
+#  - /usr/share/X11/xkb/symbols/us
+#  - /usr/include/X11/keysymdef.h
+#  - FreeType 2 headers
+#@if-ljrM: RUN @install@ xkb-data x11proto-dev libfreetype6-dev
+USER user
+
 COPY ./additional.git/ ./ljremarkable.git/
 
 # Create a non-bare repository:
@@ -40,18 +52,6 @@ WORKDIR ../../..
 
 # For arm32v7/debian, make sure the font to generate .charpics from is available:
 #@if-ljrM: RUN git submodule update fonts/quicksand
-
-USER root
-# Install conditional run-time library dependencies (libX11.so.6 and libXtst.so.6).
-# For the resulting '.app.lua', we want 'xlib.lua' to be included unconditionally,
-# therefore the 'require()' for it must succeed.
-RUN @install@ $pkg_libxtst
-# For arm32v7/debian, make sure dependencies to generate .charpics are available:
-#  - /usr/share/X11/xkb/symbols/us
-#  - /usr/include/X11/keysymdef.h
-#  - FreeType 2 headers
-#@if-ljrM: RUN @install@ xkb-data x11proto-dev libfreetype6-dev
-USER user
 
 # Build the application.
 RUN cp -a /home/user/ljclang/Makefile ljclang/
