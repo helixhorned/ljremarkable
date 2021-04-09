@@ -83,12 +83,16 @@ do
     end
 end
 
-local function getCodePoint(row, col)
+local function getCodePointAndKeySym(row, col)
     local k = 100*(row-1) + 10*col
+
     local mnemonic = mainLayout[k]
-    return (mnemonic ~= nil) and
-        tonumber(bit.band(0ULL + KB.codepoints[mnemonic], 0xffff)) or
-        nil  -- key is special
+    if (mnemonic == nil) then
+        return nil, nil  -- key is special
+    end
+
+    local u64pv = 0ULL + KB.codepoints[mnemonic]  -- packed value
+    return tonumber(bit.band(u64pv, 0xffff)), tonumber(bit.rshift(u64pv, 16))
 end
 
 local function getOrigin(row, col)
@@ -102,7 +106,7 @@ local function drawKey(row, col, drawChar)
     assert(row >= 1 and row <= RowCount - 1)
     assert(col >= 1 and col <= ColumnCount)
 
-    local codePt = getCodePoint(row, col)
+    local codePt = getCodePointAndKeySym(row, col)
 
     if (codePt ~= nil) then
         local ox, oy = getOrigin(row, col)
@@ -168,6 +172,12 @@ function api.blinkKey(keySpec, flashingRefresh)
     local y = OriginY + KeyHeight*keySpec.r + 1
 
     flashingRefresh(x, y, KeyWidth - 1, KeyHeight - 1)
+end
+
+function api.getKeySym(keySpec)
+    assert(ffi.istype(key_spec_t, keySpec))
+    local _, keySym = getCodePointAndKeySym(keySpec.r + 1, keySpec.c + 1)
+    return keySym
 end
 
 -- Done!

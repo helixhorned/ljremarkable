@@ -591,6 +591,7 @@ local coord_array_t = ffi.typeof("$ [?]", coord_t)
 local OurEventType = {
     SingleClick = 1,
     Drag = 2,
+    Key = 3,
 }
 
 -- The amount of y travelled for sending one wheel up/down (9: 1mm).
@@ -618,7 +619,10 @@ local OurEvent_t = ffi.typeof[[struct {
     uint8_t ourType;
     uint8_t button;
     int16_t x, y;
-    int16_t nx, ny;  // Drag only
+    union {
+      struct { int16_t nx, ny; };   // event 'Drag' only
+      uint32_t keySym;              // event 'Key' only
+    };
 }]]
 
 ----------
@@ -1009,7 +1013,11 @@ local Client = class
                     return x >= 0 and x < targetXres and y >= 0 and y < targetYres
                 end
 
-                if (cy >= targetYres and cny < 0) then
+                if (ourEvent.ourType == OurEventType.Key) then
+                    if (display ~= nil) then
+                        display:pressAndReleaseKey(ourEvent.keySym)
+                    end
+                elseif (cy >= targetYres and cny < 0) then
                     -- Drag across the Pi screen from below it to above it: resend picture.
                     if (ourEvent.ourType == OurEventType.Drag) then
                         if (self.sampler ~= nil) then
@@ -1280,14 +1288,25 @@ local function TryVirtualKeyboard(event, blinkKeyFunc)
     if (not (event.ourType == OurEventType.SingleClick and
              event.button == Button.Left and event.y >= vkbd.OriginY)) then
         -- Not a gesture that counts as an on-screen keyboard tap.
-        return
+        return nil
     end
 
     local keySpec = vkbd.checkCoords(event.x, event.y)
-
-    if (keySpec ~= nil) then
-        blinkKeyFunc(keySpec)
+    if (keySpec == nil) then
+        return nil
     end
+
+    blinkKeyFunc(keySpec)
+    return vkbd.getKeySym(keySpec)
+end
+
+local function TryEncodeKey(event, keySym)
+    if (keySym ~= nil) then
+        event.ourType = OurEventType.Key
+        event.keySym = keySym
+    end
+
+    return event
 end
 
 local MTC = input.MultiTouchCode
@@ -1338,8 +1357,8 @@ local InputState = class
             end
 
             if (eventToSend ~= nil) then
-                TryVirtualKeyboard(eventToSend, blinkKeyFunc)
-                outputTab[1] = eventToSend
+                local keySym = TryVirtualKeyboard(eventToSend, blinkKeyFunc)
+                outputTab[1] = TryEncodeKey(eventToSend, keySym)
             end
             self:reset()
         end
