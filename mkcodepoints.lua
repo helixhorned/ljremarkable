@@ -59,11 +59,11 @@ local function readMnemonicMap()
             local codePtStr = rest:match(SuffixPattern)
 
             if (codePtStr == nil) then
-                -- OK, mnemonic with a keysym but not UCS code point.
+                -- OK, mnemonic with a keysym but no UCS code point.
                 codePts[mnemonic] = true
             else
-                -- NOTE: on Raspbian Buster, there are always four hex digits after the
-                --  'U+', even though the regex in the comment allows up to 6.
+                -- NOTE [CODEPT_BOUND]: on Raspbian Buster, there are always four hex digits
+                --  after the 'U+', even though the regex in the comment allows up to 6.
                 if (#codePtStr ~= 4) then
                     error(("%s:%d: Unexpected length of code point string %d"):format(
                             SymDefFileName, lineNum, #codePtStr))
@@ -146,6 +146,9 @@ for _, layoutFileName in ipairs(arg) do
                         error(("%s: mnemonic '%s' is ambiguous")
                                 :format(layoutFileName, mnemonic))
                     end
+
+                    -- Due to CODEPT_BOUND:
+                    assert(type(codePt) ~= "number" or (codePt >= 0 and codePt <= 0xffff))
 
                     if (type(codePt) == "number" and not (codePt >= 0 and codePt < MAXTILES)) then
                         io.stderr:write(("%s: warning: dropping mnemonic '%s' with codepoint %d\n")

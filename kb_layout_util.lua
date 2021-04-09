@@ -45,7 +45,7 @@ function api.get_AZ_map(layoutFileName)
     for k = 1, TotalDestKeyCount do
         local sym = syms[KeyIdxFactor * k]
 
-        if (sym:match("^[a-z]$")) then
+        if (sym ~= nil and sym:match("^[a-z]$")) then
             local upperSym = sym:upper()
             if (map[upperSym] ~= nil) then
                 error("Ambiguous key number for symbol "..upperSym)
