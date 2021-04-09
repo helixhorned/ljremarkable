@@ -1,5 +1,6 @@
 
 local ffi = require("ffi")
+local bit = require("bit")
 
 local math = require("math")
 
@@ -8,6 +9,7 @@ local KB = require("layouts.")
 local assert = assert
 local ipairs = ipairs
 local pairs = pairs
+local tonumber = tonumber
 local type = type
 
 ----------
@@ -75,6 +77,9 @@ do
 
         local codePt = KB.codepoints[mnemonic]
         assert(type(codePt) == "number")
+
+        -- Upper (> 16th) bits encode the X KeySym value.
+        assert(codePt >= 0x10000)
     end
 end
 
@@ -82,7 +87,7 @@ local function getCodePoint(row, col)
     local k = 100*(row-1) + 10*col
     local mnemonic = mainLayout[k]
     return (mnemonic ~= nil) and
-        assert(KB.codepoints[mnemonic]) or
+        tonumber(bit.band(0ULL + KB.codepoints[mnemonic], 0xffff)) or
         nil  -- key is special
 end
 

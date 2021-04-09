@@ -1,6 +1,7 @@
 #!/usr/bin/env luajit
 
 local ffi = require("ffi")
+local bit = require("bit")
 
 local io = require("io")
 local os = require("os")
@@ -124,6 +125,9 @@ local function ReadCodePoints(codePtsFileName)
         check(isNumber or codePt == true,
               "table values must be numbers or the boolean value true")
         if (isNumber) then
+            check(codePt >= 0x10000,
+                  "table number values must encode the X KeySym in the upper (> 16th) bits")
+            codePt = tonumber(bit.band(0ULL + codePt, 0xffff))
             codePoints[#codePoints + 1] = codePt
             haveCodePtOne = haveCodePtOne or (codePt == 1)
         end
