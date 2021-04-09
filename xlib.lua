@@ -55,6 +55,15 @@ Bool XQueryPointer(Display *display, Window w,
 Bool XTestQueryExtension(Display *display, int *, int *, int *, int *);
 int XTestFakeButtonEvent(Display *display,
   unsigned int button, Bool is_press, unsigned long delay);
+int XTestFakeKeyEvent(Display *display,
+  unsigned int keycode, Bool is_press, unsigned long delay);
+]]
+
+ffi.cdef[[
+typedef XID KeySym;
+typedef unsigned char KeyCode;
+
+KeyCode XKeysymToKeycode(Display *display, KeySym keysym);
 ]]
 
 ----------
@@ -178,6 +187,8 @@ api.Display = class
     end,
 
     clickMouse = function(self, button)
+        check(self:haveTestExtension(), "XTest extension must be present", 2)
+
         self:_operateMouseButton(button, 1)
         msleep(1)
         self:_operateMouseButton(button, 0)
@@ -196,6 +207,20 @@ api.Display = class
         end
     end,
 
+    pressAndReleaseKey = function(self, keySym)
+        check(self:haveTestExtension(), "XTest extension must be present", 2)
+
+        local keyCode = X.XKeysymToKeycode(self.display, keySym)
+        if (keyCode == 0) then
+            -- TODO: handle
+            return
+        end
+
+        self:_sendKey(keyCode, 1)
+        msleep(1)
+        self:_sendKey(keyCode, 0)
+    end,
+
 -- private:
     _operateMouseButton = function(self, button, downInt)
         checktype(button, 1, "number", 3)
@@ -205,6 +230,15 @@ api.Display = class
         local CurrentTime = 0  -- see X.h
         -- TODO: what is the meaning of the return value?
         Xtst.XTestFakeButtonEvent(self.display, button, downInt, CurrentTime)
+        X.XFlush(self.display)
+    end,
+
+    _sendKey = function(self, keyCode, downInt)
+        assert(keyCode >= 0 and keyCode <= 255)
+        assert(downInt == 1 or downInt == 0)
+
+        local CurrentTime = 0  -- see X.h
+        Xtst.XTestFakeKeyEvent(self.display, keyCode, downInt, CurrentTime)
         X.XFlush(self.display)
     end,
 }
