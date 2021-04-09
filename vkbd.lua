@@ -81,18 +81,26 @@ do
         -- Upper (> 16th) bits encode the X KeySym value.
         assert(codePt >= 0x10000)
     end
+
+    -- Check presence of data for used fixed-function mnemonics, needed for KeySym values.
+    assert(KB.codepoints["BackSpace"] ~= nil)
 end
 
 local function getCodePointAndKeySym(row, col)
     local k = 100*(row-1) + 10*col
 
-    local mnemonic = mainLayout[k]
+    local mnemonic =
+        (row == 3 and col == ColumnCount) and "BackSpace" or
+        mainLayout[k]
     if (mnemonic == nil) then
-        return nil, nil  -- key is special
+        return nil, nil  -- key is special and not yet handled
     end
 
     local u64pv = 0ULL + KB.codepoints[mnemonic]  -- packed value
-    return tonumber(bit.band(u64pv, 0xffff)), tonumber(bit.rshift(u64pv, 16))
+    local codePt = tonumber(bit.band(u64pv, 0xffff))
+    local keySym = tonumber(bit.rshift(u64pv, 16))
+
+    return (codePt > 0) and codePt or nil, keySym
 end
 
 local function getOrigin(row, col)

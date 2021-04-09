@@ -129,6 +129,18 @@ local function isSpecialMnemonic(mnemonic)
         mnemonic:match("^0x[0-9A-Fa-f]+$")
 end
 
+local FixedFunctionMnemonics = {
+    "BackSpace", "Tab", "Return", "Escape", "Delete",
+    "space"
+}
+
+local IsFixedFunctionMnemonic = {}
+do
+    for _, m in ipairs(FixedFunctionMnemonics) do
+        IsFixedFunctionMnemonic[m] = true
+    end
+end
+
 for _, layoutFileName in ipairs(arg) do
     local layoutTab, msg = kb_layout_util.get_table(loadfile(layoutFileName))
     if (layoutTab == nil) then
@@ -141,6 +153,11 @@ for _, layoutFileName in ipairs(arg) do
         for s = 0, MaxShift do
             local ourKeyIdx = KeyIdxFactor*k + s
             local mnemonic = layoutTab[ourKeyIdx]
+
+            if (IsFixedFunctionMnemonic[mnemonic]) then
+                error(("%s: mnemonic '%s' is reserved for fixed functionality")
+                        :format(layoutFileName, mnemonic))
+            end
 
             if (mnemonic ~= nil and not isSpecialMnemonic(mnemonic)) then
                 if (codePts[mnemonic] == nil) then
@@ -174,6 +191,12 @@ for _, layoutFileName in ipairs(arg) do
     end
 end
 
+-- Fixed-functionality mnemonics.
+for _, mnemonic in ipairs(FixedFunctionMnemonics) do
+    mnemonics[#mnemonics + 1] = mnemonic
+    codePts[mnemonic] = 0
+end
+
 table.sort(mnemonics)
 
 local strTab = {
@@ -194,8 +217,9 @@ for _, mnemonic in ipairs(mnemonics) do
         error(("No KeySym for mnemonic '%s'"):format(mnemonic))
     end
 
-    strTab[#strTab + 1] = ("[%q]=%s,"):format(
-        mnemonic, (keySym ~= nil) and ("0x%x"):format(0x10000*keySym + codePt) or codePt)
+    strTab[#strTab + 1] = ("[%q]=%s,%s"):format(
+        mnemonic, (keySym ~= nil) and ("0x%x"):format(0x10000*keySym + codePt) or codePt,
+        codePt == 0 and "  -- fixed-function" or "")
 end
 
 strTab[#strTab + 1] = "}\n"

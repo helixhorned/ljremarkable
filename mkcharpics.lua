@@ -128,8 +128,11 @@ local function ReadCodePoints(codePtsFileName)
             check(codePt >= 0x10000,
                   "table number values must encode the X KeySym in the upper (> 16th) bits")
             codePt = tonumber(bit.band(0ULL + codePt, 0xffff))
-            codePoints[#codePoints + 1] = codePt
-            haveCodePtOne = haveCodePtOne or (codePt == 1)
+            -- Fixed-function mnemonics do not have a code point attached.
+            if (codePt > 0) then
+                codePoints[#codePoints + 1] = codePt
+                haveCodePtOne = haveCodePtOne or (codePt == 1)
+            end
         end
     end
 
