@@ -30,6 +30,8 @@ local RowCount = 5
 local ColumnCount = 10
 local FullHeight = RowCount*KeyHeight
 local FullWidth = ColumnCount*KeyWidth
+local LastRowKeyCount = 5
+local HalfKeyWidth = KeyWidth / 2
 
 assert(KeyHeight % 4 == 0)
 assert(OriginY + FullHeight == ScreenHeight_rM - 4)
@@ -84,6 +86,7 @@ do
 
     -- Check presence of data for used fixed-function mnemonics, needed for KeySym values.
     assert(KB.codepoints["BackSpace"] ~= nil)
+    assert(KB.codepoints["space"] ~= nil)
 end
 
 local function getCodePointAndKeySym(row, col)
@@ -91,6 +94,7 @@ local function getCodePointAndKeySym(row, col)
 
     local mnemonic =
         (row == 3 and col == ColumnCount) and "BackSpace" or
+        (row == RowCount) and (col == 3 and "space" or nil) or
         mainLayout[k]
     if (mnemonic == nil) then
         return nil, nil  -- key is special and not yet handled
@@ -130,10 +134,57 @@ function api.drawAllKeys(drawChar)
     end
 end
 
-local InactiveMargin = 18  -- approx. 2 mm
 local key_spec_t = ffi.typeof[[const struct{
     uint8_t r, c;
 }]]
+
+-- In terms of half-columns.
+local LastRowKeyBorders = {
+    [0] = 0,
+    3,
+    5,
+    (2*ColumnCount - 5),
+    (2*ColumnCount - 3),
+    2*ColumnCount
+}
+
+-- Returns: zero-based, "nominal" column index.
+local function GetColumnForLastRow(hc)
+    for i = 1, LastRowKeyCount do
+        if (hc < LastRowKeyBorders[i]) then
+            return i - 1
+        end
+    end
+
+    assert(false)
+end
+
+local function GetXBoundsOfLastRowKey(c)
+    assert(OriginX == 0)
+    assert(c >= 0 and c < LastRowKeyCount)
+
+    return
+        HalfKeyWidth*LastRowKeyBorders[c],
+        HalfKeyWidth*LastRowKeyBorders[c+1]
+end
+
+-- Only the inside area of a key rectangle is active.
+local InactiveMargin = 18  -- approx. 2 mm
+
+local function IsInsideKeyExcludingMargin(isLastRow, dx, dy, c)
+    local remy = dy % KeyHeight
+    local ok = (remy >= InactiveMargin and remy < KeyHeight - InactiveMargin)
+
+    if (not isLastRow) then
+        local remx = dx % KeyWidth
+        ok = ok and (remx >= InactiveMargin and remx < KeyWidth - InactiveMargin)
+    else
+        local x1, x2 = GetXBoundsOfLastRowKey(c)
+        ok = ok and (dx >= x1 + InactiveMargin and dx <= x2 - InactiveMargin)
+    end
+
+    return ok
+end
 
 -- Returns:
 --  key_spec_t: x/y represent the active region of an on-screen keyboard key
@@ -155,18 +206,20 @@ function api.checkCoords(x, y)
     local row, col = r + 1, c + 1
     assert(row >= 1 and row <= RowCount and col >= 1 and col <= ColumnCount)
 
-    if (row == RowCount) then
-        return nil  -- TODO: handle
-    elseif (row == RowCount - 1 and col == 1) then
+    if (row == RowCount - 1 and col == 1) then
         -- Shift key.
         return nil  -- TODO: handle
     end
 
-    local remx, remy = dx % KeyWidth, dy % KeyHeight
-    -- Only the inside area of a key rectangle is active.
-    if (not (remx >= InactiveMargin and remx < KeyWidth - InactiveMargin)) then
-        return nil
-    elseif (not (remy >= InactiveMargin and remy < KeyHeight - InactiveMargin)) then
+    local isLastRow = (row == RowCount)
+
+    if (isLastRow) then
+        local hc = math.floor(dx / HalfKeyWidth)
+        assert(hc >= 0 and hc < 2*ColumnCount)
+        c = GetColumnForLastRow(hc)
+    end
+
+    if (not IsInsideKeyExcludingMargin(isLastRow, dx, dy, c)) then
         return nil
     end
 
@@ -178,8 +231,20 @@ function api.blinkKey(keySpec, flashingRefresh)
 
     local x = OriginX + KeyWidth*keySpec.c + 1
     local y = OriginY + KeyHeight*keySpec.r + 1
+    local w = KeyWidth
 
-    flashingRefresh(x, y, KeyWidth - 1, KeyHeight - 1)
+    if (keySpec.r + 1 == RowCount) then
+        local x1, x2 = GetXBoundsOfLastRowKey(keySpec.c)
+        if (keySpec.c ~= 2) then
+            -- Only Space is handled for now.
+            return
+        end
+
+        x = x1
+        w = x2 - x1
+    end
+
+    flashingRefresh(x, y, w - 1, KeyHeight - 1)
 end
 
 function api.getKeySym(keySpec)
