@@ -87,6 +87,7 @@ do
     -- Check presence of data for used fixed-function mnemonics, needed for KeySym values.
     assert(KB.codepoints["BackSpace"] ~= nil)
     assert(KB.codepoints["space"] ~= nil)
+    assert(KB.codepoints["Return"] ~= nil)
 end
 
 local function getCodePointAndKeySym(row, col)
@@ -94,7 +95,10 @@ local function getCodePointAndKeySym(row, col)
 
     local mnemonic =
         (row == 3 and col == ColumnCount) and "BackSpace" or
-        (row == RowCount) and (col == 3 and "space" or nil) or
+        (row == RowCount) and (
+            col == 3 and "space" or
+            col == 5 and "Return" or
+            nil) or
         mainLayout[k]
     if (mnemonic == nil) then
         return nil, nil  -- key is special and not yet handled
@@ -235,8 +239,8 @@ function api.blinkKey(keySpec, flashingRefresh)
 
     if (keySpec.r + 1 == RowCount) then
         local x1, x2 = GetXBoundsOfLastRowKey(keySpec.c)
-        if (keySpec.c ~= 2) then
-            -- Only Space is handled for now.
+        if (not (keySpec.c == 2 or keySpec.c == 4)) then
+            -- Only Space and Return are handled for now.
             return
         end
 
