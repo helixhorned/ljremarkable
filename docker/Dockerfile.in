@@ -15,7 +15,7 @@ WORKDIR /home/user
 #  because it's implied by Cortex-A9.
 #@if-ljrM: RUN sed -i 's/^CCOPT_arm=$/CCOPT_arm= -mfpu=neon -mfloat-abi=hard -mcpu=cortex-a9/' ./src/Makefile
 #@if-ljrM: RUN make -j4
-#@if-ljrM: RUN sha256sum src/luajit | grep -q daf5b359a0b1c102a36f77d6cfe941105b3cea1693fa1b3ee15c341d886525c6
+#@if-ljrM: RUN sha256sum src/luajit | grep -q f2cb88f51d0add0440ba86da04602b249d415f7cf10a9ec40b4f0f8529163f54
 #@if-ljrM: WORKDIR /home/user
 
 ########## Check out and build ljremarkable ##########
