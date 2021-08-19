@@ -1,0 +1,2 @@
+--build-arg pkg_linux_headers=linux-headers
+--build-arg pkg_libxtst=libxtst

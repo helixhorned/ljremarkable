@@ -87,10 +87,11 @@ run:
 .PHONY: ljremarkable-dev-arm64v8/alpine ljremarkable-dev-arm64v8/debian ljremarkable-dev-arm64v8/ubuntu
 .PHONY: ljremarkable-dev-amd64/alpine ljremarkable-dev-amd64/debian ljremarkable-dev-amd64/ubuntu
 
+_build_args_file_prefix := BUILD_ARGS_FILE_PREFIX='$(THIS_DIR)/vars'
 _suffix_Dockerfile_in := SUFFIX_DOCKERFILE_IN='$(THIS_DIR)/Dockerfile.in'
 _overrides := OVERRIDE_IMAGE_NAME=ljremarkable-dev OVERRIDE_IMAGE_TAG=$(commit)
 _additional_context_repo := ADDITIONAL_CONTEXT_REPO='$(THIS_DIR)/..'
-recursive_make_vars := $(_suffix_Dockerfile_in) $(_overrides) $(_additional_context_repo)
+recursive_make_vars := $(_build_args_file_prefix) $(_suffix_Dockerfile_in) $(_overrides) $(_additional_context_repo)
 
 # NOTE: the '--silent' is there to prevent recursive 'make --silent' invocations (which are
 #  intended to merely print a value) to not output text like "make[2]: Entering directory".

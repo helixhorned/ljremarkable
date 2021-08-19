@@ -1,0 +1,2 @@
+--build-arg pkg_linux_headers=  # /usr/include/linux/fb.h comes with 'linux-libc-dev'
+--build-arg pkg_libxtst=libxtst6
