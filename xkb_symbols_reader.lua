@@ -296,10 +296,6 @@ function api.as_lua(layout, quiet)
             sym ~= nil and ("%q"):format(sym) or "nil")
     end
 
-    local function getKeySym(k, o)
-        return result[KeyIdxFactor*k + o]
-    end
-
     for k = 1, TotalDestKeyCount do
         if (k > 1 and k % 10 == 1) then
             strTab[#strTab + 1] = ''
