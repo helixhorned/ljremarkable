@@ -598,14 +598,12 @@ local OurEventType = {
 local SingleWheelRollDistance = 81
 
 local Button = {
-    -- KEEPINSYNC with 'xdotool click' mouse button numbers:
     Left = 1,
     Middle = 2,
     Right = 3,
     WheelUp = 4,
     WheelDown = 5,
 
-    -- These are for ourselves, 'xdotool' does not know them:
     VerticalDrag = 254,
     GenericDrag = 255
 }
@@ -1285,9 +1283,21 @@ local function MergeEventToSend(eventToSend, dummyEvent)
 end
 
 local function TryVirtualKeyboard(event, blinkKeyFunc)
-    if (not (event.ourType == OurEventType.SingleClick and
-             event.button == Button.Left and event.y >= vkbd.OriginY)) then
-        -- Not a gesture that counts as an on-screen keyboard tap.
+    local evType, evBtn = event.ourType, event.button
+    local isSingleClick = (evType == OurEventType.SingleClick and evBtn == Button.Left)
+    local isDrag = (evType == OurEventType.Drag and evBtn == Button.VerticalDrag)
+
+    if (not (isSingleClick or isDrag)) then
+        return nil
+    end
+
+    -- TODO: dragging:
+    --  * Handle the topmost row.
+    --  * Check the path, i.e. require other keys to not have been touched.
+    --  * With rM software 2.9+, "bottom row --> up" may open the "quick browse" panel.
+    if (not (event.y >= vkbd.OriginY and
+             (not isDrag or event.ny >= vkbd.OriginY))) then
+        -- Not a gesture that counts as an on-screen keyboard tap or drag.
         return nil
     end
 
@@ -1296,8 +1306,27 @@ local function TryVirtualKeyboard(event, blinkKeyFunc)
         return nil
     end
 
+    local dstKeySpec = isDrag and vkbd.checkCoords(event.nx, event.ny) or nil
+    if (isDrag) then
+        if (dstKeySpec == nil) then
+            return nil
+        elseif (dstKeySpec.c ~= keySpec.c) then
+            -- TODO: dragging: between certain different-column keys -> e.g. ligatures.
+            return nil
+        elseif (dstKeySpec.r == keySpec.r) then
+            -- Treat a drag within one and the same key as a press.
+            isDrag = false
+            dstKeySpec = nil
+        elseif (dstKeySpec.r ~= keySpec.r - 1) then
+            -- TODO: dragging: fix one-up from 'Space' (which is special, being wider).
+            return nil
+        end
+    end
+
+    -- TODO: dragging: blink differently.
     blinkKeyFunc(keySpec)
-    return vkbd.getKeySym(keySpec)
+
+    return vkbd.getKeySym(keySpec, isDrag and 1 or 0)
 end
 
 local function TryEncodeKey(event, keySym)

@@ -86,18 +86,22 @@ do
 
     -- Check presence of data for used fixed-function mnemonics, needed for KeySym values.
     assert(KB.codepoints["BackSpace"] ~= nil)
+    assert(KB.codepoints["Delete"] ~= nil)
     assert(KB.codepoints["space"] ~= nil)
+    assert(KB.codepoints["Tab"] ~= nil)
     assert(KB.codepoints["Return"] ~= nil)
 end
 
-local function getCodePointAndKeySym(row, col)
-    local k = 100*(row-1) + 10*col
+local function getCodePointAndKeySym(row, col, level)
+    assert(level == 0 or level == 1)
 
+    local k = 100*(row-1) + 10*col + level
     local mnemonic =
-        (row == 3 and col == ColumnCount) and "BackSpace" or
-        (row == RowCount) and (
-            col == 3 and "space" or
-            col == 5 and "Return" or
+        (row == 3 and col == ColumnCount) and (
+            level == 0 and "BackSpace" or "Delete") or
+        (row == RowCount and level == 0) and (
+            col == 3 and (level == 0 and "space" or "Tab") or
+            col == 5 and level == 0 and "Return" or
             nil) or
         mainLayout[k]
     if (mnemonic == nil) then
@@ -122,7 +126,7 @@ local function drawKey(row, col, drawChar)
     assert(row >= 1 and row <= RowCount - 1)
     assert(col >= 1 and col <= ColumnCount)
 
-    local codePt = getCodePointAndKeySym(row, col)
+    local codePt = getCodePointAndKeySym(row, col, 0)
 
     if (codePt ~= nil) then
         local ox, oy = getOrigin(row, col)
@@ -251,9 +255,9 @@ function api.blinkKey(keySpec, flashingRefresh)
     flashingRefresh(x, y, w - 1, KeyHeight - 1)
 end
 
-function api.getKeySym(keySpec)
+function api.getKeySym(keySpec, level)
     assert(ffi.istype(key_spec_t, keySpec))
-    local _, keySym = getCodePointAndKeySym(keySpec.r + 1, keySpec.c + 1)
+    local _, keySym = getCodePointAndKeySym(keySpec.r + 1, keySpec.c + 1, level)
     return keySym
 end
 
