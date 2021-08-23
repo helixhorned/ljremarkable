@@ -64,8 +64,6 @@ int XTestFakeKeyEvent(Display *display,
 ffi.cdef[[
 typedef XID KeySym;
 typedef unsigned char KeyCode;
-
-KeyCode XKeysymToKeycode(Display *display, KeySym keysym);
 ]]
 
 -- Structure definitions adapted from 'man 3 XkbFreeClientMap', 'man 3 XkbKeyType', or taken
@@ -134,6 +132,9 @@ XkbDescRec *XkbGetMap(Display *display, unsigned int which, unsigned int device_
 void XkbFreeClientMap(XkbDescRec *xkb, unsigned int which, Bool free_all);
 
 KeySym XkbKeycodeToKeysym(Display *dpy, KeyCode kc, unsigned int group, unsigned int level);
+
+Bool XkbLatchGroup(Display *display, unsigned int device_spec, unsigned int group);
+Bool XkbLatchModifiers(Display *display, unsigned int device_spec, unsigned int affect, unsigned int values);
 ]]
 
 local Xkb = ffi.new[[
@@ -178,6 +179,15 @@ local KeySymInfo = class
         return {
             map = {}
         }
+    end,
+
+    get = function(self, keySym)
+        local pv = self.map[keySym]
+        if (pv == nil) then
+            return nil
+        end
+
+        return bit.band(pv, 255), bit.band(bit.rshift(pv, 8), 255), bit.rshift(pv, 16)
     end,
 
 -- private:
@@ -350,10 +360,18 @@ api.Display = class
     pressAndReleaseKey = function(self, keySym)
         check(self:haveTestExtension(), "XTest extension must be present", 2)
 
-        local keyCode = X.XKeysymToKeycode(self.display, keySym)
-        if (keyCode == 0) then
+        local keyCode, group, modMask = self.keySymInfo:get(keySym)
+        if (keyCode == nil) then
             -- TODO: handle
             return
+        end
+
+        -- For Backspace, do not latch the modifiers and group since otherwise,
+        -- the effect is "clear to beginning of line".
+        --
+        -- FIXME: Tab. Is there an underlying problem common to the two?
+        if (keySym ~= 0xff08) then
+            self:_prepareSendKey(group, modMask)
         end
 
         self:_sendKey(keyCode, 1)
@@ -371,6 +389,12 @@ api.Display = class
         -- TODO: what is the meaning of the return value?
         Xtst.XTestFakeButtonEvent(self.display, button, downInt, CurrentTime)
         X.XFlush(self.display)
+    end,
+
+    _prepareSendKey = function(self, group, modMask)
+        -- NOTE: the order of the two calls matters!
+        X.XkbLatchModifiers(self.display, Xkb.UseCoreKbd, 255, modMask)
+        X.XkbLatchGroup(self.display, Xkb.UseCoreKbd, group)
     end,
 
     _sendKey = function(self, keyCode, downInt)
