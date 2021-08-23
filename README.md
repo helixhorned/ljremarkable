@@ -327,6 +327,10 @@ Acknowledgements
   Several C declarations for use with the LuaJIT FFI are obtained directly from a header of
   the "legacy C implementation" of that project.
 
+- For the input event injection functionality, source code of the
+  [`xdotool`](https://github.com/jordansissel/xdotool) utility was consulted and parts were
+  ported.
+
 - Portions of this software are copyright (C) 1996-2020 The FreeType Project
   ([www.freetype.org](https://www.freetype.org)). All rights reserved.
 

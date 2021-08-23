@@ -2,6 +2,7 @@
 -- application needs.
 
 local ffi = require("ffi")
+local bit = require("bit")
 
 if (os.getenv("DISPLAY") == nil) then
     -- NOTE: this is only for running '.app.lua' unity files in an environment that does not
@@ -32,6 +33,7 @@ local assert = assert
 -- CARD32 type: see /usr/include/X11/Xmd.h
 ffi.cdef[[
 typedef uint32_t CARD32;
+typedef CARD32 Atom;
 typedef CARD32 XID;
 typedef int Bool;
 
@@ -66,6 +68,84 @@ typedef unsigned char KeyCode;
 KeyCode XKeysymToKeycode(Display *display, KeySym keysym);
 ]]
 
+-- Structure definitions adapted from 'man 3 XkbFreeClientMap', 'man 3 XkbKeyType', or taken
+-- over directly from '/usr/include/X11/extensions/XKBstr.h':
+ffi.cdef[[
+typedef struct {
+    unsigned char mask;    /* effective mods */
+    unsigned char real_mods;
+    unsigned short vmods;
+} XkbModsRec;
+
+typedef struct {
+    Bool active;
+    unsigned char level;
+    XkbModsRec mods;
+} XkbKTMapEntryRec;
+
+typedef struct {
+    XkbModsRec        mods;         /* modifiers used to compute shift level */
+    unsigned char     num_levels;   /* total # shift levels, do not modify directly */
+    unsigned char     map_count;    /* # entries in map, preserve (if non-NULL) */
+    XkbKTMapEntryRec *map;          /* vector of modifiers for each shift level */
+    XkbModsRec *      preserve;     /* mods to preserve for corresponding map entry */
+    Atom              name;         /* name of key type */
+    Atom *            level_names;  /* array of names of each shift level */
+} XkbKeyTypeRec;
+
+typedef	struct {
+    unsigned char     kt_index[4 /*Xkb.NumKbdGroups*/];
+    unsigned char     group_info;
+    unsigned char     width;
+    unsigned short    offset;
+} XkbSymMapRec;
+
+typedef struct {
+    unsigned char     size_types;   /* # occupied entries in types */
+    unsigned char     num_types;    /* # entries in types */
+    XkbKeyTypeRec *   types;        /* vector of key types used by this keymap */
+
+    unsigned short    size_syms;    /* length of the syms array */
+    unsigned short    num_syms;     /* # entries in syms */
+    KeySym *          syms;         /* linear 2d tables of keysyms, 1 per key */
+
+    XkbSymMapRec *    key_sym_map;  /* 1 per keycode, maps keycode to syms */
+    unsigned char *   modmap;       /* 1 per keycode, real mods bound to key */
+} XkbClientMapRec;
+
+typedef struct {
+    Display *display;  /* connection to X server */
+
+    unsigned short    flags;        /* private to Xkb, do not modify */
+    unsigned short    device_spec;  /* device of interest */
+    KeyCode           min_key_code; /* minimum keycode for device */
+    KeyCode           max_key_code; /* maximum keycode for device */
+
+    void *ctrls;
+    void *server;
+    XkbClientMapRec *map;  /* client keymap */
+    void *indicators;
+    void *names;
+    void *compat;
+    void *geom;
+} XkbDescRec;
+
+XkbDescRec *XkbGetMap(Display *display, unsigned int which, unsigned int device_spec);
+void XkbFreeClientMap(XkbDescRec *xkb, unsigned int which, Bool free_all);
+
+KeySym XkbKeycodeToKeysym(Display *dpy, KeyCode kc, unsigned int group, unsigned int level);
+]]
+
+local Xkb = ffi.new[[
+struct {
+    static const int NumKbdGroups = 4;
+
+    static const int KeyTypesMask = (1<<0);
+    static const int KeySymsMask = (1<<1);
+
+    static const int UseCoreKbd = 0x0100;
+}]]
+
 ----------
 
 local api = {}
@@ -92,6 +172,65 @@ local function weigh(weight, a, b)
     return (weight*a + b) / (weight + 1)
 end
 
+local KeySymInfo = class
+{
+    function()
+        return {
+            map = {}
+        }
+    end,
+
+-- private:
+    add = function(self, keySym, keyCode, group, modMask)
+        self.map[keySym] = keyCode + bit.lshift(group, 8) + bit.lshift(modMask, 16)
+    end,
+}
+
+local function GetModMask(keyType, level)
+    local modMask = 0
+
+    for i = 0, keyType.map_count - 1 do
+        local map = keyType.map[i]
+        if (map.active ~= 0 and map.level == level) then
+            return map.mods.mask
+        end
+    end
+
+    return modMask
+end
+
+-- Based on xdotool's '_xdo_populate_charcode_map()'.
+local function GetKeySymInfo(display)
+    local desc = X.XkbGetMap(display, Xkb.KeyTypesMask + Xkb.KeySymsMask, Xkb.UseCoreKbd)
+    check(desc, "XkbGetMap() failed", 3)
+    local clientMap = desc.map
+
+    local res = KeySymInfo()
+
+    for keyCode = desc.min_key_code, desc.max_key_code do
+        local keySymMap = clientMap.key_sym_map[keyCode]
+        local groupInfo = keySymMap.group_info
+        local groupCount = bit.band(groupInfo, 0xf)
+        assert(groupCount <= Xkb.NumKbdGroups)
+
+        for group = 0, groupCount - 1 do
+            local ktIdx = keySymMap.kt_index[group]
+            local keyType = clientMap.types[ktIdx]
+
+            for level = 0, keyType.num_levels - 1 do
+                local keySym = X.XkbKeycodeToKeysym(display, keyCode, group, level)
+                if (keySym ~= 0) then
+                    res:add(keySym, keyCode, group, GetModMask(keyType, level))
+                end
+            end
+        end
+    end
+
+    X.XkbFreeClientMap(desc, 0, true)
+
+    return res
+end
+
 api.Display = class
 {
     function(displayName)
@@ -110,6 +249,7 @@ api.Display = class
         local tab = {
             display = display,
             haveTestExt = (Xtst.XTestQueryExtension(display, dia, dia, dia, dia) ~= 0),
+            keySymInfo = GetKeySymInfo(display)
         }
 
         return tab
