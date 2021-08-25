@@ -35,13 +35,13 @@ local us_basic_AZ_map
 -- ^ obtained on demand
 local function ourKeyIdxForLat(capitalChar)
     if (us_basic_AZ_map == nil) then
-        us_basic_AZ_map = kb_layout_util.get_AZ_map("./layouts/us.basic")
+        us_basic_AZ_map = kb_layout_util.get_AZ_map("./layouts/Latn.ljrM")
     end
 
     local keyIdx = us_basic_AZ_map[capitalChar]
 
     if (keyIdx == nil or not (keyIdx >= 1 and keyIdx <= TotalDestKeyCount)) then
-        error(("INTERNAL ERROR: unexpected value in us.basic A-Z map: %s -> %s")
+        error(("INTERNAL ERROR: unexpected value in Latn.ljrM A-Z map: %s -> %s")
                 :format(capitalChar, keyIdx))
     end
 
@@ -94,7 +94,9 @@ local function read_symbols(baseName, subLayout, result, quiet)
     assert(subLayout == nil or type(subLayout) == "string")
     assert(result == nil or type(result) == "table")
 
-    local fileName = XkbSymbolsDir.."/"..baseName
+    local fileName = (subLayout == "ljrM") and
+        "./scripts/"..baseName or
+        XkbSymbolsDir.."/"..baseName
 
     local f, msg = io.open(fileName)
     if (f == nil) then

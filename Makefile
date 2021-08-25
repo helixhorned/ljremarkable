@@ -84,7 +84,7 @@ install-last-release: checkout-last-release
 	@$(MAKE) --assume-old=$(app_name) install
 
 veryclean: clean ljclang_veryclean
-	$(RM) $(remarkable_decls_lua).reject $(linux_decls_lua).reject layouts/??.* layouts/.codepoints
+	$(RM) $(remarkable_decls_lua).reject $(linux_decls_lua).reject layouts/??.* layouts/???.* layouts/????.* layouts/.codepoints
 
 # NOTE: prevent interpretation as layouts:
 .PHONY: layouts/*.fontmap

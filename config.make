@@ -6,12 +6,14 @@ BINDIR ?= $(HOME)/bin
 LJREMARKABLE_ALLOW_EXT_FONTS ?= 0
 
 ## Keyboard layouts
-#  Source: /usr/share/X11/xkb/symbols/??
-#  Destination: ./layouts/??.<sub-layout>
+#  Sources:
+#   - ./scripts/<Script>  (ISO 15924 four-letter code)
+#   - /usr/share/X11/xkb/symbols/<file>  (2-4 letters, e.g. 'us')
+#  Destination: ./layouts/<layout>.<sub-layout>
 # See ./mklayout.lua
 
 # Fixed ones, committed to the repo.
-fixed_layouts := us.basic us.intl
+fixed_layouts := Latn.ljrM
 # User-defined, only used when LJREMARKABLE_ALLOW_EXT_FONTS is not 0
 LJREMARKABLE_USER_LAYOUTS ?=
 
