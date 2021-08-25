@@ -1333,8 +1333,7 @@ local function TryVirtualKeyboard(event, blinkKeyFunc)
     local keySym = vkbd.getKeySym(keySpec, level)
 
     if (keySym ~= nil) then
-        -- TODO: dragging: blink differently.
-        blinkKeyFunc(keySpec)
+        blinkKeyFunc(keySpec, level)
     end
 
     return keySym
@@ -1791,11 +1790,14 @@ Server = class
         self.rM:requestRefresh(xywh_t(x, y, w, h))
     end,
 
-    blinkKey = function(self, keySpec)
+    blinkKey = function(self, keySpec, level)
         local function refresh(x, y, w, h)
+            local uh = (level > 0) and math.ceil(h / 10) or h
+            local uy = (level == 2) and y + h - uh or y
+
             -- NOTE: the FULL refresh mode is slow enough that e.g. a quick succession of
             --  taps on the same key might lead to being notified about only some of them.
-            self.rM:requestRefresh(xywh_t(x, y, w, h), nil, RM.UPDATE_MODE.FULL)
+            self.rM:requestRefresh(xywh_t(x, uy, w, uh), nil, RM.UPDATE_MODE.FULL)
         end
 
         vkbd.blinkKey(keySpec, refresh)
@@ -1879,8 +1881,8 @@ Server = class
         local eventToSend = {}
         local lastIdx = 0
 
-        local function doBlinkKey(keySpec)
-            self:blinkKey(keySpec)
+        local function doBlinkKey(keySpec, level)
+            self:blinkKey(keySpec, level)
         end
 
         for i = 0, eventCount - 1 do
