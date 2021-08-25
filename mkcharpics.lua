@@ -201,8 +201,8 @@ local function CreateFace(lib, fontFileName, charSize)
     return lib:face(fontFileName):setCharSize(nil, charSize)
 end
 
-local DefaultCharSize = 120
-local SmallCharSize = 60
+local DefaultCharSize = 60
+local SmallCharSize = 30
 
 local FontRenderer = class
 {

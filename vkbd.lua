@@ -131,7 +131,14 @@ local function drawKey(row, col, drawChar)
 
     if (codePt ~= nil) then
         local ox, oy = getOrigin(row, col)
-        drawChar(ox + KeyWidth/2, oy + math.floor(2*KeyHeight/3), codePt)
+        drawChar(ox + KeyWidth/2, oy + math.floor(2*KeyHeight/3), codePt, false)
+
+        if (row == 1 or (row == 4 and col >= ColumnCount - 1)) then
+            local shiftCodePt = getCodePointAndKeySym(row, col, 1)
+            if (shiftCodePt ~= nil) then
+                drawChar(ox + 3*KeyWidth/4, oy + math.floor(KeyHeight/3), shiftCodePt, true)
+            end
+        end
     end
 end
 

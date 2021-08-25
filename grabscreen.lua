@@ -1741,8 +1741,7 @@ Server = class
 
         local endX, topY, botY = self.charRenderer:drawString(
             x, DestYPixelOffset - BaselineOffset, InterCharAdvance, message,
-            -- Request small characters:
-            CODEPOINT_PLANE_STRIDE, getSpaceSurrogateChar)
+            0, getSpaceSurrogateChar)
         if (endX > x and botY > topY) then
             self.rM:requestRefresh(xywh_t(x, topY, endX - x, botY - topY))
         end
@@ -1767,8 +1766,9 @@ Server = class
             map:fill(x, y, 1, height, PixValue)
         end
 
-        local function drawChar(x, y, codePt)
-            self.charRenderer:drawChar(x, y, codePt + CODEPOINT_PLANE_STRIDE, true)
+        local function drawChar(x, y, codePt, small)
+            local codePtOffset = small and CODEPOINT_PLANE_STRIDE or 0
+            self.charRenderer:drawChar(x, y, codePt + codePtOffset, true)
         end
 
         local x, y = 0, vkbd.OriginY
