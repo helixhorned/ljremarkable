@@ -2,4 +2,3 @@
 --build-arg pkg_libfreetype_dev=libfreetype6-dev
 --build-arg pkg_libxtst=libxtst6
 --build-arg pkg_x11proto_dev=x11proto-dev
---build-arg pkg_xkb_data=xkb-data

@@ -2,4 +2,3 @@
 --build-arg pkg_libfreetype_dev=freetype-dev
 --build-arg pkg_libxtst=libxtst
 --build-arg pkg_x11proto_dev=xorgproto
---build-arg pkg_xkb_data=xkeyboard-config

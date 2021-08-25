@@ -33,8 +33,7 @@ RUN @install@ $pkg_libxtst
 #  - FreeType 2 headers
 ARG pkg_x11proto_dev
 ARG pkg_libfreetype_dev
-ARG pkg_xkb_data
-RUN @install@ $pkg_x11proto_dev $pkg_libfreetype_dev $pkg_xkb_data
+RUN @install@ $pkg_x11proto_dev $pkg_libfreetype_dev
 USER user
 
 COPY ./additional.git/ ./ljremarkable.git/
