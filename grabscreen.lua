@@ -1296,13 +1296,13 @@ local function TryVirtualKeyboard(event, blinkKeyFunc)
     --  * Check the path, i.e. require other keys to not have been touched.
     --  * With rM software 2.9+, "bottom row --> up" may open the "quick browse" panel.
     if (not (event.y >= vkbd.OriginY and
-             (not isDrag or event.ny >= vkbd.OriginY))) then
+             (not isDrag or event.ny >= vkbd.OriginY - vkbd.KeyHeight))) then
         -- Not a gesture that counts as an on-screen keyboard tap or drag.
         return nil
     end
 
     local keySpec = vkbd.checkCoords(event.x, event.y)
-    if (keySpec == nil) then
+    if (keySpec == nil or keySpec.r == -1) then
         return nil
     end
 

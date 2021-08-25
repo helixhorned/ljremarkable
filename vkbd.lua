@@ -40,7 +40,8 @@ assert(OriginX + FullWidth == ScreenWidth_rM - 84)
 ----------
 
 local api = {
-    OriginY = OriginY
+    OriginY = OriginY,
+    KeyHeight = KeyHeight,
 }
 
 function api.drawGrid(drawHline, drawVline)
@@ -143,7 +144,7 @@ function api.drawAllKeys(drawChar)
 end
 
 local key_spec_t = ffi.typeof[[const struct{
-    uint8_t r, c;
+    int8_t r, c;
 }]]
 
 -- In terms of half-columns.
@@ -196,6 +197,7 @@ end
 
 -- Returns:
 --  key_spec_t: x/y represent the active region of an on-screen keyboard key
+--    or that of an imagined key in the row above the topmost one (<return>.r == -1)
 --  nil: otherwise
 function api.checkCoords(x, y)
     assert(type(x) == "number")
@@ -203,7 +205,7 @@ function api.checkCoords(x, y)
 
     if (not (x >= OriginX and x < OriginX + FullWidth)) then
         return nil
-    elseif (not (y >= OriginY and y < OriginY + FullHeight)) then
+    elseif (not (y >= OriginY - KeyHeight and y < OriginY + FullHeight)) then
         return nil
     end
 
@@ -212,7 +214,7 @@ function api.checkCoords(x, y)
     local c = math.floor(dx / KeyWidth)
 
     local row, col = r + 1, c + 1
-    assert(row >= 1 and row <= RowCount and col >= 1 and col <= ColumnCount)
+    assert(row >= 0 and row <= RowCount and col >= 1 and col <= ColumnCount)
 
     if (row == RowCount - 1 and col == 1) then
         -- Shift key.
