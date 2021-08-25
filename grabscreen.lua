@@ -1307,6 +1307,8 @@ local function TryVirtualKeyboard(event, blinkKeyFunc)
     end
 
     local dstKeySpec = isDrag and vkbd.checkCoords(event.nx, event.ny) or nil
+    local level = 0
+
     if (isDrag) then
         if (dstKeySpec == nil) then
             return nil
@@ -1317,16 +1319,25 @@ local function TryVirtualKeyboard(event, blinkKeyFunc)
             -- Treat a drag within one and the same key as a press.
             isDrag = false
             dstKeySpec = nil
-        elseif (dstKeySpec.r ~= keySpec.r - 1) then
+        elseif (dstKeySpec.r == keySpec.r - 1) then
             -- TODO: dragging: fix one-up from 'Space' (which is special, being wider).
+            level = 1
+        elseif (dstKeySpec.r == keySpec.r + 1) then
+            -- TODO: dragging: fix one-down from ','/'.' (special: into bottommost row).
+            level = 2
+        else
             return nil
         end
     end
 
-    -- TODO: dragging: blink differently.
-    blinkKeyFunc(keySpec)
+    local keySym = vkbd.getKeySym(keySpec, level)
 
-    return vkbd.getKeySym(keySpec, isDrag and 1 or 0)
+    if (keySym ~= nil) then
+        -- TODO: dragging: blink differently.
+        blinkKeyFunc(keySpec)
+    end
+
+    return keySym
 end
 
 local function TryEncodeKey(event, keySym)

@@ -1,16 +1,16 @@
 default _
 xkb_symbols "ljrM" {
 	key <TLDE> { [ grave, asciitilde ] };
-	key <AE01> { [ 1, exclam ] };
+	key <AE01> { [ 1, exclam, question ] };
 	key <AE02> { [ 2, at ] };
 	key <AE03> { [ 3, numbersign ] };
 	key <AE04> { [ 4, dollar ] };
 	key <AE05> { [ 5, percent ] };
 	key <AE06> { [ 6, asciicircum ] };
 	key <AE07> { [ 7, ampersand ] };
-	key <AE08> { [ 8, asterisk ] };
-	key <AE09> { [ 9, parenleft ] };
-	key <AE10> { [ 0, parenright ] };
+	key <AE08> { [ 8, asterisk, slash ] };
+	key <AE09> { [ 9, parenleft, less ] };
+	key <AE10> { [ 0, parenright, greater ] };
 	key <AE11> { [ minus, underscore ] };
 	key <AE12> { [ equal, plus ] };
 
@@ -36,8 +36,6 @@ xkb_symbols "ljrM" {
 	key <AC07> { [ j, J ] };
 	key <AC08> { [ k, K ] };
 	key <AC09> { [ l, L ] };
-	key <AC10> { [ semicolon, colon ] };
-	key <AC11> { [ apostrophe, quotedbl ] };
 
 	key <AB01> { [ z, Z ] };
 	key <AB02> { [ x, X ] };
@@ -46,9 +44,8 @@ xkb_symbols "ljrM" {
 	key <AB05> { [ b, B ] };
 	key <AB06> { [ n, N ] };
 	key <AB07> { [ m, M ] };
-	key <AB08> { [ comma, less ] };
-	key <AB09> { [ period, greater ] };
-	key <AB10> { [ slash, question ] };
+	key <AB08> { [ comma, semicolon, apostrophe ] };
+	key <AB09> { [ period, colon, quotedbl ] };
 
 	key <BKSL> { [ backslash, bar ] };
 };

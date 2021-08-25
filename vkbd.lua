@@ -94,7 +94,7 @@ do
 end
 
 local function getCodePointAndKeySym(row, col, level)
-    assert(level == 0 or level == 1)
+    assert(level == 0 or level == 1 or level == 2)
 
     local k = 100*(row-1) + 10*col + level
     local mnemonic =
@@ -106,7 +106,7 @@ local function getCodePointAndKeySym(row, col, level)
             nil) or
         mainLayout[k]
     if (mnemonic == nil) then
-        return nil, nil  -- key is special and not yet handled
+        return nil, nil  -- key has no symbol associated
     end
 
     local u64pv = 0ULL + KB.codepoints[mnemonic]  -- packed value

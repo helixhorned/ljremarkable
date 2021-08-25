@@ -3,6 +3,7 @@
 return {
  [10]="1",
  [11]="exclam",
+ [12]="question",
  --
  [20]="2",
  [21]="at",
@@ -24,12 +25,15 @@ return {
  --
  [80]="8",
  [81]="asterisk",
+ [82]="slash",
  --
  [90]="9",
  [91]="parenleft",
+ [92]="less",
  --
  [100]="0",
  [101]="parenright",
+ [102]="greater",
  --
 
  [110]="q",
@@ -119,9 +123,11 @@ return {
  [381]="M",
  --
  [390]="comma",
- [391]="less",
+ [391]="semicolon",
+ [392]="apostrophe",
  --
  [400]="period",
- [401]="greater",
+ [401]="colon",
+ [402]="quotedbl",
  --
 }
