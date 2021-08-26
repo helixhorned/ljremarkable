@@ -1,0 +1,44 @@
+default _
+xkb_symbols "ljrM" {
+	key <AE01> { [ 1, Armenian_exclam, Armenian_question, Armenian_accent ] };
+	key <AE02> { [ 2, at ] };
+	key <AE03> { [ 3, numbersign ] };
+	key <AE04> { [ 4, dollar ] };
+	key <AE05> { [ 5, percent ] };
+	key <AE06> { [ 6, asciicircum ] };
+	key <AE07> { [ 7, ampersand ] };
+	key <AE08> { [ 8, asterisk, slash ] };
+	key <AE09> { [ 9, parenleft, less ] };
+	key <AE10> { [ 0, parenright, greater ] };
+
+	key <AD01> { [ Armenian_tsa, Armenian_TSA, Armenian_dza, Armenian_DZA ] };
+	key <AD02> { [ Armenian_vo, Armenian_VO, Armenian_o, Armenian_O ] };
+	key <AD03> { [ Armenian_yech, Armenian_YECH, Armenian_e, Armenian_E ] };
+	key <AD04> { [ Armenian_re, Armenian_RE, Armenian_ra, Armenian_RA ] };
+	key <AD05> { [ Armenian_tyun, Armenian_TYUN, Armenian_to, Armenian_TO ] };
+	key <AD06> { [ Armenian_at, Armenian_AT ] };
+	key <AD07> { [ Armenian_cha, Armenian_CHA, Armenian_tche, Armenian_TCHE ] };
+	key <AD08> { [ Armenian_ini, Armenian_INI, Armenian_vyun, Armenian_VYUN ] };
+	key <AD09> { [ Armenian_zhe, Armenian_ZHE, Armenian_fe, Armenian_FE ] };
+	key <AD10> { [ Armenian_pe, Armenian_PE, Armenian_pyur, Armenian_PYUR ] };
+
+	key <AC01> { [ Armenian_ayb, Armenian_AYB ] };
+	key <AC02> { [ Armenian_se, Armenian_SE ] };
+	key <AC03> { [ Armenian_da, Armenian_DA ] };
+	key <AC04> { [ Armenian_sha, Armenian_SHA, Armenian_je, Armenian_JE ] };
+	key <AC05> { [ Armenian_gim, Armenian_GIM ] };
+	key <AC06> { [ Armenian_ho, Armenian_HO, Armenian_khe, Armenian_KHE ] };
+	key <AC07> { [ Armenian_hi, Armenian_HI, Armenian_ligature_ew ] };
+	key <AC08> { [ Armenian_ken, Armenian_KEN, Armenian_ke, Armenian_KE ] };
+	key <AC09> { [ Armenian_lyun, Armenian_LYUN ] };
+
+	key <AB01> { [ Armenian_za, Armenian_ZA ] };
+	key <AB02> { [ Armenian_ghat, Armenian_GHAT ] };
+	key <AB03> { [ Armenian_tso, Armenian_TSO ] };
+	key <AB04> { [ Armenian_vev, Armenian_VEV ] };
+	key <AB05> { [ Armenian_ben, Armenian_BEN ] };
+	key <AB06> { [ Armenian_nu, Armenian_NU ] };
+	key <AB07> { [ Armenian_men, Armenian_MEN ] };
+	key <AB08> { [ comma, period, apostrophe ] };
+	key <AB09> { [ Armenian_full_stop, Armenian_separation_mark, Armenian_apostrophe ] };
+};

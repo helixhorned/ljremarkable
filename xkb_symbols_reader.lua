@@ -201,22 +201,18 @@ function parseSubLayoutLine(fileName, line, lineNum, result, quiet)
 
     local key, sym1, sym2, rest = line:match(KeyDefLinePat)
 
-    -- TODO:
-    --  - Let pass only keys representing a printable character.
-    --  - More generally: simulate passing to 'xdotool key' with a specially set up program?
-    --    For an attempt at containment and for easy (direct) addressing: in a separate
-    --    window running under a dummy (off-screen) X driver?
     local ourKeyIdx = (key ~= nil) and ourIdxForKey(key) or nil
     if (ourKeyIdx == nil) then
         return
     end
 
-    local sym3 = rest:match(" ?, ?"..SYM_Pattern)
+    local sym3, rest2 = rest:match(" ?, ?"..SYM_Pattern.."(.*)")
 
-    if (result[ourKeyIdx] ~= nil or result[ourKeyIdx + 1] ~= nil or result[ourKeyIdx + 2] ~= nil) then
+    if (result[ourKeyIdx] ~= nil or result[ourKeyIdx + 1] ~= nil or
+            result[ourKeyIdx + 2] ~= nil or result[ourKeyIdx + 3] ~= nil) then
         if (not result.hadInclude) then
-            -- NOTE: it is a bit inappropriate error due to unexpected input, but we are
-            --  intended to be driven from the command line or scripts.
+            -- NOTE: it is a bit inappropriate to emit an error due to unexpected input,
+            --  but we are intended to be driven from the command line or scripts.
             error(("%s:%d: key %d encountered twice, not overwriting"):format(
                     fileName, lineNum, ourKeyIdx/KeyIdxFactor))
         end
@@ -249,8 +245,12 @@ function parseSubLayoutLine(fileName, line, lineNum, result, quiet)
         defineKey(ourKeyIdx, 1, sym2)
 
     if (sym3 ~= nil and (sym3 ~= sym1 and sym3 ~= sym2)) then
-        -- Tertiary key. (usually AltGr?)
         n = n + defineKey(ourKeyIdx, 2, sym3)
+
+        local sym4 = rest2:match(" ?, ?"..SYM_Pattern)
+        if (sym4 ~= nil and (sym4 ~= sym1 and sym4 ~= sym2 and sym4 ~= sym3)) then
+            n = n + defineKey(ourKeyIdx, 3, sym4)
+        end
     end
 
     if (#redefined > 0) then
@@ -304,7 +304,7 @@ function api.as_lua(layout, quiet)
         if (k > 1 and k % 10 == 1) then
             strTab[#strTab + 1] = ''
         end
-        for o = 0, 2 do
+        for o = 0, 3 do
             strTab[#strTab + 1] = getKeyDefLine(KeyIdxFactor*k + o)
         end
         strTab[#strTab + 1] = " --"

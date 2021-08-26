@@ -108,7 +108,7 @@ local MAXTILES = 30720
 
 local TotalDestKeyCount = 40
 local KeyIdxFactor = 10
-local MaxShift = 2
+local MaxShift = 3
 
 local mnemonics = {}  -- [<running index>] = mnemonic
 local codePts = {}  -- sub-map of 'allCodePts'
