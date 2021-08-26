@@ -176,6 +176,13 @@ local function drawKey(layoutIdx, row, col, drawChar)
                 drawChar(ox + 3*KeyWidth/4, oy + math.floor(KeyHeight/3), shiftCodePt, true)
             end
         end
+
+        if (row ~= 1) then
+            local level2CodePt = getCodePointAndKeySym(layoutIdx, row, col, 2)
+            if (level2CodePt ~= nil) then
+                drawChar(ox + math.floor(4*KeyWidth/5), oy + math.floor(5*KeyHeight/6), level2CodePt, true)
+            end
+        end
     end
 end
 
