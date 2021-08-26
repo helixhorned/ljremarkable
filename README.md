@@ -346,10 +346,11 @@ License
 
 Copyright (C) 2019-2021 Philipp Kutin.
 
-The main application `grabscreen.lua` is GPL3-licensed. See
+The application `grabscreen.lua`, including several of its modules, is distributed under the
+terms of the GPL 3.0 license, with the option of choosing a later version. See
 [`LICENSE.GPL3.txt`](LICENSE.GPL3.txt) for details. \
 The "library part" -- the non-generated source code in this repository that is used by the
-application -- is MIT-licensed, unless otherwise noted. See
+application -- is MIT-licensed, as are the helper programs. See
 [`LICENSE.MIT.txt`](LICENSE.MIT.txt) for details.
 
 Disclaimer

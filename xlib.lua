@@ -1,4 +1,6 @@
--- This is an extract of 'xdotool' functionality that ljremarkable's 'grabscreen'
+-- SPDX-License-Identifier: MIT
+
+-- This is based on a subset of 'xdotool' functionality that ljremarkable's 'grabscreen'
 -- application needs.
 
 local ffi = require("ffi")

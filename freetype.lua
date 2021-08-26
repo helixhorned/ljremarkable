@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: MIT
 
 local ffi = require("ffi")
 

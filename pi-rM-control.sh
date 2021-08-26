@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: MIT
 
 # Expectation: the desided default IP address of the rM has been added to /etc/hosts.
 DEFAULT_REMARKABLE_HOST=remarkable

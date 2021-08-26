@@ -1,3 +1,5 @@
+-- SPDX-License-Identifier: MIT
+
 local assert = assert
 local error = error
 local pcall = pcall
