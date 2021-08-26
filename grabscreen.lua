@@ -1110,7 +1110,11 @@ local Client = class
 }
 
 local ServerRequest = {
-    Shutdown = 2,
+    Shutdown = 0,
+
+    -- Indexes MUST coincide (identity assumed in using code):
+    ChangeKbLayoutFirst = 1,
+    ChangeKbLayoutLast = vkbd.LayoutCount,
 }
 
 local Server  -- class "forward-declaration"
@@ -1283,6 +1287,24 @@ local function MergeEventToSend(eventToSend, dummyEvent)
     return eventToSend
 end
 
+local function TrySwitchKeyboard(event)
+    local ux = event.x - vkbd.RightBorder
+    local unx = event.nx - vkbd.RightBorder
+
+    local keySpec = vkbd.checkCoords(ux, event.y)
+    local dstKeySpec = vkbd.checkCoords(unx, event.ny)
+
+    if (keySpec == nil or dstKeySpec == nil or keySpec.r ~= vkbd.RowCount - 1) then
+        return nil
+    end
+
+    assert(keySpec.c == 0)
+    assert(dstKeySpec.c == 0)
+
+    local newKbIdx = -(dstKeySpec.r - keySpec.r)
+    return (newKbIdx >= 1 and newKbIdx <= vkbd.LayoutCount) and -newKbIdx or nil
+end
+
 local function TryVirtualKeyboard(event, blinkKeyFunc)
     local evType, evBtn = event.ourType, event.button
     local isSingleClick = (evType == OurEventType.SingleClick and evBtn == Button.Left)
@@ -1293,13 +1315,16 @@ local function TryVirtualKeyboard(event, blinkKeyFunc)
     end
 
     -- TODO: dragging:
-    --  * Handle the topmost row.
     --  * Check the path, i.e. require other keys to not have been touched.
     --  * With rM software 2.9+, "bottom row --> up" may open the "quick browse" panel.
     if (not (event.y >= vkbd.OriginY and
              (not isDrag or event.ny >= vkbd.OriginY - vkbd.KeyHeight))) then
         -- Not a gesture that counts as an on-screen keyboard tap or drag.
         return nil
+    end
+
+    if (isDrag and event.x >= vkbd.RightBorder) then
+        return (event.nx >= vkbd.RightBorder) and TrySwitchKeyboard(event) or nil
     end
 
     local keySpec = vkbd.checkCoords(event.x, event.y)
@@ -1334,6 +1359,7 @@ local function TryVirtualKeyboard(event, blinkKeyFunc)
     local keySym = vkbd.getKeySym(keySpec, level)
 
     if (keySym ~= nil) then
+        assert(keySym > 0)
         blinkKeyFunc(keySpec, level)
     end
 
@@ -1390,6 +1416,7 @@ local InputState = class
             end
         elseif (hadProgress and self.stage == Stage.Finished) then
             local eventToSend = MakeEventToSend(self.ourEventType, self.ourData[0])
+
             if (self.ourData[1] ~= nil) then
                 self.ourData[1].button = self.ourData[0].button
                 local dummyEvent = MakeEventToSend(self.ourEventType, self.ourData[1])
@@ -1397,9 +1424,19 @@ local InputState = class
             end
 
             if (eventToSend ~= nil) then
-                local keySym = TryVirtualKeyboard(eventToSend, blinkKeyFunc)
-                outputTab[1] = TryEncodeKey(eventToSend, keySym)
+                local res = TryVirtualKeyboard(eventToSend, blinkKeyFunc)
+
+                if (res ~= nil and res < 0) then
+                    local newKbLayoutIdx = -res
+                    assert(newKbLayoutIdx >= ServerRequest.ChangeKbLayoutFirst and
+                           newKbLayoutIdx <= ServerRequest.ChangeKbLayoutLast)
+                    specialRqTab[1] = newKbLayoutIdx
+                else
+                    local keySym = res
+                    outputTab[1] = TryEncodeKey(eventToSend, keySym)
+                end
             end
+
             self:reset()
         end
 
@@ -1873,6 +1910,9 @@ Server = class
 
             if (specialRequest == ServerRequest.Shutdown) then
                 self:shutDownAndExit(0)
+            elseif (specialRequest ~= nil and specialRequest >= 1 and specialRequest <= vkbd.LayoutCount) then
+                vkbd.changeLayout(specialRequest)
+                self:drawKeyboard()
             end
         end
     end,

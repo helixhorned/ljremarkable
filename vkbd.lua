@@ -53,11 +53,18 @@ assert(KeyHeight % 4 == 0)
 assert(OriginY + FullHeight == ScreenHeight_rM - 4)
 assert(OriginX + FullWidth == ScreenWidth_rM - 84)
 
+local LayoutCount = #KB.layoutNames
+
+local g_currentLayoutIdx = 1
+
 ----------
 
 local api = {
     OriginY = OriginY,
     KeyHeight = KeyHeight,
+    LayoutCount = LayoutCount,
+    RightBorder = OriginX + FullWidth,
+    RowCount = RowCount,
 }
 
 function api.drawGrid(drawHline, drawVline)
@@ -83,14 +90,9 @@ function api.drawGrid(drawHline, drawVline)
     end
 end
 
-local mainKbLayoutName = KB.layoutNames[1]
-assert(type(mainKbLayoutName) == "string")
-local mainLayout = KB.layouts[mainKbLayoutName]
-assert(type(mainLayout) == "table")
-
-do
+local function validateLayout(layout)
     -- Validate referential consistency: each key mnemonic must map to a code point.
-    for k, mnemonic in pairs(mainLayout) do
+    for k, mnemonic in pairs(layout) do
         assert(type(k) == "number")
         assert(type(mnemonic) == "string")
 
@@ -109,10 +111,29 @@ do
     assert(KB.codepoints["Return"] ~= nil)
 end
 
-local function getCodePointAndKeySym(row, col, level)
+do
+    for i = 1, LayoutCount do
+        local layoutName = KB.layoutNames[i]
+        assert(type(layoutName) == "string")
+        assert(type(KB.layouts[layoutName]) == "table")
+    end
+
+    for _, layout in pairs(KB.layouts) do
+        validateLayout(layout)
+    end
+end
+
+local function getLayout(layoutIdx)
+    assert(layoutIdx >= 1 and layoutIdx <= LayoutCount)
+    return KB.layouts[KB.layoutNames[layoutIdx]]
+end
+
+local function getCodePointAndKeySym(layoutIdx, row, col, level)
+    assert(layoutIdx >= 1 and layoutIdx <= LayoutCount)
     assert(level == 0 or level == 1 or level == 2)
 
     local k = 100*(row-1) + 10*col + level
+    local layout = getLayout(layoutIdx)
     local mnemonic =
         (row == 3 and col == ColumnCount) and (
             level == 0 and "BackSpace" or "Delete") or
@@ -120,7 +141,7 @@ local function getCodePointAndKeySym(row, col, level)
             col == 3 and (level == 0 and "space" or "Tab") or
             col == 5 and level == 0 and "Return" or
             nil) or
-        mainLayout[k]
+        layout[k]
     if (mnemonic == nil) then
         return nil, nil  -- key has no symbol associated
     end
@@ -136,21 +157,21 @@ local function getOrigin(row, col)
     return OriginX + (col-1)*KeyWidth, OriginY + (row-1)*KeyHeight
 end
 
-local function drawKey(row, col, drawChar)
+local function drawKey(layoutIdx, row, col, drawChar)
     assert(type(row) == "number")
     assert(type(col) == "number")
 
     assert(row >= 1 and row <= RowCount - 1)
     assert(col >= 1 and col <= ColumnCount)
 
-    local codePt = getCodePointAndKeySym(row, col, 0)
+    local codePt = getCodePointAndKeySym(layoutIdx, row, col, 0)
 
     if (codePt ~= nil) then
         local ox, oy = getOrigin(row, col)
         drawChar(ox + KeyWidth/2, oy + math.floor(2*KeyHeight/3), codePt, false)
 
         if (row == 1 or (row == 4 and col >= ColumnCount - 1)) then
-            local shiftCodePt = getCodePointAndKeySym(row, col, 1)
+            local shiftCodePt = getCodePointAndKeySym(layoutIdx, row, col, 1)
             if (shiftCodePt ~= nil) then
                 drawChar(ox + 3*KeyWidth/4, oy + math.floor(KeyHeight/3), shiftCodePt, true)
             end
@@ -161,7 +182,7 @@ end
 function api.drawAllKeys(drawChar)
     for row = 1, RowCount - 1 do
         for col = 1, ColumnCount do
-            drawKey(row, col, drawChar)
+            drawKey(g_currentLayoutIdx, row, col, drawChar)
         end
     end
 end
@@ -280,9 +301,14 @@ function api.blinkKey(keySpec, flashingRefresh)
     flashingRefresh(x, y, w - 1, KeyHeight - 1)
 end
 
+function api.changeLayout(layoutIdx)
+    assert(layoutIdx >= 1 and layoutIdx <= LayoutCount)
+    g_currentLayoutIdx = layoutIdx
+end
+
 function api.getKeySym(keySpec, level)
     assert(ffi.istype(key_spec_t, keySpec))
-    local _, keySym = getCodePointAndKeySym(keySpec.r + 1, keySpec.c + 1, level)
+    local _, keySym = getCodePointAndKeySym(g_currentLayoutIdx, keySpec.r + 1, keySpec.c + 1, level)
     return keySym
 end
 
