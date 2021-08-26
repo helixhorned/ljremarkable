@@ -1825,7 +1825,8 @@ Server = class
         map:fill(x, y, w, h, 0xffff)
         vkbd.drawGrid(drawHline, drawVline)
         vkbd.drawAllKeys(drawChar)
-        self.rM:requestRefresh(xywh_t(x, y, w, h))
+        self.rM:requestRefresh(xywh_t(x, y, w, h), 2)
+        self.rM:waitForCompletion(2)
     end,
 
     blinkKey = function(self, keySpec, level)
@@ -1900,20 +1901,30 @@ Server = class
             self:sendInput(inputData)
         end
 
-        if (updateData ~= nil) then
-            self:applyUpdates(updateData[1], updateData[2], self.decodedBuf, updateData[3])
-        end
+        local redrawKeyboard = false
 
         do
             -- Handle special requests.
             local specialRequest = self.specialRequestTab[1]
+            self.specialRequestTab[1] = nil
 
             if (specialRequest == ServerRequest.Shutdown) then
                 self:shutDownAndExit(0)
             elseif (specialRequest ~= nil and specialRequest >= 1 and specialRequest <= vkbd.LayoutCount) then
                 vkbd.changeLayout(specialRequest)
-                self:drawKeyboard()
+                redrawKeyboard = true
             end
+        end
+
+        if (updateData ~= nil) then
+            local wasFullScreen = self:applyUpdates(updateData[1], updateData[2], self.decodedBuf, updateData[3])
+            redrawKeyboard = redrawKeyboard or wasFullScreen
+        end
+
+        if (redrawKeyboard) then
+            --  TODO: handle the situation "client screen height > 1080".
+            --   Currently, we would overwrite a portion of the keyboard.
+            self:drawKeyboard()
         end
     end,
 
@@ -1998,6 +2009,7 @@ Server = class
 
         assert(tileCount >= 1)
         local updateRects = updateRectMgr:getRects()
+        assert(#updateRects == 1)
 
         -- Request update of the changed screen portions.
         for i, rect in ipairs(updateRects) do
@@ -2012,13 +2024,7 @@ Server = class
         local bytesWritten = self.connFd:write(Cmd.Ok)
         assert(bytesWritten == Cmd.Length, "FIXME: partial write")
 
-        if (isFullScreen) then
-            -- Client (claims to have) sent tiles for its whole screen.
-            --  TODO: handle the situation "client screen height > 1080".
-            --   Currently, we would overwrite a portion of the keyboard.
-            -- On that occasion:
-            self:drawKeyboard()
-        end
+        return isFullScreen
     end,
 
     enable = function(self)

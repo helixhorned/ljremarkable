@@ -260,11 +260,6 @@ function api.checkCoords(x, y)
     local row, col = r + 1, c + 1
     assert(row >= 0 and row <= RowCount and col >= 1 and col <= ColumnCount)
 
-    if (row == RowCount - 1 and col == 1) then
-        -- Shift key.
-        return nil  -- TODO: handle
-    end
-
     local isLastRow = (row == RowCount)
 
     if (isLastRow) then
