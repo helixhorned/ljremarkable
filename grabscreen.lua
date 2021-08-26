@@ -1351,6 +1351,8 @@ local function TryVirtualKeyboard(event, blinkKeyFunc)
         elseif (dstKeySpec.r == keySpec.r + 1) then
             -- TODO: dragging: fix one-down from ','/'.' (special: into bottommost row).
             level = 2
+        elseif (dstKeySpec.r == keySpec.r + 2) then
+            level = 3
         else
             return nil
         end
@@ -1832,7 +1834,7 @@ Server = class
     blinkKey = function(self, keySpec, level)
         local function refresh(x, y, w, h)
             local uh = (level > 0) and math.ceil(h / 10) or h
-            local uy = (level == 2) and y + h - uh or y
+            local uy = (level >= 2) and y + h - uh or y
 
             -- NOTE: the FULL refresh mode is slow enough that e.g. a quick succession of
             --  taps on the same key might lead to being notified about only some of them.

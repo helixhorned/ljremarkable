@@ -130,7 +130,7 @@ end
 
 local function getCodePointAndKeySym(layoutIdx, row, col, level)
     assert(layoutIdx >= 1 and layoutIdx <= LayoutCount)
-    assert(level == 0 or level == 1 or level == 2)
+    assert(level >= 0 or level <= 3)
 
     local k = 100*(row-1) + 10*col + level
     local layout = getLayout(layoutIdx)
