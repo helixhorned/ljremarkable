@@ -174,9 +174,13 @@ local function drawKey(layoutIdx, row, col, drawChar)
     local codePt = getCodePointAndKeySym(layoutIdx, row, col, 0)
 
     if (codePt ~= nil) then
+        local isArabic = (layoutIdx == 3)  -- TODO: with customizable layouts, adapt
+
         local isFirstRow = (row == 1)
         local isDotOrComma = (row == 4 and col >= ColumnCount - 1)
         local isIrregular = isFirstRow or isDotOrComma
+        local isRegular = not isIrregular
+        local areLevelsOverlaid = isArabic and isRegular and not (row == 2 and col >= ColumnCount - 2)
 
         local shiftCodePt = getCodePointAndKeySym(layoutIdx, row, col, 1)
         local level2CodePt = getCodePointAndKeySym(layoutIdx, row, col, 2)
@@ -184,20 +188,29 @@ local function drawKey(layoutIdx, row, col, drawChar)
         local ox, oy = getOrigin(row, col)
         local x, y = ox + KeyWidth/2, oy + math.floor(2*KeyHeight/3)
 
-        -- Main character.
-        drawChar(x, y, codePt, false, false)
-
-        if (isIrregular) then
+        if (areLevelsOverlaid) then
             if (shiftCodePt ~= nil) then
-                -- Shifted -> small character in the upper right corner.
-                drawChar(ox + 3*KeyWidth/4, oy + math.floor(KeyHeight/3), shiftCodePt, true, false)
+                drawChar(x, y, shiftCodePt, false, true)
+            end
+            if (level2CodePt ~= nil) then
+                drawChar(x, y, level2CodePt, false, true)
             end
         end
 
-        if (level2CodePt ~= nil) then
-            -- 2nd-level -> small character in the lower right corner.
-            local gray = (row == 1)
-            drawChar(ox + math.floor(4*KeyWidth/5), oy + math.floor(5*KeyHeight/6), level2CodePt, true, gray)
+        -- Main character.
+        drawChar(x, y, codePt, false, false)
+
+        if (not areLevelsOverlaid) then
+            if (isIrregular and shiftCodePt ~= nil) then
+                -- Shifted -> small character in the upper right corner.
+                drawChar(ox + 3*KeyWidth/4, oy + math.floor(KeyHeight/3), shiftCodePt, true, false)
+            end
+
+            if (level2CodePt ~= nil) then
+                -- 2nd-level -> small character in the lower right corner.
+                local gray = (row == 1)
+                drawChar(ox + math.floor(4*KeyWidth/5), oy + math.floor(5*KeyHeight/6), level2CodePt, true, gray)
+            end
         end
     end
 end
