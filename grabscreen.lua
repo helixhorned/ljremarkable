@@ -1112,6 +1112,8 @@ local Client = class
 local ServerRequest = {
     Shutdown = 0,
 
+    ShowWarningIcon = - 1,
+
     -- Indexes MUST coincide (identity assumed in using code):
     ChangeKbLayoutFirst = 1,
     ChangeKbLayoutLast = vkbd.LayoutCount,
@@ -1605,8 +1607,15 @@ local InputState = class
         local oldPressedCount = self.pressedCount
 
         self.pressedCount = oldPressedCount + pressedCountDelta
-        -- FIXME: can fail on hiding rM menu after having connected when it was visible.
-        assert(self.pressedCount >= 0, "more touch release than press events")
+
+        if (self.pressedCount < 0) then
+            -- More touch release than press events are reported. This can happen when
+            -- re-enabling from an inactive state (where we do not receive touch events)
+            -- by tapping the "eye".
+            self.pressedCount = 0
+            specialRqTab[1] = ServerRequest.ShowWarningIcon
+            return true
+        end
 
         local haveInitiallyPressed = (oldPressedCount == 0 and pressedCountDelta > 0)
         local haveFinallyReleased = (oldPressedCount > 0 and self.pressedCount == 0)
@@ -1743,6 +1752,8 @@ local CoverageToPixFuncs = {
     [66] = charpics.MakeCovToPixFunc(0.66),
 }
 
+local StatusBarBaseline = DestYPixelOffset - 32
+
 -- KEEPINSYNC mkcharpics.lua
 local CODEPOINT_PLANE_STRIDE = 0x200000
 
@@ -1785,7 +1796,6 @@ Server = class
         assert(type(x) == "number")
         assert(x >= MenuWidth_rM and x < ScreenWidth_rM)
 
-        local BaselineOffset = 32
         local InterCharAdvance = 6
 
         local function getSpaceSurrogateChar(c)
@@ -1793,7 +1803,7 @@ Server = class
         end
 
         local endX, topY, botY = self.charRenderer:drawString(
-            x, DestYPixelOffset - BaselineOffset, InterCharAdvance, message,
+            x, StatusBarBaseline, InterCharAdvance, message,
             0, getSpaceSurrogateChar)
         if (endX > x and botY > topY) then
             self.rM:requestRefresh(xywh_t(x, topY, endX - x, botY - topY))
@@ -1916,6 +1926,8 @@ Server = class
 
             if (specialRequest == ServerRequest.Shutdown) then
                 self:shutDownAndExit(0)
+            elseif (specialRequest == ServerRequest.ShowWarningIcon) then
+                self.charRenderer:drawChar(ScreenWidth_rM - MenuWidth_rM/2, StatusBarBaseline, 0x26A0, true)
             elseif (specialRequest ~= nil and specialRequest >= 1 and specialRequest <= vkbd.LayoutCount) then
                 vkbd.changeLayout(specialRequest)
                 redrawKeyboard = true
