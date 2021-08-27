@@ -4,5 +4,9 @@ return {
 defaults = {
     -- Bundled via a Git submodule:
     "quicksand/fonts/statics/Quicksand-Regular.ttf",
+
+    -- Directly included since the repo does not include the compiled TTF files.
+    -- (https://github.com/dejavu-fonts/dejavu-fonts)
+    "dejavu/ttf/DejaVuSans.ttf",
 },
 }

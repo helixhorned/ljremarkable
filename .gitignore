@@ -1,3 +1,4 @@
 docker/out/
+fonts/dejavu
 layouts/*.*
 !layouts/.lua

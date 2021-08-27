@@ -341,6 +341,9 @@ Acknowledgements
   Project](https://github.com/andrew-paglinawan/QuicksandFamily) authors, distributed under
   the [SIL Open Font License Version 1.1](fonts/quicksand/OFL.txt).
 
+- The DejaVuSans font included in this repository (obtained from the 2.37 release) is
+  re-distributed under the terms of [its license](fonts/dejavu/LICENSE).
+
 License
 -------
 
