@@ -238,11 +238,13 @@ function parseSubLayoutLine(fileName, line, lineNum, result, quiet)
         end
     end
 
-    local n =
-        -- Primary key.
-        defineKey(ourKeyIdx, 0, sym1) +
+    -- Primary key.
+    local n = defineKey(ourKeyIdx, 0, sym1)
+
+    if (sym2 ~= sym1) then
         -- Secondary (shifted) key.
-        defineKey(ourKeyIdx, 1, sym2)
+        n = n + defineKey(ourKeyIdx, 1, sym2)
+    end
 
     if (sym3 ~= nil and (sym3 ~= sym1 and sym3 ~= sym2)) then
         n = n + defineKey(ourKeyIdx, 2, sym3)

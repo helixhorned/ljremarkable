@@ -12,30 +12,30 @@ xkb_symbols "ljrM" {
 	key <AE10> { [ Arabic_0, parenright, greater, braceright ] };
 
 	key <AD01> { [ Arabic_sad, Arabic_dad ] };
-	key <AD02> { [ Arabic_theh ] };
-	key <AD03> { [ Arabic_qaf ] };
-	key <AD04> { [ Arabic_feh ] };
+	key <AD02> { [ Arabic_theh, Arabic_theh ] };
+	key <AD03> { [ Arabic_qaf, Arabic_qaf ] };
+	key <AD04> { [ Arabic_feh, Arabic_feh ] };
 	key <AD05> { [ Arabic_ain, Arabic_ghain ] };
-	key <AD06> { [ Arabic_ha ] };
+	key <AD06> { [ Arabic_ha, Arabic_ha ] };
 	key <AD07> { [ Arabic_hah, Arabic_khah ] };
-	key <AD08> { [ Arabic_jeem ] };
+	key <AD08> { [ Arabic_jeem, Arabic_jeem ] };
 	key <AD09> { [ Arabic_damma, Arabic_fatha, Arabic_kasra, Arabic_sukun ] };
 	key <AD10> { [ Arabic_dammatan, Arabic_fathatan, Arabic_kasratan, Arabic_shadda ] };
 
 	key <AC01> { [ Arabic_seen, Arabic_sheen ] };
-	key <AC02> { [ Arabic_yeh ] };
-	key <AC03> { [ Arabic_beh ] };
-	key <AC04> { [ Arabic_lam ] };
+	key <AC02> { [ Arabic_yeh, Arabic_yeh ] };
+	key <AC03> { [ Arabic_beh, Arabic_beh ] };
+	key <AC04> { [ Arabic_lam, Arabic_lam ] };
 	key <AC05> { [ Arabic_alef, Arabic_hamzaonalef, Arabic_hamzaunderalef ] };
-	key <AC06> { [ Arabic_teh ] };
-	key <AC07> { [ Arabic_noon ] };
-	key <AC08> { [ Arabic_meem ] };
-	key <AC09> { [ Arabic_kaf ] };
+	key <AC06> { [ Arabic_teh, Arabic_teh ] };
+	key <AC07> { [ Arabic_noon, Arabic_noon ] };
+	key <AC08> { [ Arabic_meem, Arabic_meem ] };
+	key <AC09> { [ Arabic_kaf, Arabic_kaf ] };
 
 	key <AB01> { [ Arabic_dal, Arabic_thal ] };
-	key <AB02> { [ Arabic_hamza ] };
+	key <AB02> { [ Arabic_hamza, Arabic_hamza ] };
 	key <AB03> { [ Arabic_alefmaksura, Arabic_hamzaonyeh ] };
-	key <AB04> { [ Arabic_tehmarbuta ] };
+	key <AB04> { [ Arabic_tehmarbuta, Arabic_tehmarbuta ] };
 	key <AB05> { [ Arabic_waw, Arabic_hamzaonwaw ] };
 	key <AB06> { [ Arabic_ra, Arabic_zain ] };
 	key <AB07> { [ Arabic_tah, Arabic_zah ] };
