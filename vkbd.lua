@@ -177,6 +177,7 @@ local function drawKey(layoutIdx, row, col, drawChar)
         local isArabic = (layoutIdx == 3)  -- TODO: with customizable layouts, adapt
 
         local isFirstRow = (row == 1)
+        local isBackSpace = (row == 3 and col == ColumnCount)
         local isDotOrComma = (row == 4 and col >= ColumnCount - 1)
         local isIrregular = isFirstRow or isDotOrComma
         local isRegular = not isIrregular
@@ -186,7 +187,8 @@ local function drawKey(layoutIdx, row, col, drawChar)
         local level2CodePt = getCodePointAndKeySym(layoutIdx, row, col, 2)
 
         local ox, oy = getOrigin(row, col)
-        local x, y = ox + KeyWidth/2, oy + math.floor(2*KeyHeight/3)
+        local x = ox + KeyWidth/2
+        local y = oy + math.floor(2*KeyHeight/3) - (isBackSpace and 12 or 0)
 
         if (areLevelsOverlaid) then
             if (shiftCodePt ~= nil) then
@@ -198,7 +200,7 @@ local function drawKey(layoutIdx, row, col, drawChar)
         end
 
         -- Main character.
-        drawChar(x, y, codePt, false, nil)
+        drawChar(x, y, codePt, isBackSpace, nil)
 
         if (not areLevelsOverlaid) then
             if (isIrregular and shiftCodePt ~= nil) then

@@ -194,7 +194,7 @@ end
 -- Fixed-functionality mnemonics.
 for _, mnemonic in ipairs(FixedFunctionMnemonics) do
     mnemonics[#mnemonics + 1] = mnemonic
-    codePts[mnemonic] = 0
+    codePts[mnemonic] = (mnemonic == "BackSpace") and 0x232B or 0
 end
 
 table.sort(mnemonics)
