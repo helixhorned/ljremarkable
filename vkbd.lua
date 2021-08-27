@@ -49,6 +49,9 @@ local FullWidth = ColumnCount*KeyWidth
 local LastRowKeyCount = 5
 local HalfKeyWidth = KeyWidth / 2
 
+-- Only the inside area of a key rectangle is active.
+local InactiveMargin = 18  -- approx. 2 mm
+
 assert(KeyHeight % 4 == 0)
 assert(OriginY + FullHeight == ScreenHeight_rM - 4)
 assert(OriginX + FullWidth == ScreenWidth_rM - 84)
@@ -61,6 +64,7 @@ local g_currentLayoutIdx = 1
 
 local api = {
     OriginY = OriginY,
+    InactiveMargin = InactiveMargin,
     KeyHeight = KeyHeight,
     LayoutCount = LayoutCount,
     RightBorder = OriginX + FullWidth,
@@ -230,19 +234,16 @@ local function GetXBoundsOfLastRowKey(c)
         HalfKeyWidth*LastRowKeyBorders[c+1]
 end
 
--- Only the inside area of a key rectangle is active.
-local InactiveMargin = 18  -- approx. 2 mm
-
-local function IsInsideKeyExcludingMargin(isLastRow, dx, dy, c)
+local function IsInsideKeyExcludingMargin(isLastRow, dx, dy, c, margin)
     local remy = dy % KeyHeight
-    local ok = (remy >= InactiveMargin and remy < KeyHeight - InactiveMargin)
+    local ok = (remy >= margin and remy < KeyHeight - margin)
 
     if (not isLastRow) then
         local remx = dx % KeyWidth
-        ok = ok and (remx >= InactiveMargin and remx < KeyWidth - InactiveMargin)
+        ok = ok and (remx >= margin and remx < KeyWidth - margin)
     else
         local x1, x2 = GetXBoundsOfLastRowKey(c)
-        ok = ok and (dx >= x1 + InactiveMargin and dx <= x2 - InactiveMargin)
+        ok = ok and (dx >= x1 + margin and dx <= x2 - margin)
     end
 
     return ok
@@ -256,10 +257,13 @@ end
 --  If non-nil is returned, the second return value is a (conceptually opaque) marker that
 --  represents the partitioning of the chosen row and can be passed as <rowMarker> with a
 --  subsequent call.
-function api.checkCoords(x, y, rowMarker)
+function api.checkCoords(x, y, rowMarker, margin)
     assert(type(x) == "number")
     assert(type(y) == "number")
     assert(rowMarker == nil or type(rowMarker) == "boolean")
+    margin = (margin ~= nil) and margin or InactiveMargin
+    assert(type(margin) == "number")
+    assert(margin >= 0 and margin <= InactiveMargin)
 
     if (not (x >= OriginX and x < OriginX + FullWidth)) then
         return nil
@@ -285,7 +289,7 @@ function api.checkCoords(x, y, rowMarker)
         c = GetColumnForLastRow(hc)
     end
 
-    if (not IsInsideKeyExcludingMargin(isLastRow, dx, dy, c)) then
+    if (not IsInsideKeyExcludingMargin(isLastRow, dx, dy, c, margin)) then
         return nil
     end
 

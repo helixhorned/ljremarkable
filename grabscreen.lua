@@ -1291,8 +1291,8 @@ local function TrySwitchKeyboard(event)
     local ux = event.x - vkbd.RightBorder
     local unx = event.nx - vkbd.RightBorder
 
-    local keySpec = vkbd.checkCoords(ux, event.y)
-    local dstKeySpec = vkbd.checkCoords(unx, event.ny)
+    local keySpec = vkbd.checkCoords(ux, event.y, nil, vkbd.InactiveMargin/4)
+    local dstKeySpec = vkbd.checkCoords(unx, event.ny, nil, vkbd.InactiveMargin/4)
 
     if (keySpec == nil or dstKeySpec == nil or keySpec.r ~= vkbd.RowCount - 1) then
         return nil
