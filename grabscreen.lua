@@ -1327,12 +1327,12 @@ local function TryVirtualKeyboard(event, blinkKeyFunc)
         return (event.nx >= vkbd.RightBorder) and TrySwitchKeyboard(event) or nil
     end
 
-    local keySpec = vkbd.checkCoords(event.x, event.y)
+    local keySpec, rowMarker = vkbd.checkCoords(event.x, event.y)
     if (keySpec == nil or keySpec.r == -1) then
         return nil
     end
 
-    local dstKeySpec = isDrag and vkbd.checkCoords(event.nx, event.ny) or nil
+    local dstKeySpec = isDrag and vkbd.checkCoords(event.nx, event.ny, rowMarker) or nil
     local level = 0
 
     if (isDrag) then
@@ -1346,10 +1346,8 @@ local function TryVirtualKeyboard(event, blinkKeyFunc)
             isDrag = false
             dstKeySpec = nil
         elseif (dstKeySpec.r == keySpec.r - 1) then
-            -- TODO: dragging: fix one-up from 'Space' (which is special, being wider).
             level = 1
         elseif (dstKeySpec.r == keySpec.r + 1) then
-            -- TODO: dragging: fix one-down from ','/'.' (special: into bottommost row).
             level = 2
         elseif (dstKeySpec.r == keySpec.r + 2) then
             level = 3

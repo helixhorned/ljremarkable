@@ -136,9 +136,12 @@ local function getCodePointAndKeySym(layoutIdx, row, col, level)
     local layout = getLayout(layoutIdx)
     local mnemonic =
         (row == 3 and col == ColumnCount) and (
-            level == 0 and "BackSpace" or "Delete") or
-        (row == RowCount and level == 0) and (
-            col == 3 and (level == 0 and "space" or "Tab") or
+            level == 0 and "BackSpace" or
+            level == 1 and "Delete" or
+            nil) or
+        (row == RowCount) and (
+            col == 3 and (level == 0 and "space" or
+                          level == 1 and "Tab") or
             col == 5 and level == 0 and "Return" or
             nil) or
         layout[k]
@@ -250,9 +253,14 @@ end
 --  key_spec_t: x/y represent the active region of an on-screen keyboard key
 --    or that of an imagined key in the row above the topmost one (<return>.r == -1)
 --  nil: otherwise
-function api.checkCoords(x, y)
+--
+--  If non-nil is returned, the second return value is a (conceptually opaque) marker that
+--  represents the partitioning of the chosen row and can be passed as <rowMarker> with a
+--  subsequent call.
+function api.checkCoords(x, y, rowMarker)
     assert(type(x) == "number")
     assert(type(y) == "number")
+    assert(rowMarker == nil or type(rowMarker) == "boolean")
 
     if (not (x >= OriginX and x < OriginX + FullWidth)) then
         return nil
@@ -267,7 +275,10 @@ function api.checkCoords(x, y)
     local row, col = r + 1, c + 1
     assert(row >= 0 and row <= RowCount and col >= 1 and col <= ColumnCount)
 
-    local isLastRow = (row == RowCount)
+    local isLastRow = rowMarker
+    if (isLastRow == nil) then
+        isLastRow = (row == RowCount)
+    end
 
     if (isLastRow) then
         local hc = math.floor(dx / HalfKeyWidth)
@@ -279,7 +290,7 @@ function api.checkCoords(x, y)
         return nil
     end
 
-    return key_spec_t(r, c)
+    return key_spec_t(r, c), isLastRow
 end
 
 function api.blinkKey(keySpec, flashingRefresh)
