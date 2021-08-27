@@ -39,6 +39,6 @@ xkb_symbols "ljrM" {
 	key <AB05> { [ Armenian_ben, Armenian_BEN ] };
 	key <AB06> { [ Armenian_nu, Armenian_NU ] };
 	key <AB07> { [ Armenian_men, Armenian_MEN ] };
-	key <AB08> { [ comma, period, apostrophe ] };
-	key <AB09> { [ Armenian_full_stop, Armenian_separation_mark, Armenian_apostrophe ] };
+	key <AB08> { [ comma, period, guillemotleft ] };
+	key <AB09> { [ Armenian_full_stop, Armenian_separation_mark, guillemotright ] };
 };
