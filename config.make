@@ -13,7 +13,7 @@ LJREMARKABLE_ALLOW_EXT_FONTS ?= 0
 # See ./mklayout.lua
 
 # Fixed ones, committed to the repo.
-fixed_layouts := Latn.ljrM Armn.ljrM
+fixed_layouts := Latn.ljrM Armn.ljrM Arab.ljrM
 # User-defined, only used when LJREMARKABLE_ALLOW_EXT_FONTS is not 0
 LJREMARKABLE_USER_LAYOUTS ?=
 
