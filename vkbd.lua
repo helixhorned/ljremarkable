@@ -171,20 +171,19 @@ local function drawKey(layoutIdx, row, col, drawChar)
 
     if (codePt ~= nil) then
         local ox, oy = getOrigin(row, col)
-        drawChar(ox + KeyWidth/2, oy + math.floor(2*KeyHeight/3), codePt, false)
+        drawChar(ox + KeyWidth/2, oy + math.floor(2*KeyHeight/3), codePt, false, false)
 
         if (row == 1 or (row == 4 and col >= ColumnCount - 1)) then
             local shiftCodePt = getCodePointAndKeySym(layoutIdx, row, col, 1)
             if (shiftCodePt ~= nil) then
-                drawChar(ox + 3*KeyWidth/4, oy + math.floor(KeyHeight/3), shiftCodePt, true)
+                drawChar(ox + 3*KeyWidth/4, oy + math.floor(KeyHeight/3), shiftCodePt, true, false)
             end
         end
 
-        if (row ~= 1) then
-            local level2CodePt = getCodePointAndKeySym(layoutIdx, row, col, 2)
-            if (level2CodePt ~= nil) then
-                drawChar(ox + math.floor(4*KeyWidth/5), oy + math.floor(5*KeyHeight/6), level2CodePt, true)
-            end
+        local level2CodePt = getCodePointAndKeySym(layoutIdx, row, col, 2)
+        if (level2CodePt ~= nil) then
+            local gray = (row == 1)
+            drawChar(ox + math.floor(4*KeyWidth/5), oy + math.floor(5*KeyHeight/6), level2CodePt, true, gray)
         end
     end
 end

@@ -1738,6 +1738,8 @@ local function RGB565(r, g, b)
     return b + 32*g + 32*64*r
 end
 
+local CoverageToGrayPix = charpics.MakeCovToPixFunc(0.66)
+
 -- KEEPINSYNC mkcharpics.lua
 local CODEPOINT_PLANE_STRIDE = 0x200000
 
@@ -1814,9 +1816,9 @@ Server = class
             map:fill(x, y, 1, height, PixValue)
         end
 
-        local function drawChar(x, y, codePt, small)
+        local function drawChar(x, y, codePt, small, gray)
             local codePtOffset = small and CODEPOINT_PLANE_STRIDE or 0
-            self.charRenderer:drawChar(x, y, codePt + codePtOffset, true)
+            self.charRenderer:drawChar(x, y, codePt + codePtOffset, true, gray and CoverageToGrayPix or nil)
         end
 
         local x, y = 0, vkbd.OriginY

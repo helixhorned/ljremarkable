@@ -372,11 +372,20 @@ local function RGB565(r, g, b)
     return b + 32*g + 32*64*r
 end
 
--- NOTE: this really belongs to the site where class 'Renderer' is used, but for
---  convenience, have it here for now.
 local function CoverageToRGB565(cov)
     local gray = 31 - cov
     return RGB565(gray, 2*gray, gray)
+end
+
+function api.MakeCovToPixFunc(factor)
+    assert(type(factor) == "number")
+    assert(factor > 0.0 and factor <= 1.0)
+
+    return (factor == 1.0) and CoverageToRGB565 or
+        function(cov)
+           local gray = 31 - math.floor(factor * cov)
+           return RGB565(gray, 2*gray, gray)
+        end
 end
 
 api.Renderer = class
@@ -401,13 +410,15 @@ api.Renderer = class
         }
     end,
 
-    drawChar = function(self, x, yForBaseline, proCodePoint, centerInX)
+    drawChar = function(self, x, yForBaseline, proCodePoint, centerInX, coverageToRGB565)
         -- The passed coordinates have to be inside bounds.
         self.map:getPixelPointer(x, yForBaseline)
 
         checktype(proCodePoint, 3, "number", 2)
         centerInX = (centerInX ~= nil) and centerInX or false
         checktype(centerInX, 4, "boolean", 3)
+        coverageToRGB565 = (coverageToRGB565 ~= nil) and coverageToRGB565 or CoverageToRGB565
+        checktype(coverageToRGB565, 5, "function", 3)
 
         local proDesc, proData = self.pics:descAndData(proCodePoint)
 
@@ -437,7 +448,7 @@ api.Renderer = class
         end
 
         local ptr = self.map:getPixelPointer(x, topY)
-        Decode(data, desc.comprSize, desc.w, desc.h, ptr, self.map.xres_virtual, CoverageToRGB565)
+        Decode(data, desc.comprSize, desc.w, desc.h, ptr, self.map.xres_virtual, coverageToRGB565)
 
         return x, endX, topY, botY
     end,
