@@ -190,25 +190,25 @@ local function drawKey(layoutIdx, row, col, drawChar)
 
         if (areLevelsOverlaid) then
             if (shiftCodePt ~= nil) then
-                drawChar(x, y, shiftCodePt, false, true)
+                drawChar(x, y, shiftCodePt, false, 50)
             end
             if (level2CodePt ~= nil) then
-                drawChar(x, y, level2CodePt, false, true)
+                drawChar(x, y, level2CodePt, false, 50)
             end
         end
 
         -- Main character.
-        drawChar(x, y, codePt, false, false)
+        drawChar(x, y, codePt, false, nil)
 
         if (not areLevelsOverlaid) then
             if (isIrregular and shiftCodePt ~= nil) then
                 -- Shifted -> small character in the upper right corner.
-                drawChar(ox + 3*KeyWidth/4, oy + math.floor(KeyHeight/3), shiftCodePt, true, false)
+                drawChar(ox + 3*KeyWidth/4, oy + math.floor(KeyHeight/3), shiftCodePt, true, nil)
             end
 
             if (level2CodePt ~= nil) then
                 -- 2nd-level -> small character in the lower right corner.
-                local gray = (row == 1)
+                local gray = (row == 1) and 66 or nil
                 drawChar(ox + math.floor(4*KeyWidth/5), oy + math.floor(5*KeyHeight/6), level2CodePt, true, gray)
             end
         end
