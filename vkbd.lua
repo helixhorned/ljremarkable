@@ -174,18 +174,28 @@ local function drawKey(layoutIdx, row, col, drawChar)
     local codePt = getCodePointAndKeySym(layoutIdx, row, col, 0)
 
     if (codePt ~= nil) then
-        local ox, oy = getOrigin(row, col)
-        drawChar(ox + KeyWidth/2, oy + math.floor(2*KeyHeight/3), codePt, false, false)
+        local isFirstRow = (row == 1)
+        local isDotOrComma = (row == 4 and col >= ColumnCount - 1)
+        local isIrregular = isFirstRow or isDotOrComma
 
-        if (row == 1 or (row == 4 and col >= ColumnCount - 1)) then
-            local shiftCodePt = getCodePointAndKeySym(layoutIdx, row, col, 1)
+        local shiftCodePt = getCodePointAndKeySym(layoutIdx, row, col, 1)
+        local level2CodePt = getCodePointAndKeySym(layoutIdx, row, col, 2)
+
+        local ox, oy = getOrigin(row, col)
+        local x, y = ox + KeyWidth/2, oy + math.floor(2*KeyHeight/3)
+
+        -- Main character.
+        drawChar(x, y, codePt, false, false)
+
+        if (isIrregular) then
             if (shiftCodePt ~= nil) then
+                -- Shifted -> small character in the upper right corner.
                 drawChar(ox + 3*KeyWidth/4, oy + math.floor(KeyHeight/3), shiftCodePt, true, false)
             end
         end
 
-        local level2CodePt = getCodePointAndKeySym(layoutIdx, row, col, 2)
         if (level2CodePt ~= nil) then
+            -- 2nd-level -> small character in the lower right corner.
             local gray = (row == 1)
             drawChar(ox + math.floor(4*KeyWidth/5), oy + math.floor(5*KeyHeight/6), level2CodePt, true, gray)
         end
