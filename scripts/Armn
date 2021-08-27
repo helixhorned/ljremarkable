@@ -1,15 +1,15 @@
 default _
 xkb_symbols "ljrM" {
-	key <AE01> { [ 1, Armenian_exclam, Armenian_question, Armenian_accent ] };
-	key <AE02> { [ 2, at ] };
-	key <AE03> { [ 3, numbersign ] };
-	key <AE04> { [ 4, dollar ] };
-	key <AE05> { [ 5, percent ] };
-	key <AE06> { [ 6, asciicircum ] };
-	key <AE07> { [ 7, ampersand ] };
-	key <AE08> { [ 8, asterisk, slash ] };
-	key <AE09> { [ 9, parenleft, less ] };
-	key <AE10> { [ 0, parenright, greater ] };
+	key <AE01> { [ 1, Armenian_exclam, Armenian_question ] };
+	key <AE02> { [ 2, at, Armenian_accent ] };
+	key <AE03> { [ 3, numbersign, asciitilde ] };
+	key <AE04> { [ 4, dollar, equal ] };
+	key <AE05> { [ 5, percent, slash, backslash ] };
+	key <AE06> { [ 6, asciicircum, minus, underscore ] };
+	key <AE07> { [ 7, ampersand, bar, bracketleft ] };
+	key <AE08> { [ 8, asterisk, plus, bracketright ] };
+	key <AE09> { [ 9, parenleft, less, braceleft ] };
+	key <AE10> { [ 0, parenright, greater, braceright ] };
 
 	key <AD01> { [ Armenian_tsa, Armenian_TSA, Armenian_dza, Armenian_DZA ] };
 	key <AD02> { [ Armenian_vo, Armenian_VO, Armenian_o, Armenian_O ] };

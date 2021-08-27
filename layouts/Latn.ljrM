@@ -7,33 +7,45 @@ return {
  --
  [20]="2",
  [21]="at",
+ [22]="grave",
  --
  [30]="3",
  [31]="numbersign",
+ [32]="asciitilde",
  --
  [40]="4",
  [41]="dollar",
+ [42]="equal",
  --
  [50]="5",
  [51]="percent",
+ [52]="slash",
+ [53]="backslash",
  --
  [60]="6",
  [61]="asciicircum",
+ [62]="minus",
+ [63]="underscore",
  --
  [70]="7",
  [71]="ampersand",
+ [72]="bar",
+ [73]="bracketleft",
  --
  [80]="8",
  [81]="asterisk",
- [82]="slash",
+ [82]="plus",
+ [83]="bracketright",
  --
  [90]="9",
  [91]="parenleft",
  [92]="less",
+ [93]="braceleft",
  --
  [100]="0",
  [101]="parenright",
  [102]="greater",
+ [103]="braceright",
  --
 
  [110]="q",

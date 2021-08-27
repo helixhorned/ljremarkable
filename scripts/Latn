@@ -1,18 +1,15 @@
 default _
 xkb_symbols "ljrM" {
-	key <TLDE> { [ grave, asciitilde ] };
 	key <AE01> { [ 1, exclam, question ] };
-	key <AE02> { [ 2, at ] };
-	key <AE03> { [ 3, numbersign ] };
-	key <AE04> { [ 4, dollar ] };
-	key <AE05> { [ 5, percent ] };
-	key <AE06> { [ 6, asciicircum ] };
-	key <AE07> { [ 7, ampersand ] };
-	key <AE08> { [ 8, asterisk, slash ] };
-	key <AE09> { [ 9, parenleft, less ] };
-	key <AE10> { [ 0, parenright, greater ] };
-	key <AE11> { [ minus, underscore ] };
-	key <AE12> { [ equal, plus ] };
+	key <AE02> { [ 2, at, grave ] };
+	key <AE03> { [ 3, numbersign, asciitilde ] };
+	key <AE04> { [ 4, dollar, equal ] };
+	key <AE05> { [ 5, percent, slash, backslash ] };
+	key <AE06> { [ 6, asciicircum, minus, underscore ] };
+	key <AE07> { [ 7, ampersand, bar, bracketleft ] };
+	key <AE08> { [ 8, asterisk, plus, bracketright ] };
+	key <AE09> { [ 9, parenleft, less, braceleft ] };
+	key <AE10> { [ 0, parenright, greater, braceright ] };
 
 	key <AD01> { [ q, Q ] };
 	key <AD02> { [ w, W ] };
@@ -24,8 +21,6 @@ xkb_symbols "ljrM" {
 	key <AD08> { [ i, I ] };
 	key <AD09> { [ o, O ] };
 	key <AD10> { [ p, P ] };
-	key <AD11> { [ bracketleft, braceleft ] };
-	key <AD12> { [ bracketright, braceright ] };
 
 	key <AC01> { [ a, A ] };
 	key <AC02> { [ s, S ] };
@@ -46,6 +41,4 @@ xkb_symbols "ljrM" {
 	key <AB07> { [ m, M ] };
 	key <AB08> { [ comma, semicolon, apostrophe ] };
 	key <AB09> { [ period, colon, quotedbl ] };
-
-	key <BKSL> { [ backslash, bar ] };
 };
