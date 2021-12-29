@@ -33,7 +33,7 @@ Requirements
 ------------
 
 * reMarkable 1 tablet <sup>**[r1]**</sup>
-* Raspberry Pi 4 running 32-bit [Raspberry Pi OS] <sup>**[r2]**</sup>
+* Raspberry Pi 4 running [Raspberry Pi OS] <sup>**[r2]**</sup>
 * [LuaJIT] 2.1
 
 <sup>**[r1]**</sup> <small>Support for the reMarkable 2 is not yet implemented.</small>
@@ -73,7 +73,7 @@ enabled on the Pi 4: in
 the line starting with `dtoverlay` in
 
     [pi4]
-    # Enable DRM VC4 V3D driver on top of the dispmanx display stack
+    # Enable DRM VC4 V3D driver
     dtoverlay=vc4-fkms-v3d
 
 has to be commented out.
@@ -110,11 +110,11 @@ suggests better chance of working with thicker, shorter cables. On my Pi 4 (but 
 
 A successful wired link looks like this in `dmesg`:
 
-    usb 1-1.1: new high-speed USB device number 10 using xhci_hcd
-    usb 1-1.1: New USB device found, idVendor=04b3, idProduct=4010, bcdDevice= 4.09
+    usb 1-1.1: new high-speed USB device number 8 using xhci_hcd
+    usb 1-1.1: New USB device found, idVendor=04b3, idProduct=4010, bcdDevice= 5.04
     usb 1-1.1: New USB device strings: Mfr=1, Product=2, SerialNumber=0
     usb 1-1.1: Product: RNDIS/Ethernet Gadget
-    usb 1-1.1: Manufacturer: Linux 4.9.84-zero-gravitas with 2184000.usb
+    usb 1-1.1: Manufacturer: Linux 5.4.70-v1.1.5-rm10x with 2184000.usb
     cdc_ether 1-1.1:1.0 usb0: register 'cdc_ether' at usb-0000:01:00.0-1.1, CDC Ethernet Device, <MAC address>
 
 For the best experience, it makes sense to set up the Raspberry Pi as a wireless access
