@@ -127,41 +127,9 @@ Installation
 
 The application is implemented entirely in Lua with heavy usage of LuaJIT's FFI.
 
-It is possible to use the binary from the Raspberry Pi OS `luajit` APT package on the reMarkable.
-
-#### Comparison of `/proc/cpuinfo`
-
-| | reMarkable 1 | Raspberry Pi 4 |
-| --- | --- | --- |
-| `model name`       |  `ARMv7 Processor rev 10 (v7l)`                       | `ARMv7 Processor rev 3 (v7l)` |
-| `Features`         |  `half thumb fastmult vfp edsp neon vfpv3 tls vfpd32` | additionally: `vfpv4 idiva idivt lpae evtstrm crc32` |
-| `CPU implementer`  |  `0x41`                                               | same |
-| `CPU architecture` |  `7`                                                  | same |
-| `CPU variant`      |  `0x2`                                                | `0x0` |
-| `CPU part`         |  `0xc09`                                              | `0xd08` |
-| `CPU revision`     |  `10`                                                 | `3` |
-
-On the Pi, `lscpu` gives:
-
-    Vendor ID:           ARM
-    Model:               3
-    Model name:          Cortex-A72
+> **TODO**: document build and installation using Docker, which is the preferred way.
 
 ### Packaging the application
-
-[musl]: https://musl.libc.org/
-[Alpine Linux]: https://alpinelinux.org/
-[Alpine Docker image]: https://hub.docker.com/_/alpine
-
-The final application is bundled into a single file `grabscreen.app.lua`, obtained by
-invoking `make app`.
-
-> **TODO**: document prerequisites.
-
-For the time being, please refer to the [`Dockerfile`](./Dockerfile). Since it describes an
-environment under the [musl]-based [Alpine Linux] distribution (using an official [Alpine
-Docker image]), slight adjustments are made relative to a build under Raspberry Pi OS.
-The `grabscreen.app.lua` resulting from the Docker build **cannot** be used.
 
 ### Placing files
 
