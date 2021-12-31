@@ -229,7 +229,7 @@ here be called *view* for brevity.
   client to re-send the complete screen contents. Useful after an accidental page change, or
   when artifacts have accumulated on the rM screen and one wishes to refresh the view.
 
-* Drag with a single finger from the top right corner to the bottom right corner of the rM
+* Drag with a single finger from the top right corner to the bottom left corner of the rM
   screen: shut down the connection and exit the application.
 
 **<sup>[u1]</sup>** This is exactly reverse to the notion of the server being side that is

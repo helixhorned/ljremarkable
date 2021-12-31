@@ -1496,8 +1496,8 @@ local InputState = class
 
                 local msSinceTap = currentTimeMs() - self.lastFirstPressedTime
                 self.isShutdownGesture = self:isStartShutdownGesturePos()
-                self.onlyVerticalDrag = (msSinceTap < Duration.GenericDragTapWait) or
-                    self.isShutdownGesture
+                self.onlyVerticalDrag = (msSinceTap < Duration.GenericDragTapWait) and
+                    not self.isShutdownGesture
                 return i + 1
             end
         end
@@ -1512,7 +1512,7 @@ local InputState = class
 
     isEndShutdownGesturePos = function(self)
         local sx, sy = ConvertMtToScreen(self.ourData[0].nx, self.ourData[0].ny)
-        return (sx >= ScreenWidth_rM - EyeSize_rM and sy >= ScreenHeight_rM - EyeSize_rM)
+        return (sx < EyeSize_rM and sy >= ScreenHeight_rM - EyeSize_rM)
     end,
 
     initOurData = function(self, eventTriple)
