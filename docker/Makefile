@@ -149,6 +149,7 @@ ifeq ($(host_distro_supported),)
 else
 ifneq ($(native_arch)-$(host_distro),arm32v7-debian)
 	IMAGE=ljremarkable-dev-$(native_arch)/$(host_distro) $(MAKE) --silent get-artifacts
+	@test -d "$(BINDIR)" || (echo 'ERROR: "$(BINDIR)" is not a directory.' && false)
 	install $(_native_app_path) $(BINDIR)
 	install $(THIS_DIR)/../pi-rM-control.sh $(BINDIR)
 endif
