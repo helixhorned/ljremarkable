@@ -47,13 +47,6 @@ RUN sed -i 's|https://github.com/helixhorned/ljclang|../ljclang|g' .gitmodules
 RUN git submodule init
 RUN git submodule update ljclang
 
-# Avoid checking out the whole libremarkable repository. We only need one header.
-RUN mkdir -p libremarkable/legacy-c-impl/libremarkable
-WORKDIR libremarkable/legacy-c-impl/libremarkable
-RUN wget https://raw.githubusercontent.com/canselcik/libremarkable/master/legacy-c-impl/libremarkable/lib.h
-RUN sha256sum lib.h | grep -q 2e718a10e9c47e4cde5387e834b1a0d76964378cf6247e8e045bf92f6d1a6db4
-WORKDIR ../../..
-
 # For arm32v7/debian, make sure the font to generate .charpics from is available:
 RUN git submodule update fonts/quicksand
 

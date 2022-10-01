@@ -160,7 +160,7 @@ $(linux_decls_lua): ensure_extractdecls $(linux_fb_h) Makefile
 
 # reMarkable ioctl structures / enums exposed to us
 
-remarkable_lib_h := ./libremarkable/legacy-c-impl/libremarkable/lib.h
+remarkable_lib_h := ./libremarkable-extract/legacy-c-impl/libremarkable/lib.h
 
 # NOTE: inline the ioctl reMarkable prefix.
 # From $(libremarkable_lib_h):
