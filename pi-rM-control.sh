@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: MIT
 
-# Expectation: the desided default IP address of the rM has been added to /etc/hosts.
+# Expectation: the desired default IP address of the rM has been added to /etc/hosts.
 DEFAULT_REMARKABLE_HOST=remarkable
 
 if [ -z "$1" ]; then
@@ -9,6 +9,22 @@ if [ -z "$1" ]; then
     echo " * --use-blinkt: use the Pimoroni Blinkt! LED array via 'python3'"
     echo " * <rM-host> defaults to '$DEFAULT_REMARKABLE_HOST'"
     exit 1
+fi
+
+LUAJIT=luajit
+luajit=$(which luajit)
+
+if [ -z "$luajit" ]; then
+	echo "ERROR: missing program 'luajit'."
+	exit 3
+fi
+
+ThisDir=$(dirname "$0")
+grabscreen_app="$ThisDir/grabscreen.app.lua"
+
+if [ ! -x "$grabscreen_app" ]; then
+    echo "ERROR: '$grabscreen_app' is not present or not executable."
+    exit 3
 fi
 
 useBlinkt=false
@@ -168,11 +184,11 @@ exitCode1=$?
 
 if [ $exitCode1 == 0 ]; then
     # Start client which must previously have been installed.
-    grabscreen.app.lua --fork "c+$portOffset" "$rMHost"
+    "$grabscreen_app" --fork "c+$portOffset" "$rMHost"
     exitCode2=$?
 fi
 
-# Signal via LEDs.
+# Signal success/error status via LEDs.
 
 if [[ $exitCode1 -eq 0 && $exitCode2 -eq 0 ]]; then
     led_ramp_fixed_and_cycle g 0 g 16 3.5
