@@ -315,7 +315,7 @@ Acknowledgements
 License
 -------
 
-Copyright (C) 2019-2021 Philipp Kutin.
+Copyright (C) 2019-2025 Philipp Kutin.
 
 The application `grabscreen.lua`, including several of its modules, is distributed under the
 terms of the GPL 3.0 license, with the option of choosing a later version. See
