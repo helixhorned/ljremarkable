@@ -32,7 +32,7 @@ session.
 Requirements
 ------------
 
-* reMarkable 1 tablet <sup>**[r1]**</sup>
+* reMarkable 1 tablet **running !!!obsolete!!! software version 2.13.0.758** <sup>**[r1]**</sup>
 * Raspberry Pi 4 running [Raspberry Pi OS] <sup>**[r2]**</sup>
 * [LuaJIT] 2.1
 
