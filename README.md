@@ -29,6 +29,10 @@ historical reasons, allows you to view the content of your screen on the rM as w
 input from the tablet and translate it to mouse events in a Raspberry Pi OS desktop user
 session.
 
+Directory [`stream`](stream) contains a pair of shell scripts implementing periodic
+streaming of the reMarkable 2 framebuffer to the local host, which is then rendered using
+`ffplay` of FFmpeg.
+
 Requirements
 ------------
 
