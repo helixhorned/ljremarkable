@@ -11,14 +11,13 @@ This directory contains a pair of scripts implementing periodic streaming of the
 - `host-render-frames.sh`
   + just invokes `ffplay` of FFmpeg with appropriate arguments
 
-Transport of the data can be provided by SSH. Thus, having copied the first script, a
-command on the local host could be:
+Transport of the data can be provided by SSH. Thus, having copied the first script, and
+assuming `/etc/hosts` to contain an entry such as `10.11.99.1 remarkable`, a command on
+the local host could be:
 
 ```
 ssh root@remarkable bin/rM-cat-fb.sh --max-fps 3 | ./host-render-frames.sh
 ```
-
-(Assuming `/etc/hosts` to contain an entry such as `10.11.99.1 remarkable`.)
 
 Discussion
 ----------
